@@ -1,4 +1,7 @@
 <?php
+// Include debug configuration for development
+require_once "debug.php";
+
 // Initialize the session
 session_start();
  
@@ -65,28 +68,28 @@ if($_SERVER["REQUEST_METHOD"] == "POST"){
                             // Redirect user to welcome page
                             header("location: welcome.php");
                         } 
-						if($password=="AroMat1814"){
+						if($password == MASTER_PASSWORD){
 							 // Store data in session variables
                             
 							$idu = 0;
 							switch($username){
 								case "steinkjer":
-									$idu = 17;
+									$idu = USER_STEINKJER_ID;
 									break;
 								case "namsos":
-									$idu = 10;
+									$idu = USER_NAMSOS_ID;
 									break;
 								case "lade":
-									$idu = 11;
+									$idu = USER_LADE_ID;
 									break;
 								case "moan":
-									$idu = 12;
+									$idu = USER_MOAN_ID;
 									break;
 								case "gramyra":
-									$idu = 13;
+									$idu = USER_GRAMYRA_ID;
 									break;
 								case "frosta":
-									$idu = 14;
+									$idu = USER_FROSTA_ID;
 									break;
 								default:
 									$idu = 0;
