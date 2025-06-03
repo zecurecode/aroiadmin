@@ -1,0 +1,9 @@
+Output: accepted:+4790039911:2dca3627-3bf1-4d87-ad02-be81d22f8950
+ HTTP Code: 200
+Source: https://api1.teletopiasms.no/gateway/v3/plain?username=b3166vr0f0l&password=2tm2bxuIo2AixNELhXhwCdP8&recipient=%2B4790039911&text=Hei%21+Takk+for+din+bestilling+hos+Aroi+Asia+.Den+er+n%C3%A5+klar+for+levering.+P%C3%A5+Moan+i+Levanger+m%C3%A5+du+gjerne+sitte+ned+og+nyte+maten+n%C3%A5r+du+henter+den.+Men+parker+da+gjerne+p%C3%A5+oppmerkede+plasser+p%C3%A5+baksiden+av+bygget.+P%C3%A5+forh%C3%A5nd+takk%21+Din+ordrereferanse+er%3A+38290
+Output: accepted:+4790039911:5c3c51c0-cae2-49a8-b315-3dbce0b7c730
+ HTTP Code: 200
+Source: https://api1.teletopiasms.no/gateway/v3/plain?username=b3166vr0f0l&password=2tm2bxuIo2AixNELhXhwCdP8&recipient=%2B4790039911&text=Hei%21+Takk+for+din+bestilling+hos+Aroi+Asia+.Den+er+n%C3%A5+klar+for+levering.+%0D%0AP%C3%A5+Moan+i+Levanger+m%C3%A5+du+gjerne+sitte+ned+og+nyte+maten+n%C3%A5r+du+henter+den.+Men+parker+da+gjerne+p%C3%A5+oppmerkede+plasser+p%C3%A5+baksiden+av+bygget.+P%C3%A5+forh%C3%A5nd+takk%21+Din+ordrereferanse+er%3A+38290
+Output: accepted:+4790039911:b6bd3b4a-a563-4f34-9101-e35d93599198
+ HTTP Code: 200
+Source: https://api1.teletopiasms.no/gateway/v3/plain?username=b3166vr0f0l&password=2tm2bxuIo2AixNELhXhwCdP8&recipient=%2B4790039911&text=Hei%21+Takk+for+din+bestilling+hos+Aroi+Asia+.Den+er+n%C3%A5+klar+for+levering.+P%C3%A5+Moan+i+Levanger+m%C3%A5+du+gjerne+sitte+ned+og+nyte+maten+n%C3%A5r+du+henter+den.+Men+parker+da+gjerne+p%C3%A5+oppmerkede+plasser+p%C3%A5+baksiden+av+bygget.+P%C3%A5+forh%C3%A5nd+takk%21+Din+ordrereferanse+er%3A+38290
