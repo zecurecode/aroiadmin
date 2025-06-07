@@ -10,8 +10,8 @@
 //}
 
 function database($sql){
-
-	$servername = "localhost:3306";
+//141.94.143.8
+	$servername = "141.94.143.8:3306";
 	$username = "adminaroi";
 	$password = "b^754Xws";
 	$dbname = "admin_aroi";
