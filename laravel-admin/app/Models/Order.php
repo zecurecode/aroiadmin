@@ -9,30 +9,44 @@ class Order extends Model
 {
     use HasFactory;
 
+    public $timestamps = false; // The original table doesn't have Laravel timestamps
+
     protected $fillable = [
         'fornavn',
         'etternavn',
         'telefon',
         'ordreid',
         'ordrestatus',
-        'epost',
         'curl',
-        'site',
-        'paid',
-        'sms',
         'curltime',
         'datetime',
+        'epost',
+        'site',
+        'paid',
+        'wcstatus',
+        'payref',
+        'seordre',
+        'paymentmethod',
+        'hentes',
+        'sms'
     ];
 
     protected $casts = [
-        'paid' => 'boolean',
-        'sms' => 'boolean',
-        'ordrestatus' => 'integer',
-        'curl' => 'integer',
-        'site' => 'integer',
         'ordreid' => 'integer',
+        'site' => 'integer',
+        'paid' => 'boolean',
+        'seordre' => 'integer',
+        'sms' => 'integer',
         'datetime' => 'datetime',
         'curltime' => 'datetime',
+    ];
+
+    /**
+     * The attributes that should be cast to native types.
+     */
+    protected $dates = [
+        'datetime',
+        'curltime'
     ];
 
     /**
@@ -52,6 +66,14 @@ class Order extends Model
     }
 
     /**
+     * Get the department/avdeling for this order.
+     */
+    public function avdeling()
+    {
+        return $this->belongsTo(Avdeling::class, 'site', 'siteid');
+    }
+
+    /**
      * Scope for unpaid orders.
      */
     public function scopeUnpaid($query)
@@ -64,7 +86,7 @@ class Order extends Model
      */
     public function scopePending($query)
     {
-        return $query->where('ordrestatus', 0);
+        return $query->where('ordrestatus', '1');
     }
 
     /**
@@ -72,7 +94,23 @@ class Order extends Model
      */
     public function scopeNotSentToPOS($query)
     {
-        return $query->where('curl', 0);
+        return $query->where('curl', '');
+    }
+
+    /**
+     * Scope for orders that need to be seen.
+     */
+    public function scopeNeedToSee($query)
+    {
+        return $query->where('seordre', 0);
+    }
+
+    /**
+     * Scope for orders that haven't received SMS.
+     */
+    public function scopeNoSMS($query)
+    {
+        return $query->where('sms', 0);
     }
 
     /**
@@ -81,5 +119,45 @@ class Order extends Model
     public function getFullNameAttribute()
     {
         return $this->fornavn . ' ' . $this->etternavn;
+    }
+
+    /**
+     * Check if order is paid.
+     */
+    public function isPaid()
+    {
+        return $this->paid == 1;
+    }
+
+    /**
+     * Check if order has been sent to POS.
+     */
+    public function isSentToPOS()
+    {
+        return !empty($this->curl) && $this->curl !== '0';
+    }
+
+    /**
+     * Check if SMS has been sent.
+     */
+    public function hasSMSBeenSent()
+    {
+        return $this->sms == 1;
+    }
+
+    /**
+     * Mark order as seen.
+     */
+    public function markAsSeen()
+    {
+        return $this->update(['seordre' => 1]);
+    }
+
+    /**
+     * Mark SMS as sent.
+     */
+    public function markSMSAsSent()
+    {
+        return $this->update(['sms' => 1]);
     }
 }

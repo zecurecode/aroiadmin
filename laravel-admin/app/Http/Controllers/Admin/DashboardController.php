@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 use App\Models\User;
 use App\Models\Site;
+use Illuminate\Support\Facades\Log;
 
 class DashboardController extends Controller
 {
@@ -19,7 +20,23 @@ class DashboardController extends Controller
      */
     public function index()
     {
+        // DEBUG: Log detailed auth status
+        Log::info('=== ADMIN DASHBOARD ACCESS ===', [
+            'auth_check' => Auth::check(),
+            'auth_user_null' => Auth::user() === null,
+            'auth_id' => Auth::user() ? Auth::user()->id : 'null',
+            'session_id' => session()->getId(),
+            'session_has_auth' => session()->has(Auth::guard('web')->getName()),
+            'session_auth_value' => session()->get(Auth::guard('web')->getName())
+        ]);
+
         $user = Auth::user();
+
+        if (!$user) {
+            Log::info('Dashboard redirecting to login - no authenticated user');
+            return redirect('/login')->withErrors(['error' => 'Authentication required']);
+        }
+
         $userSiteId = $user->siteid;
 
         // Get statistics for user's location (or all locations for admin)

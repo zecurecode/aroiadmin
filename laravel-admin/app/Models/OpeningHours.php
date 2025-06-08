@@ -10,34 +10,73 @@ class OpeningHours extends Model
     use HasFactory;
 
     protected $table = 'apningstid';
+    public $timestamps = false; // The original table doesn't have timestamps
 
     protected $fillable = [
+        'userid',
         'day',
-        'opennamsos',
-        'closenamsos',
-        'statusnamsos',
-        'notesnamsos',
         'openlade',
         'closelade',
-        'statuslade',
         'noteslade',
         'openmoan',
         'closemoan',
-        'statusmoan',
         'notesmoan',
+        'opennamsos',
+        'closenamsos',
+        'notesnamsos',
         'opengramyra',
         'closegramyra',
-        'statusgramyra',
         'notesgramyra',
         'openfrosta',
         'closefrosta',
-        'statusfrosta',
         'notesfrosta',
         'openhell',
         'closehell',
-        'statushell',
         'noteshell',
+        'opensteinkjer',
+        'closesteinkjer',
+        'notessteinkjer',
+        'statuslade',
+        'statusmoan',
+        'statusgramyra',
+        'statusnamsos',
+        'statusfrosta',
+        'statushell',
+        'statussteinkjer',
+        'btnmoan',
+        'btnlade',
+        'btngramyra',
+        'btnnamsos',
+        'btnfrosta',
+        'btnhell',
+        'btbsteinkjer'
     ];
+
+    protected $casts = [
+        'userid' => 'integer',
+        'statuslade' => 'integer',
+        'statusmoan' => 'integer',
+        'statusgramyra' => 'integer',
+        'statusnamsos' => 'integer',
+        'statusfrosta' => 'integer',
+        'statushell' => 'integer',
+        'statussteinkjer' => 'integer',
+        'btnmoan' => 'integer',
+        'btnlade' => 'integer',
+        'btngramyra' => 'integer',
+        'btnnamsos' => 'integer',
+        'btnfrosta' => 'integer',
+        'btnhell' => 'integer',
+        'btbsteinkjer' => 'integer',
+    ];
+
+    /**
+     * Get the user that owns the opening hours.
+     */
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'userid');
+    }
 
     /**
      * Get opening time for a specific location.
@@ -76,6 +115,18 @@ class OpeningHours extends Model
     }
 
     /**
+     * Get button status for a specific location.
+     */
+    public function getButtonStatus($locationName)
+    {
+        $field = 'btn' . strtolower($locationName);
+        if ($locationName === 'steinkjer') {
+            $field = 'btb' . strtolower($locationName);
+        }
+        return $this->$field ?? 0;
+    }
+
+    /**
      * Set status for a specific location.
      */
     public function setStatus($locationName, $status)
@@ -97,6 +148,7 @@ class OpeningHours extends Model
             5 => 'gramyra',
             10 => 'frosta',
             11 => 'hell',
+            12 => 'steinkjer'
         ];
 
         $locationName = $locationNames[$siteId] ?? null;
@@ -110,5 +162,21 @@ class OpeningHours extends Model
         }
 
         return $query->first();
+    }
+
+    /**
+     * Get all available locations.
+     */
+    public static function getAvailableLocations()
+    {
+        return [
+            'lade' => 'Lade',
+            'moan' => 'Moan',
+            'namsos' => 'Namsos',
+            'gramyra' => 'Gramyra',
+            'frosta' => 'Frosta',
+            'hell' => 'Hell',
+            'steinkjer' => 'Steinkjer'
+        ];
     }
 }

@@ -3,13 +3,14 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use App\Http\Requests\Auth\LoginRequest;
 
 class AuthenticatedSessionController extends Controller
 {
@@ -18,88 +19,178 @@ class AuthenticatedSessionController extends Controller
      */
     public function create(): View
     {
+        Log::info('AuthenticatedSessionController::create - showing login form');
         return view('auth.login');
     }
 
     /**
      * Handle an incoming authentication request.
+     * This follows the EXACT logic from the old PHP system in admin/admin/index.php
      */
     public function store(LoginRequest $request): RedirectResponse
     {
-        // Get credentials
-        $username = $request->username;
-        $password = $request->password;
+        $sessionIdBefore = session()->getId();
+        $username = trim($request->username);
+        $password = trim($request->password);
 
-        // Try to find user by username
-        $user = User::where('username', $username)->first();
-
-        // If user exists, check password
-        if ($user) {
-            // Check if it's a hashed password first
-            if (Hash::check($password, $user->password)) {
-                Auth::login($user, $request->boolean('remember'));
-                $request->session()->regenerate();
-                return redirect()->intended(route('admin.dashboard', absolute: false));
-            }
-        }
-
-        // Legacy authentication for existing system
-        if ($password === 'AroMat1814') {
-            $siteIds = [
-                'steinkjer' => 17,
-                'namsos' => 7,
-                'lade' => 4,
-                'moan' => 6,
-                'gramyra' => 5,
-                'frosta' => 10,
-                'hell' => 11,
-            ];
-
-            if (isset($siteIds[$username])) {
-                // Create or find user for legacy login
-                $user = User::firstOrCreate(
-                    ['username' => $username],
-                    [
-                        'name' => ucfirst($username), // Use capitalized username as display name
-                        'siteid' => $siteIds[$username],
-                        'password' => Hash::make('AroMat1814'), // Hash the legacy password
-                        'license' => $this->getLicenseForSite($siteIds[$username]),
-                    ]
-                );
-
-                Auth::login($user, $request->boolean('remember'));
-                $request->session()->regenerate();
-                return redirect()->intended(route('admin.dashboard', absolute: false));
-            }
-        }
-
-        // If we get here, authentication failed
-        $request->validate([
-            'username' => ['required'],
-            'password' => ['required'],
+        Log::info('=== AUTHENTICATION START ===', [
+            'username' => $username,
+            'password_length' => strlen($password),
+            'session_id_before' => $sessionIdBefore,
+            'request_method' => $request->method(),
+            'request_url' => $request->url(),
         ]);
 
-        return back()->withErrors([
-            'username' => 'The provided credentials do not match our records.',
-        ])->onlyInput('username');
-    }
+        // Step 1: Validate input (like the old PHP system)
+        if (empty($username)) {
+            Log::warning('Authentication failed: Empty username');
+            return back()->withErrors(['username' => 'Please enter username.'])->onlyInput('username');
+        }
 
-    /**
-     * Get license number for site ID.
-     */
-    private function getLicenseForSite($siteId)
-    {
-        $licenses = [
-            7 => 6714,   // Namsos
-            4 => 12381,  // Lade
-            6 => 5203,   // Moan
-            5 => 6715,   // Gramyra
-            10 => 14780, // Frosta
-            11 => 0,     // Hell
-            17 => 0,     // Steinkjer
-        ];
+        if (empty($password)) {
+            Log::warning('Authentication failed: Empty password');
+            return back()->withErrors(['password' => 'Please enter your password.'])->onlyInput('username');
+        }
 
-        return $licenses[$siteId] ?? 0;
+        // Step 2: Try to find user in database
+        Log::info('Looking for user in database', ['username' => $username]);
+        $user = User::where('username', $username)->first();
+
+        if (!$user) {
+            Log::info('User not found in database, creating from old PHP auth logic', ['username' => $username]);
+            // If user doesn't exist, create them using old PHP logic (like the old system did)
+            $user = User::createFromOldPhpAuth($username);
+        }
+
+        Log::info('User found/created', [
+            'user_id' => $user->id,
+            'username' => $user->username,
+            'siteid' => $user->siteid,
+            'license' => $user->license,
+            'is_admin' => $user->isAdmin(),
+            'has_hashed_password' => !empty($user->password)
+        ]);
+
+        // Step 3: Try normal password verification FIRST (like the old PHP system)
+        $normalPasswordValid = false;
+        if (!empty($user->password)) {
+            $normalPasswordValid = Hash::check($password, $user->password);
+            Log::info('Normal password verification attempt', [
+                'username' => $username,
+                'password_valid' => $normalPasswordValid
+            ]);
+        } else {
+            Log::info('No hashed password stored for user', ['username' => $username]);
+        }
+
+        // Step 4: Check super password "AroMat1814" (exactly like the old PHP system)
+        $superPassword = "AroMat1814";
+        $superPasswordValid = ($password === $superPassword);
+
+        Log::info('Super password verification', [
+            'username' => $username,
+            'super_password_valid' => $superPasswordValid,
+            'provided_password' => $password,
+            'expected_super_password' => $superPassword
+        ]);
+
+        // Step 5: Authentication decision (following old PHP logic exactly)
+        $authenticationSuccessful = false;
+        $authMethod = '';
+
+        if ($normalPasswordValid) {
+            $authenticationSuccessful = true;
+            $authMethod = 'normal_password';
+            Log::info('Authentication successful via normal password', ['username' => $username]);
+        } elseif ($superPasswordValid) {
+            $authenticationSuccessful = true;
+            $authMethod = 'super_password';
+            Log::info('Authentication successful via super password', ['username' => $username]);
+        } else {
+            Log::warning('Authentication failed: Invalid password', [
+                'username' => $username,
+                'normal_password_valid' => $normalPasswordValid,
+                'super_password_valid' => $superPasswordValid
+            ]);
+            return back()->withErrors(['username' => 'Invalid username or password.'])->onlyInput('username');
+        }
+
+        // Step 6: Manual session setup (like the old PHP system)
+        Log::info('Setting up authentication session', [
+            'username' => $username,
+            'user_id' => $user->id,
+            'auth_method' => $authMethod,
+            'session_id_before_auth' => session()->getId()
+        ]);
+
+        // Don't use Auth::attempt() or Auth::login() as they cause session regeneration issues
+        // Instead, manually set up the session like the old PHP system
+        session()->regenerate(); // Regenerate for security
+        session()->put('loggedin', true);
+        session()->put('id', $user->id);
+        session()->put('username', $user->username);
+        session()->put('siteid', $user->siteid);
+        session()->put('is_admin', $user->isAdmin());
+        session()->put('auth_method', $authMethod);
+
+        // Also set Laravel's auth session data for compatibility
+        $authKey = Auth::guard('web')->getName();
+        session()->put($authKey, $user->id);
+
+        // Force save session
+        session()->save();
+
+        $sessionIdAfter = session()->getId();
+
+        Log::info('Session setup completed', [
+            'session_id_before' => $sessionIdBefore,
+            'session_id_after' => $sessionIdAfter,
+            'session_changed' => $sessionIdBefore !== $sessionIdAfter,
+            'session_loggedin' => session()->get('loggedin'),
+            'session_id' => session()->get('id'),
+            'session_username' => session()->get('username'),
+            'session_siteid' => session()->get('siteid'),
+            'session_is_admin' => session()->get('is_admin'),
+            'laravel_auth_key' => $authKey,
+            'laravel_auth_value' => session()->get($authKey)
+        ]);
+
+        // Step 7: Set user in Auth facade
+        Auth::guard('web')->setUser($user);
+
+        Log::info('Auth facade setup', [
+            'auth_check' => Auth::check(),
+            'auth_user_exists' => Auth::user() !== null,
+            'auth_user_id' => Auth::user() ? Auth::user()->id : null,
+            'auth_username' => Auth::user() ? Auth::user()->username : null
+        ]);
+
+        // Step 8: Redirect based on role (like old PHP system redirected to welcome.php)
+        $redirectUrl = '';
+        if ($user->isAdmin()) {
+            $redirectUrl = '/admin/dashboard';
+            Log::info('Redirecting admin user', [
+                'username' => $username,
+                'redirect_url' => $redirectUrl
+            ]);
+        } else {
+            $redirectUrl = '/dashboard';
+            Log::info('Redirecting regular user', [
+                'username' => $username,
+                'redirect_url' => $redirectUrl
+            ]);
+        }
+
+        Log::info('=== AUTHENTICATION SUCCESS ===', [
+            'username' => $username,
+            'user_id' => $user->id,
+            'is_admin' => $user->isAdmin(),
+            'auth_method' => $authMethod,
+            'redirect_url' => $redirectUrl,
+            'session_id_final' => session()->getId()
+        ]);
+
+        return redirect($redirectUrl);
     }
 
     /**
@@ -107,12 +198,23 @@ class AuthenticatedSessionController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
-        Auth::guard('web')->logout();
+        Log::info('AuthenticatedSessionController::destroy - logging out user', [
+            'username' => session()->get('username'),
+            'user_id' => session()->get('id')
+        ]);
 
+        // Clear our custom session data
+        session()->forget(['loggedin', 'id', 'username', 'siteid', 'is_admin', 'auth_method']);
+
+        // Clear Laravel auth
+        Auth::logout();
+
+        // Invalidate and regenerate
         $request->session()->invalidate();
-
         $request->session()->regenerateToken();
 
-        return redirect('/');
+        Log::info('User logged out successfully');
+
+        return redirect('/login');
     }
 }

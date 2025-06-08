@@ -6,6 +6,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Log;
 
 class User extends Authenticatable
 {
@@ -30,13 +31,10 @@ class User extends Authenticatable
      * @var array<int, string>
      */
     protected $fillable = [
-        'name',
-        'email',
         'username',
         'password',
         'siteid',
         'license',
-        'role',
     ];
 
     /**
@@ -58,7 +56,97 @@ class User extends Authenticatable
     {
         return [
             'password' => 'hashed',
+            'siteid' => 'integer',
+            'license' => 'integer',
+            'created_at' => 'datetime',
         ];
+    }
+
+    /**
+     * OLD PHP SYSTEM MAPPING - Username to User ID mapping from the old system
+     * This matches the exact switch statement from admin/admin/index.php
+     */
+    public static function getOldPhpUserIdMapping($username)
+    {
+        Log::info('User::getOldPhpUserIdMapping called', ['username' => $username]);
+
+        $mapping = [
+            'steinkjer' => 17,
+            'namsos' => 10,
+            'lade' => 11,
+            'moan' => 12,
+            'gramyra' => 13,
+            'frosta' => 14,
+            'admin' => 0, // Admin user
+        ];
+
+        $userId = $mapping[$username] ?? 0;
+
+        Log::info('User::getOldPhpUserIdMapping result', [
+            'username' => $username,
+            'mapped_user_id' => $userId,
+            'is_admin' => $userId === 0
+        ]);
+
+        return $userId;
+    }
+
+    /**
+     * OLD PHP SYSTEM MAPPING - User ID to Site ID mapping from welcome.php
+     */
+    public static function getUserIdToSiteIdMapping($userId)
+    {
+        Log::info('User::getUserIdToSiteIdMapping called', ['user_id' => $userId]);
+
+        $mapping = [
+            17 => 13, // steinkjer
+            10 => 7,  // namsos
+            11 => 4,  // lade
+            12 => 6,  // moan
+            13 => 5,  // gramyra
+            14 => 10, // frosta
+            16 => 11, // unknown location
+            0 => 0,   // admin
+        ];
+
+        $siteId = $mapping[$userId] ?? 0;
+
+        Log::info('User::getUserIdToSiteIdMapping result', [
+            'user_id' => $userId,
+            'mapped_site_id' => $siteId
+        ]);
+
+        return $siteId;
+    }
+
+    /**
+     * Create or update user using old PHP system logic
+     */
+    public static function createFromOldPhpAuth($username)
+    {
+        Log::info('User::createFromOldPhpAuth called', ['username' => $username]);
+
+        $oldPhpUserId = self::getOldPhpUserIdMapping($username);
+        $siteId = self::getUserIdToSiteIdMapping($oldPhpUserId);
+
+        $user = self::updateOrCreate(
+            ['username' => $username],
+            [
+                'siteid' => $siteId,
+                'license' => $oldPhpUserId === 0 ? 9999 : 100 + $oldPhpUserId, // Admin gets high license, others get based on user ID
+                'password' => bcrypt('placeholder'), // Will be overridden by super password
+            ]
+        );
+
+        Log::info('User::createFromOldPhpAuth result', [
+            'username' => $username,
+            'user_id' => $user->id,
+            'siteid' => $user->siteid,
+            'license' => $user->license,
+            'is_admin' => $user->isAdmin()
+        ]);
+
+        return $user;
     }
 
     /**
@@ -70,11 +158,27 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the avdeling associated with the user.
+     */
+    public function avdeling()
+    {
+        return $this->belongsTo(Avdeling::class, 'siteid', 'siteid');
+    }
+
+    /**
      * Get orders for this user's location.
      */
     public function orders()
     {
         return $this->hasMany(Order::class, 'site', 'siteid');
+    }
+
+    /**
+     * Get opening hours managed by this user.
+     */
+    public function openingHours()
+    {
+        return $this->hasMany(OpeningHours::class, 'userid');
     }
 
     /**
@@ -86,11 +190,60 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the unique identifier for authentication (should return ID for session storage).
+     */
+    public function getAuthIdentifier()
+    {
+        return $this->id;  // Return numeric ID, not username
+    }
+
+    /**
+     * Get the site associated with this user.
+     */
+    public function site()
+    {
+        return $this->belongsTo(Site::class, 'siteid', 'site_id');
+    }
+
+    /**
+     * Get the alternative avdeling associated with this user.
+     */
+    public function avdelingAlternative()
+    {
+        return $this->belongsTo(AvdelingAlternative::class, 'siteid', 'SiteID');
+    }
+
+    /**
+     * Check if user has valid license.
+     */
+    public function hasValidLicense()
+    {
+        return $this->license > 0;
+    }
+
+    /**
+     * Get user by site ID.
+     */
+    public static function findBySiteId($siteId)
+    {
+        return static::where('siteid', $siteId)->first();
+    }
+
+    /**
      * Check if user is admin.
+     * Based on the old PHP system: admin users have specific usernames or siteid = 0
      */
     public function isAdmin()
     {
-        return $this->role === 'admin';
+        $isAdmin = in_array($this->username, ['admin']) || $this->siteid === 0;
+
+        Log::info('User::isAdmin check', [
+            'username' => $this->username,
+            'siteid' => $this->siteid,
+            'is_admin' => $isAdmin
+        ]);
+
+        return $isAdmin;
     }
 
     /**
@@ -102,10 +255,28 @@ class User extends Authenticatable
     }
 
     /**
-     * Get the site associated with this user.
+     * Get user role name.
      */
-    public function site()
+    public function getRoleName()
     {
-        return $this->belongsTo(Site::class, 'siteid', 'site_id');
+        return $this->isAdmin() ? 'Admin' : 'User';
+    }
+
+    /**
+     * Get user's location name based on old PHP system
+     */
+    public function getLocationName()
+    {
+        $locationNames = [
+            'steinkjer' => 'Steinkjer',
+            'namsos' => 'Namsos',
+            'lade' => 'Lade',
+            'moan' => 'Moan',
+            'gramyra' => 'Gramyra',
+            'frosta' => 'Frosta',
+            'admin' => 'Admin'
+        ];
+
+        return $locationNames[$this->username] ?? $this->username;
     }
 }

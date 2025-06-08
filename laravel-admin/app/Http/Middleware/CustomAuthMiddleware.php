@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Log;
 
-class AdminMiddleware
+class CustomAuthMiddleware
 {
     /**
      * Handle an incoming request.
@@ -26,10 +26,9 @@ class AdminMiddleware
             'laravel_auth_check' => auth()->check(),
             'laravel_user_id' => auth()->user() ? auth()->user()->id : null,
             'laravel_username' => auth()->user() ? auth()->user()->username : null,
-            'laravel_is_admin' => auth()->user() ? auth()->user()->isAdmin() : null,
         ];
 
-        Log::info('AdminMiddleware::handle', [
+        Log::info('CustomAuthMiddleware::handle', [
             'request_url' => $request->url(),
             'session_data' => $sessionData
         ]);
@@ -42,39 +41,22 @@ class AdminMiddleware
         // Check Laravel auth as backup
         $laravelAuthValid = auth()->check();
 
-        Log::info('AdminMiddleware authentication checks', [
+        Log::info('CustomAuthMiddleware authentication checks', [
             'custom_session_valid' => $customSessionValid,
-            'laravel_auth_valid' => $laravelAuthValid,
-            'session_is_admin' => session()->get('is_admin'),
-            'laravel_is_admin' => auth()->user() ? auth()->user()->isAdmin() : false
+            'laravel_auth_valid' => $laravelAuthValid
         ]);
 
         if (!$customSessionValid && !$laravelAuthValid) {
-            Log::warning('AdminMiddleware: User not authenticated, redirecting to login');
+            Log::warning('CustomAuthMiddleware: User not authenticated, redirecting to login', [
+                'attempted_url' => $request->url()
+            ]);
             return redirect()->route('login');
         }
 
-        // Check admin privileges
-        $isAdmin = false;
-
-        if ($customSessionValid) {
-            $isAdmin = session()->get('is_admin') === true;
-            Log::info('AdminMiddleware: Using custom session admin check', ['is_admin' => $isAdmin]);
-        } elseif ($laravelAuthValid) {
-            $isAdmin = auth()->user()->isAdmin();
-            Log::info('AdminMiddleware: Using Laravel auth admin check', ['is_admin' => $isAdmin]);
-        }
-
-        if (!$isAdmin) {
-            Log::warning('AdminMiddleware: User lacks admin privileges', [
-                'username' => session()->get('username') ?: (auth()->user() ? auth()->user()->username : 'unknown'),
-                'is_admin' => $isAdmin
-            ]);
-            abort(403, 'Access denied. Admin privileges required.');
-        }
-
-        Log::info('AdminMiddleware: Admin access granted', [
-            'username' => session()->get('username') ?: (auth()->user() ? auth()->user()->username : 'unknown')
+        Log::info('CustomAuthMiddleware: User authenticated', [
+            'username' => session()->get('username') ?: (auth()->user() ? auth()->user()->username : 'unknown'),
+            'user_id' => session()->get('id') ?: (auth()->user() ? auth()->user()->id : 'unknown'),
+            'auth_method' => $customSessionValid ? 'custom_session' : 'laravel_auth'
         ]);
 
         return $next($request);
