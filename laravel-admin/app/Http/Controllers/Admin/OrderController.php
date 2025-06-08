@@ -5,6 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Location;
+use App\Models\Setting;
+use App\Models\Mail;
+use App\Models\OpeningHours;
+use App\Models\Overstyr;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
@@ -17,6 +21,12 @@ class OrderController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
+        
+        // If user is not admin, show user dashboard
+        if (!$user->isAdmin()) {
+            return $this->userDashboard($request);
+        }
+        
         $query = Order::where('site', $user->siteid);
 
         // Filter by status
@@ -54,6 +64,52 @@ class OrderController extends Controller
         $locationName = Location::getNameBySiteId($user->siteid);
 
         return view('admin.orders.index', compact('orders', 'locationName'));
+    }
+    
+    /**
+     * User dashboard view for non-admin users.
+     */
+    protected function userDashboard(Request $request)
+    {
+        $user = Auth::user();
+        $siteid = $user->siteid;
+        $locationName = Location::getNameBySiteId($siteid);
+        
+        // Get today's orders
+        $today = Carbon::today();
+        
+        // New orders (status 0)
+        $newOrders = Order::where('site', $siteid)
+            ->where('ordrestatus', 0)
+            ->whereDate('datetime', $today)
+            ->orderBy('datetime', 'desc')
+            ->get();
+            
+        // Ready orders (status 1)
+        $readyOrders = Order::where('site', $siteid)
+            ->where('ordrestatus', 1)
+            ->whereDate('datetime', $today)
+            ->orderBy('datetime', 'desc')
+            ->get();
+            
+        // Completed orders (status 2)
+        $completedOrders = Order::where('site', $siteid)
+            ->where('ordrestatus', 2)
+            ->whereDate('datetime', $today)
+            ->orderBy('updated_at', 'desc')
+            ->get();
+            
+        // Check if location is open
+        $overstyr = Overstyr::where('site', $locationName)->first();
+        $isOpen = $overstyr ? $overstyr->status == 1 : false;
+        
+        return view('admin.orders.user-dashboard', compact(
+            'newOrders',
+            'readyOrders',
+            'completedOrders',
+            'locationName',
+            'isOpen'
+        ));
     }
 
     /**
@@ -182,13 +238,23 @@ class OrderController extends Controller
             ], 400);
         }
 
-        $message = "Takk for din ordre. Vi vil gjøre din bestilling klar så fort vi kan. Vi sender deg en ny SMS når maten er klar til henting. Ditt referansenummer er {$order->ordreid}";
+        // Get SMS message for this location
+        $mail = Mail::where('site', $order->site)->first();
+        $message = $mail ? $mail->melding : "Hei! Din ordre er klar for henting. Mvh {$locationName}";
+        $message = str_replace('{order_id}', $order->ordreid, $message);
+        
+        // Get SMS credentials from settings
+        $username = Setting::get('sms_api_username', 'b3166vr0f0l');
+        $password = Setting::get('sms_api_password', '2tm2bxuIo2AixNELhXhwCdP8');
+        $apiUrl = Setting::get('sms_api_url', 'https://api1.teletopiasms.no/gateway/v3/plain');
+        $sender = Setting::get('sms_sender', 'AroiAsia');
 
-        $smsUrl = "https://api1.teletopiasms.no/gateway/v3/plain?" . http_build_query([
-            'username' => 'b3166vr0f0l',
-            'password' => '2tm2bxuIo2AixNELhXhwCdP8',
-            'recipient' => $order->telefon,
-            'text' => $message
+        $smsUrl = $apiUrl . "?" . http_build_query([
+            'username' => $username,
+            'password' => $password,
+            'to' => $order->telefon,
+            'text' => $message,
+            'from' => $sender
         ]);
 
         $ch = curl_init();
@@ -206,7 +272,64 @@ class OrderController extends Controller
 
         return response()->json([
             'success' => $success,
-            'message' => $success ? 'SMS sent successfully' : 'Failed to send SMS'
+            'message' => $success ? 'SMS sendt!' : 'Kunne ikke sende SMS'
+        ]);
+    }
+    
+    /**
+     * Update order status.
+     */
+    public function updateStatus(Request $request, Order $order)
+    {
+        // Check if user can access this order
+        if ($order->site !== Auth::user()->siteid) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 403);
+        }
+        
+        $request->validate([
+            'status' => 'required|integer|in:0,1,2,3'
+        ]);
+        
+        $order->update([
+            'ordrestatus' => $request->status
+        ]);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Status oppdatert'
+        ]);
+    }
+    
+    /**
+     * Get order count for notifications.
+     */
+    public function getOrderCount()
+    {
+        $user = Auth::user();
+        $count = Order::where('site', $user->siteid)
+            ->where('ordrestatus', 0)
+            ->whereDate('datetime', Carbon::today())
+            ->count();
+            
+        return response()->json(['count' => $count]);
+    }
+    
+    /**
+     * Delete old orders (called by cron).
+     */
+    public function deleteOldOrders()
+    {
+        $days = Setting::get('order_auto_delete_days', 14);
+        $date = Carbon::now()->subDays($days);
+        
+        $deleted = Order::where('datetime', '<', $date)->delete();
+        
+        return response()->json([
+            'success' => true,
+            'deleted' => $deleted
         ]);
     }
 }

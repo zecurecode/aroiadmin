@@ -16,11 +16,11 @@ class SettingController extends Controller
         $settings = Setting::orderBy('key')->get()->groupBy(function($setting) {
             // Group settings by category
             $key = $setting->key;
-            if (str_starts_with($key, 'teletopia_')) return 'SMS Settings';
-            if (str_starts_with($key, 'pckasse_')) return 'POS Settings';
-            if (str_starts_with($key, 'database_')) return 'Database Settings';
-            if (str_starts_with($key, 'admin_')) return 'Admin Settings';
-            return 'General Settings';
+            if (str_starts_with($key, 'sms_')) return 'SMS Innstillinger';
+            if (str_starts_with($key, 'pckasse_')) return 'PCKasse Innstillinger';
+            if (str_starts_with($key, 'onesignal_')) return 'OneSignal Innstillinger';
+            if (str_starts_with($key, 'order_') || str_starts_with($key, 'failed_')) return 'System Innstillinger';
+            return 'Generelle Innstillinger';
         });
 
         return view('admin.settings.index', compact('settings'));
@@ -79,23 +79,25 @@ class SettingController extends Controller
             'phone' => 'required|string|max:20',
         ]);
 
-        $username = Setting::get('teletopia_username');
-        $password = Setting::get('teletopia_password');
-        $apiUrl = Setting::get('teletopia_api_url');
+        $username = Setting::get('sms_api_username');
+        $password = Setting::get('sms_api_password');
+        $apiUrl = Setting::get('sms_api_url', 'https://api1.teletopiasms.no/gateway/v3/plain');
+        $sender = Setting::get('sms_sender', 'AroiAsia');
 
-        if (!$username || !$password || !$apiUrl) {
+        if (!$username || !$password) {
             return response()->json([
                 'success' => false,
-                'message' => 'SMS settings not configured properly.'
+                'message' => 'SMS innstillinger ikke konfigurert.'
             ]);
         }
 
-        $message = 'Test message from Aroi Admin System';
+        $message = 'Test melding fra Aroi Admin System';
         $smsUrl = $apiUrl . '?' . http_build_query([
             'username' => $username,
             'password' => $password,
-            'recipient' => $validated['phone'],
+            'to' => $validated['phone'],
             'text' => $message,
+            'from' => $sender,
         ]);
 
         $ch = curl_init();
@@ -109,7 +111,7 @@ class SettingController extends Controller
 
         return response()->json([
             'success' => $success,
-            'message' => $success ? 'Test SMS sent successfully!' : 'Failed to send test SMS.',
+            'message' => $success ? 'Test SMS sendt!' : 'Kunne ikke sende test SMS.',
             'response' => $output,
             'http_code' => $httpcode
         ]);

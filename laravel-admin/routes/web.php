@@ -86,6 +86,8 @@ Route::middleware(['custom.auth'])->group(function () {
 Route::middleware(['custom.auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     // User management
     Route::resource('users', UserController::class);
+    Route::post('users/{user}/impersonate', [UserController::class, 'impersonate'])->name('users.impersonate');
+    Route::post('stop-impersonate', [UserController::class, 'stopImpersonate'])->name('stop-impersonate');
 
     // Site management
     Route::resource('sites', SiteController::class);

@@ -3,6 +3,14 @@
 @section('content')
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2">Ordrer - {{ $locationName }}</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="location.reload()">
+                <i class="fas fa-sync-alt me-1"></i>Oppdater
+            </button>
+        </div>
+        <small class="text-muted">Siste oppdatering: <span id="lastUpdate">{{ now()->format('H:i:s') }}</span></small>
+    </div>
 </div>
 
 <!-- Filters -->

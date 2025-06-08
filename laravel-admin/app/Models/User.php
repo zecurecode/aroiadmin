@@ -35,6 +35,7 @@ class User extends Authenticatable
         'password',
         'siteid',
         'license',
+        'role',
     ];
 
     /**
@@ -59,6 +60,7 @@ class User extends Authenticatable
             'siteid' => 'integer',
             'license' => 'integer',
             'created_at' => 'datetime',
+            'role' => 'string',
         ];
     }
 
@@ -235,11 +237,18 @@ class User extends Authenticatable
      */
     public function isAdmin()
     {
+        // Check role field first, then fall back to old logic
+        if (isset($this->role)) {
+            return $this->role === 'admin';
+        }
+        
+        // Old logic for backwards compatibility
         $isAdmin = in_array($this->username, ['admin']) || $this->siteid === 0;
 
         Log::info('User::isAdmin check', [
             'username' => $this->username,
             'siteid' => $this->siteid,
+            'role' => $this->role ?? 'not set',
             'is_admin' => $isAdmin
         ]);
 

@@ -88,6 +88,21 @@
         </button>
 
         <div class="navbar-nav">
+            @if(session('impersonate.original_id'))
+                <div class="nav-item text-nowrap">
+                    <form method="POST" action="{{ route('admin.stop-impersonate') }}" class="d-inline">
+                        @csrf
+                        <button type="submit" class="nav-link px-3 text-warning bg-transparent border-0">
+                            <i class="fas fa-user-secret me-1"></i>Avslutt impersonering
+                        </button>
+                    </form>
+                </div>
+            @endif
+            <div class="nav-item text-nowrap">
+                <span class="nav-link px-3 text-white-50">
+                    <i class="bi bi-person me-1"></i>{{ auth()->user()->username }}
+                </span>
+            </div>
             <div class="nav-item text-nowrap">
                 <form method="POST" action="{{ route('logout') }}" class="d-inline">
                     @csrf
@@ -128,20 +143,26 @@
                                     <li>
                                         <a class="dropdown-item {{ request()->routeIs('admin.users.*') ? 'active' : '' }}"
                                            href="{{ route('admin.users.index') }}">
-                                            <i class="fas fa-users me-2"></i>Manage Users
+                                            <i class="fas fa-users me-2"></i>Brukere
                                         </a>
                                     </li>
                                     <li>
                                         <a class="dropdown-item {{ request()->routeIs('admin.sites.*') ? 'active' : '' }}"
                                            href="{{ route('admin.sites.index') }}">
-                                            <i class="fas fa-store me-2"></i>Manage Sites
+                                            <i class="fas fa-store me-2"></i>Steder
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item {{ request()->routeIs('admin.locations.*') ? 'active' : '' }}"
+                                           href="{{ route('admin.locations.index') }}">
+                                            <i class="fas fa-map-marker-alt me-2"></i>Lokasjoner
                                         </a>
                                     </li>
                                     <li><hr class="dropdown-divider"></li>
                                     <li>
                                         <a class="dropdown-item {{ request()->routeIs('admin.settings.*') ? 'active' : '' }}"
                                            href="{{ route('admin.settings.index') }}">
-                                            <i class="fas fa-cog me-2"></i>Settings
+                                            <i class="fas fa-cog me-2"></i>Innstillinger
                                         </a>
                                     </li>
                                 </ul>

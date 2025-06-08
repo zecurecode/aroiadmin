@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\ApiController;
+use App\Http\Controllers\Admin\OrderController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -22,4 +23,9 @@ Route::prefix('v1')->group(function () {
     // Legacy compatibility endpoint
     Route::get('/', [ApiController::class, 'processOrders']);
     Route::post('/', [ApiController::class, 'processOrders']);
+});
+
+// Internal API routes for admin panel
+Route::middleware(['custom.auth'])->group(function () {
+    Route::get('/orders/count', [OrderController::class, 'getOrderCount']);
 });
