@@ -68,6 +68,15 @@ class SiteSeeder extends Seeder
                 'license' => 0,
                 'active' => true,
             ],
+            [
+                'name' => 'Steinkjer',
+                'site_id' => 13,
+                'url' => 'https://steinkjer.aroiasia.no',
+                'consumer_key' => 'ck_placeholder_steinkjer',
+                'consumer_secret' => 'cs_placeholder_steinkjer',
+                'license' => 30221,
+                'active' => true,
+            ],
         ];
 
         foreach ($sites as $siteData) {
@@ -76,5 +85,7 @@ class SiteSeeder extends Seeder
                 $siteData
             );
         }
+
+        echo "Sites seeded successfully!\n";
     }
 }

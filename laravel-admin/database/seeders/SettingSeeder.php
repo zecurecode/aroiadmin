@@ -14,60 +14,77 @@ class SettingSeeder extends Seeder
     public function run(): void
     {
         $settings = [
+            // SMS API Settings (used in OrderController)
             [
-                'key' => 'teletopia_username',
+                'key' => 'sms_api_username',
                 'value' => 'b3166vr0f0l',
-                'description' => 'Teletopia SMS API Username',
+                'description' => 'SMS API Username (Teletopia)',
                 'type' => 'text',
             ],
             [
-                'key' => 'teletopia_password',
+                'key' => 'sms_api_password',
                 'value' => '2tm2bxuIo2AixNELhXhwCdP8',
-                'description' => 'Teletopia SMS API Password',
+                'description' => 'SMS API Password (Teletopia)',
                 'type' => 'password',
             ],
             [
-                'key' => 'teletopia_api_url',
+                'key' => 'sms_api_url',
                 'value' => 'https://api1.teletopiasms.no/gateway/v3/plain',
-                'description' => 'Teletopia SMS API URL',
+                'description' => 'SMS API URL (Teletopia)',
                 'type' => 'url',
             ],
+            [
+                'key' => 'sms_sender',
+                'value' => 'AroiAsia',
+                'description' => 'SMS Sender Name',
+                'type' => 'text',
+            ],
+
+            // PCKasse API Settings
             [
                 'key' => 'pckasse_base_url',
                 'value' => 'https://min.pckasse.no/QueueGetOrders.aspx',
                 'description' => 'PCKasse API Base URL',
                 'type' => 'url',
             ],
+
+            // OneSignal Settings (from old system)
             [
-                'key' => 'database_host',
-                'value' => '141.94.143.8:3306',
-                'description' => 'Database Host',
+                'key' => 'onesignal_app_id',
+                'value' => '12fb0be8-d0bd-4a07-b26d-df9ab8f17a55',
+                'description' => 'OneSignal App ID',
                 'type' => 'text',
             ],
             [
-                'key' => 'database_username',
-                'value' => 'adminaroi',
-                'description' => 'Database Username',
-                'type' => 'text',
-            ],
-            [
-                'key' => 'database_password',
-                'value' => 'b^754Xws',
-                'description' => 'Database Password',
+                'key' => 'onesignal_rest_api_key',
+                'value' => 'MDhmOWJiYTgtOTRmMy00Y2RjLWI1MGItNDFjNjE0OTJjODgx',
+                'description' => 'OneSignal REST API Key',
                 'type' => 'password',
             ],
+
+            // System Settings
             [
-                'key' => 'database_name',
-                'value' => 'admin_aroi',
-                'description' => 'Database Name',
-                'type' => 'text',
+                'key' => 'order_auto_delete_days',
+                'value' => '14',
+                'description' => 'Days before orders are automatically deleted',
+                'type' => 'number',
             ],
             [
-                'key' => 'sms_default_message',
-                'value' => 'Takk for din ordre. Vi vil gjøre din bestilling klar så fort vi kan. Vi sender deg en ny SMS når maten er klar til henting. Ditt referansenummer er {order_id}',
-                'description' => 'Default SMS message template (use {order_id} for order number)',
+                'key' => 'failed_order_alert_minutes',
+                'value' => '5',
+                'description' => 'Minutes before unpaid order alert',
+                'type' => 'number',
+            ],
+
+            // Default SMS Template
+            [
+                'key' => 'sms_template_default',
+                'value' => 'Hei! Din ordre er klar for henting. Mvh {location}',
+                'description' => 'Default SMS template (use {order_id} for order number, {location} for location name)',
                 'type' => 'textarea',
             ],
+
+            // Admin notification settings
             [
                 'key' => 'admin_notification_phone',
                 'value' => '4790039911,4796017450',
@@ -82,5 +99,7 @@ class SettingSeeder extends Seeder
                 $settingData
             );
         }
+
+        echo "Settings seeded successfully!\n";
     }
 }

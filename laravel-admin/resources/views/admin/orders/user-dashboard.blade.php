@@ -78,12 +78,12 @@
                                     <h6 class="card-title">{{ $order->fornavn }} {{ $order->etternavn }}</h6>
                                     <p class="mb-1"><i class="fas fa-phone me-1"></i>{{ $order->telefon }}</p>
                                     <p class="mb-2"><i class="fas fa-clock me-1"></i>Henting: {{ $order->hentetid ?? 'Ikke spesifisert' }}</p>
-                                    
+
                                     <!-- Order items preview -->
                                     <div class="order-items mb-3">
                                         <small class="text-muted">{{ $order->ekstrainfo }}</small>
                                     </div>
-                                    
+
                                     <div class="d-grid gap-2">
                                         <button class="btn btn-success" onclick="markOrderReady({{ $order->id }})">
                                             <i class="fas fa-check me-1"></i>KLAR FOR HENTING
@@ -128,8 +128,8 @@
                                 <div class="card-body">
                                     <h6 class="card-title">{{ $order->fornavn }} {{ $order->etternavn }}</h6>
                                     <p class="mb-1"><i class="fas fa-phone me-1"></i>{{ $order->telefon }}</p>
-                                    <p class="mb-2"><i class="fas fa-clock me-1"></i>Klar siden: {{ $order->updated_at->format('H:i') }}</p>
-                                    
+                                    <p class="mb-2"><i class="fas fa-clock me-1"></i>Klar siden: {{ $order->datetime->format('H:i') }}</p>
+
                                     <div class="d-grid gap-2">
                                         @if(!$order->sms)
                                             <button class="btn btn-warning" onclick="sendReadySMS({{ $order->id }})">
@@ -176,7 +176,7 @@
                                     <td>#{{ $order->ordreid }}</td>
                                     <td>{{ $order->fornavn }} {{ $order->etternavn }}</td>
                                     <td>{{ $order->telefon }}</td>
-                                    <td>{{ $order->updated_at->format('H:i') }}</td>
+                                    <td>{{ $order->datetime->format('H:i') }}</td>
                                     <td>
                                         <button class="btn btn-sm btn-outline-primary" onclick="showOrderDetails({{ $order->id }})">
                                             <i class="fas fa-eye"></i>
@@ -217,6 +217,40 @@
 
 @push('scripts')
 <script>
+// Configure default fetch options for all AJAX requests
+const defaultFetchOptions = {
+    credentials: 'same-origin',
+    headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Cache-Control': 'no-cache'
+    }
+};
+
+// Helper function for making authenticated fetch requests
+function authenticatedFetch(url, options = {}) {
+    const mergedOptions = {
+        ...defaultFetchOptions,
+        ...options,
+        headers: {
+            ...defaultFetchOptions.headers,
+            ...options.headers
+        }
+    };
+
+    return fetch(url, mergedOptions)
+        .then(response => {
+            if (!response.ok) {
+                if (response.status === 401) {
+                    console.log('Session expired, reloading page');
+                    window.location.reload();
+                    return Promise.reject(new Error('Session expired'));
+                }
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response;
+        });
+}
+
 // Auto-refresh every 60 seconds
 setInterval(function() {
     location.reload();
@@ -230,7 +264,7 @@ function updateLastRefresh() {
 // Toggle location status
 function toggleLocationStatus() {
     const checkbox = document.getElementById('locationStatus');
-    
+
     fetch('{{ route('admin.dashboard.toggle-status') }}', {
         method: 'POST',
         headers: {
@@ -325,30 +359,72 @@ function markOrderCompleted(orderId) {
 // Show order details
 function showOrderDetails(orderId) {
     const modal = new bootstrap.Modal(document.getElementById('orderDetailsModal'));
+    document.querySelector('#orderDetailsModal .modal-title').textContent = 'Ordre detaljer';
     modal.show();
-    
-    fetch(`/admin/orders/${orderId}`)
+
+    // Show loading indicator
+    document.getElementById('orderDetailsContent').innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Laster ordre detaljer...</span>
+            </div>
+            <p class="mt-2">Laster ordre detaljer...</p>
+        </div>
+    `;
+
+    authenticatedFetch(`/admin/orders/${orderId}`, {
+        headers: {
+            'Accept': 'text/html'
+        }
+    })
         .then(response => response.text())
         .then(html => {
-            document.getElementById('orderDetailsContent').innerHTML = html;
+            console.log('AJAX Response length:', html.length);
+            console.log('Response contains navbar:', html.includes('navbar') || html.includes('Aroi Admin'));
+
+            // Only use content inside the .order-details div if it exists
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            const orderDetails = tempDiv.querySelector('.order-details');
+
+            if (orderDetails) {
+                document.getElementById('orderDetailsContent').innerHTML = orderDetails.innerHTML;
+            } else {
+                document.getElementById('orderDetailsContent').innerHTML = html;
+            }
         })
         .catch(error => {
-            document.getElementById('orderDetailsContent').innerHTML = '<p class="text-danger">Kunne ikke laste ordre detaljer</p>';
+            console.error('Error loading order details:', error);
+            document.getElementById('orderDetailsContent').innerHTML = `
+                <div class="alert alert-danger">
+                    <h6>Feil ved lasting av ordre detaljer</h6>
+                    <p>Kunne ikke laste ordre detaljer. Prøv å oppdatere siden.</p>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="location.reload()">
+                        <i class="fas fa-sync me-1"></i>Oppdater siden
+                    </button>
+                </div>
+            `;
         });
 }
+
+
 
 // Add sound notification for new orders
 let lastOrderCount = {{ $newOrders->count() }};
 
 function checkNewOrders() {
-    fetch('/api/orders/count')
+    authenticatedFetch('/api/orders/count', {
+        headers: {
+            'Accept': 'application/json'
+        }
+    })
         .then(response => response.json())
         .then(data => {
             if (data.count > lastOrderCount) {
                 // Play notification sound
                 const audio = new Audio('/sounds/notification.mp3');
-                audio.play();
-                
+                audio.play().catch(() => {}); // Ignore audio errors
+
                 // Show browser notification if permitted
                 if (Notification.permission === "granted") {
                     new Notification("Ny ordre!", {
@@ -356,11 +432,15 @@ function checkNewOrders() {
                         icon: "/favicon.ico"
                     });
                 }
-                
+
                 // Refresh page
                 setTimeout(() => location.reload(), 1000);
             }
             lastOrderCount = data.count;
+        })
+        .catch(error => {
+            console.error('Error checking new orders:', error);
+            // Don't show error to user, just log it
         });
 }
 
@@ -396,7 +476,7 @@ if (Notification.permission === "default") {
     .card-body {
         padding: 0.75rem;
     }
-    
+
     .btn {
         font-size: 0.875rem;
     }

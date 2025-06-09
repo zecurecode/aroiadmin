@@ -1,12 +1,15 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PublicController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\SiteController;
 use App\Http\Controllers\Admin\SettingController;
+use App\Http\Controllers\Admin\LocationController;
+use App\Http\Controllers\Admin\OpeningHoursController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
@@ -54,21 +57,34 @@ Route::get('/create-users', function () {
     }
 });
 
-// Redirect root to login
-Route::get('/', function () {
-    Log::info('Root route accessed, redirecting to login');
-    return redirect('/login');
-});
+// Public locations page (root domain)
+Route::get('/', [App\Http\Controllers\PublicController::class, 'locations'])->name('public.locations');
 
 // Main dashboard routes - use custom auth middleware
 Route::get('/dashboard', [DashboardController::class, 'index'])
     ->middleware(['custom.auth'])
     ->name('dashboard');
 
+// Delivery time route
+Route::post('/admin/delivery-time/update', [DashboardController::class, 'updateDeliveryTime'])
+    ->middleware(['custom.auth'])
+    ->name('admin.delivery-time.update');
+
 // Admin routes with custom authentication
 Route::middleware(['custom.auth'])->group(function () {
     Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
     Route::post('/admin/dashboard/toggle-status', [AdminDashboardController::class, 'toggleStatus'])->name('admin.dashboard.toggle-status');
+
+    // Opening hours management routes
+    Route::prefix('admin/opening-hours')->name('admin.opening-hours.')->group(function () {
+        Route::get('/', [OpeningHoursController::class, 'index'])->name('index');
+        Route::get('/calendar-data', [OpeningHoursController::class, 'getCalendarData'])->name('calendar-data');
+        Route::get('/special/{id}', [OpeningHoursController::class, 'getSpecialHours'])->name('get-special');
+        Route::put('/regular/{locationId}', [OpeningHoursController::class, 'updateRegularHours'])->name('update-regular');
+        Route::post('/special', [OpeningHoursController::class, 'storeSpecialHours'])->name('store-special');
+        Route::put('/special/{id}', [OpeningHoursController::class, 'updateSpecialHours'])->name('update-special');
+        Route::delete('/special/{id}', [OpeningHoursController::class, 'destroySpecialHours'])->name('destroy-special');
+    });
 
     // Order management routes
     Route::prefix('admin/orders')->name('admin.orders.')->group(function () {
@@ -93,6 +109,9 @@ Route::middleware(['custom.auth', 'admin'])->prefix('admin')->name('admin.')->gr
     Route::resource('sites', SiteController::class);
     Route::get('sites/{site}/users', [SiteController::class, 'users'])->name('sites.users');
     Route::post('sites/{site}/assign-user', [SiteController::class, 'assignUser'])->name('sites.assign-user');
+
+    // Location management
+    Route::resource('locations', LocationController::class);
 
     // Settings management
     Route::get('settings', [SettingController::class, 'index'])->name('settings.index');

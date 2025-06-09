@@ -21,12 +21,12 @@ class OrderController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-        
+
         // If user is not admin, show user dashboard
         if (!$user->isAdmin()) {
             return $this->userDashboard($request);
         }
-        
+
         $query = Order::where('site', $user->siteid);
 
         // Filter by status
@@ -65,7 +65,7 @@ class OrderController extends Controller
 
         return view('admin.orders.index', compact('orders', 'locationName'));
     }
-    
+
     /**
      * User dashboard view for non-admin users.
      */
@@ -74,35 +74,35 @@ class OrderController extends Controller
         $user = Auth::user();
         $siteid = $user->siteid;
         $locationName = Location::getNameBySiteId($siteid);
-        
+
         // Get today's orders
         $today = Carbon::today();
-        
+
         // New orders (status 0)
         $newOrders = Order::where('site', $siteid)
             ->where('ordrestatus', 0)
             ->whereDate('datetime', $today)
             ->orderBy('datetime', 'desc')
             ->get();
-            
+
         // Ready orders (status 1)
         $readyOrders = Order::where('site', $siteid)
             ->where('ordrestatus', 1)
             ->whereDate('datetime', $today)
             ->orderBy('datetime', 'desc')
             ->get();
-            
+
         // Completed orders (status 2)
         $completedOrders = Order::where('site', $siteid)
             ->where('ordrestatus', 2)
             ->whereDate('datetime', $today)
-            ->orderBy('updated_at', 'desc')
+            ->orderBy('datetime', 'desc')
             ->get();
-            
+
         // Check if location is open
-        $overstyr = Overstyr::where('site', $locationName)->first();
+        $overstyr = Overstyr::where('vognid', $user->id)->first();
         $isOpen = $overstyr ? $overstyr->status == 1 : false;
-        
+
         return view('admin.orders.user-dashboard', compact(
             'newOrders',
             'readyOrders',
@@ -122,7 +122,26 @@ class OrderController extends Controller
             abort(403, 'Unauthorized access to order.');
         }
 
-        return view('admin.orders.show', compact('order'));
+        // Debug logging for request type
+        \Log::info("Order show request for order {$order->id}", [
+            'is_ajax' => request()->ajax(),
+            'headers' => request()->headers->all(),
+            'accept' => request()->header('Accept'),
+            'x_requested_with' => request()->header('X-Requested-With'),
+            'user_agent' => request()->userAgent()
+        ]);
+
+        // Get WooCommerce order details
+        $wooOrder = $this->fetchWooCommerceOrder($order);
+
+        // If this is an AJAX request, just return the order details view
+        if (request()->ajax()) {
+            \Log::info("Returning AJAX view for order {$order->id}");
+            return view('admin.orders.show', compact('order', 'wooOrder'));
+        }
+
+        \Log::info("Returning full page view for order {$order->id}");
+        return view('admin.orders.show', compact('order', 'wooOrder'));
     }
 
     /**
@@ -175,18 +194,10 @@ class OrderController extends Controller
             abort(403, 'Unauthorized access to order.');
         }
 
-        // Get license for this location
+        // Get license for this location from database
         $user = Auth::user();
-        $licenses = [
-            7 => 6714,   // Namsos
-            4 => 12381,  // Lade
-            6 => 5203,   // Moan
-            5 => 6715,   // Gramyra
-            10 => 14780, // Frosta
-            11 => 0,     // Hell
-        ];
-
-        $license = $licenses[$user->siteid] ?? 0;
+        $site = \App\Models\Site::findBySiteId($user->siteid);
+        $license = $site ? $site->license : 0;
 
         if ($license == 0) {
             return response()->json([
@@ -242,7 +253,7 @@ class OrderController extends Controller
         $mail = Mail::where('site', $order->site)->first();
         $message = $mail ? $mail->melding : "Hei! Din ordre er klar for henting. Mvh {$locationName}";
         $message = str_replace('{order_id}', $order->ordreid, $message);
-        
+
         // Get SMS credentials from settings
         $username = Setting::get('sms_api_username', 'b3166vr0f0l');
         $password = Setting::get('sms_api_password', '2tm2bxuIo2AixNELhXhwCdP8');
@@ -275,7 +286,7 @@ class OrderController extends Controller
             'message' => $success ? 'SMS sendt!' : 'Kunne ikke sende SMS'
         ]);
     }
-    
+
     /**
      * Update order status.
      */
@@ -288,21 +299,21 @@ class OrderController extends Controller
                 'message' => 'Unauthorized'
             ], 403);
         }
-        
+
         $request->validate([
             'status' => 'required|integer|in:0,1,2,3'
         ]);
-        
+
         $order->update([
             'ordrestatus' => $request->status
         ]);
-        
+
         return response()->json([
             'success' => true,
             'message' => 'Status oppdatert'
         ]);
     }
-    
+
     /**
      * Get order count for notifications.
      */
@@ -313,10 +324,96 @@ class OrderController extends Controller
             ->where('ordrestatus', 0)
             ->whereDate('datetime', Carbon::today())
             ->count();
-            
+
         return response()->json(['count' => $count]);
     }
-    
+
+        /**
+     * Fetch WooCommerce order details with enhanced logging.
+     */
+    private function fetchWooCommerceOrder(Order $order)
+    {
+        try {
+            // Get site credentials from database
+            $site = \App\Models\Site::findBySiteId($order->site);
+
+            if (!$site) {
+                \Log::warning("No site found for order {$order->id} with site ID {$order->site}");
+                return null;
+            }
+
+            // Construct WooCommerce API URL
+            $url = $site->url . '/wp-json/wc/v3/orders/' . $order->ordreid;
+            $url .= '?consumer_key=' . $site->consumer_key . '&consumer_secret=' . $site->consumer_secret;
+
+            \Log::info("Fetching WooCommerce order from: " . $site->url . " for order ID: " . $order->ordreid);
+
+            // Make API request to WooCommerce
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 15); // Increased timeout
+            curl_setopt($ch, CURLOPT_USERAGENT, 'AroiAdmin/1.0');
+
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlError = curl_error($ch);
+            curl_close($ch);
+
+            if ($curlError) {
+                \Log::error("CURL error fetching WooCommerce order: " . $curlError);
+                return null;
+            }
+
+            if ($httpCode !== 200) {
+                \Log::warning("WooCommerce API returned HTTP {$httpCode} for order {$order->ordreid}");
+                if ($response) {
+                    \Log::warning("Response: " . $response);
+                }
+                return null;
+            }
+
+            if (!$response) {
+                \Log::warning("Empty response from WooCommerce for order {$order->ordreid}");
+                return null;
+            }
+
+            $wooOrder = json_decode($response, true);
+
+            if (!$wooOrder || isset($wooOrder['code'])) {
+                \Log::error("Invalid WooCommerce response for order {$order->ordreid}: " . $response);
+                return null;
+            }
+
+            // Log what we received for debugging
+            \Log::info("WooCommerce order data keys: " . implode(', ', array_keys($wooOrder)));
+
+            if (isset($wooOrder['customer_note'])) {
+                \Log::info("Customer note found for order {$order->ordreid}: " . $wooOrder['customer_note']);
+            } else {
+                \Log::info("No customer_note field in WooCommerce data for order {$order->ordreid}");
+
+                // Check if it's in a different field or format
+                if (isset($wooOrder['meta_data'])) {
+                    foreach ($wooOrder['meta_data'] as $meta) {
+                        if (in_array($meta['key'], ['customer_note', '_customer_note', 'order_comments'])) {
+                            \Log::info("Found customer note in meta_data: {$meta['key']} = {$meta['value']}");
+                        }
+                    }
+                }
+            }
+
+            return $wooOrder;
+
+        } catch (\Exception $e) {
+            \Log::error("Exception fetching WooCommerce order {$order->ordreid}: " . $e->getMessage());
+            return null;
+        }
+    }
+
+
+
     /**
      * Delete old orders (called by cron).
      */
@@ -324,9 +421,9 @@ class OrderController extends Controller
     {
         $days = Setting::get('order_auto_delete_days', 14);
         $date = Carbon::now()->subDays($days);
-        
+
         $deleted = Order::where('datetime', '<', $date)->delete();
-        
+
         return response()->json([
             'success' => true,
             'deleted' => $deleted

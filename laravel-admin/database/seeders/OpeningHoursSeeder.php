@@ -25,6 +25,7 @@ class OpeningHoursSeeder extends Seeder
 
         foreach ($days as $day) {
             DB::table('apningstid')->insert([
+                'userid' => 1, // Default user ID
                 'day' => $day,
 
                 // Namsos (site 7)
@@ -63,8 +64,11 @@ class OpeningHoursSeeder extends Seeder
                 'statushell' => 1,
                 'noteshell' => null,
 
-                'created_at' => now(),
-                'updated_at' => now(),
+                // Steinkjer (site 13)
+                'opensteinkjer' => '11:00:00',
+                'closesteinkjer' => '21:00:00',
+                'statussteinkjer' => 1,
+                'notessteinkjer' => null,
             ]);
         }
     }

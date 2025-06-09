@@ -26,6 +26,6 @@ Route::prefix('v1')->group(function () {
 });
 
 // Internal API routes for admin panel
-Route::middleware(['custom.auth'])->group(function () {
+Route::middleware(['web', 'custom.auth'])->group(function () {
     Route::get('/orders/count', [OrderController::class, 'getOrderCount']);
 });

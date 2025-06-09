@@ -62,6 +62,13 @@ class Location extends Model
      */
     public static function getNameBySiteId($siteId)
     {
+        // Try to get from sites table first
+        $site = \App\Models\Site::findBySiteId($siteId);
+        if ($site) {
+            return $site->name;
+        }
+
+        // Fallback to hardcoded values for backward compatibility
         $names = [
             7 => 'Namsos',
             4 => 'Lade',
@@ -69,6 +76,7 @@ class Location extends Model
             5 => 'Gramyra',
             10 => 'Frosta',
             11 => 'Hell',
+            13 => 'Steinkjer',
         ];
 
         return $names[$siteId] ?? 'Unknown';

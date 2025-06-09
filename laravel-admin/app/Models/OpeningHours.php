@@ -141,17 +141,24 @@ class OpeningHours extends Model
      */
     public static function getHoursForLocation($siteId, $day = null)
     {
-        $locationNames = [
-            7 => 'namsos',
-            4 => 'lade',
-            6 => 'moan',
-            5 => 'gramyra',
-            10 => 'frosta',
-            11 => 'hell',
-            12 => 'steinkjer'
-        ];
+        // Try to get location name from database first
+        $site = \App\Models\Site::findBySiteId($siteId);
+        $locationName = $site ? strtolower($site->name) : null;
 
-        $locationName = $locationNames[$siteId] ?? null;
+        // Fallback to hardcoded mapping
+        if (!$locationName) {
+            $locationNames = [
+                7 => 'namsos',
+                4 => 'lade',
+                6 => 'moan',
+                5 => 'gramyra',
+                10 => 'frosta',
+                11 => 'hell',
+                13 => 'steinkjer'
+            ];
+            $locationName = $locationNames[$siteId] ?? null;
+        }
+
         if (!$locationName) {
             return null;
         }

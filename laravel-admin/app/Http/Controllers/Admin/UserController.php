@@ -49,16 +49,9 @@ class UserController extends Controller
             $validated['siteid'] = 0;
             $validated['license'] = 9999;
         } elseif (empty($validated['license'])) {
-            // Auto-set license based on siteid if not provided
-            $licenses = [
-                7 => 6714,   // Namsos
-                4 => 12381,  // Lade
-                6 => 5203,   // Moan
-                5 => 6715,   // Gramyra
-                10 => 14780, // Frosta
-                13 => 30221, // Steinkjer
-            ];
-            $validated['license'] = $licenses[$validated['siteid']] ?? 0;
+            // Auto-set license based on siteid from database
+            $site = Site::findBySiteId($validated['siteid']);
+            $validated['license'] = $site ? $site->license : 0;
         }
 
         $validated['password'] = Hash::make($validated['password']);
@@ -110,16 +103,9 @@ class UserController extends Controller
             $validated['siteid'] = 0;
             $validated['license'] = 9999;
         } elseif (empty($validated['license']) && $validated['role'] === 'user') {
-            // Auto-set license based on siteid if not provided
-            $licenses = [
-                7 => 6714,   // Namsos
-                4 => 12381,  // Lade
-                6 => 5203,   // Moan
-                5 => 6715,   // Gramyra
-                10 => 14780, // Frosta
-                13 => 30221, // Steinkjer
-            ];
-            $validated['license'] = $licenses[$validated['siteid']] ?? $user->license;
+            // Auto-set license based on siteid from database
+            $site = Site::findBySiteId($validated['siteid']);
+            $validated['license'] = $site ? $site->license : $user->license;
         }
 
         $user->update($validated);
@@ -145,7 +131,7 @@ class UserController extends Controller
             // Count by username if role field not set
             $adminCount = User::where('username', 'admin')->count();
         }
-        
+
         if (($user->role === 'admin' || $user->username === 'admin') && $adminCount <= 1) {
             return redirect()->route('admin.users.index')
                 ->with('error', 'Kan ikke slette siste admin bruker.');
@@ -165,17 +151,17 @@ class UserController extends Controller
         // Store original user id
         Session::put('impersonate.original_id', auth()->id());
         Session::put('impersonate.original_username', auth()->user()->username);
-        
+
         // Login as the target user
         Auth::login($user);
-        
+
         // Set session variables to match old PHP system
         Session::put('loggedin', true);
         Session::put('id', $user->id);
         Session::put('username', $user->username);
         Session::put('siteid', $user->siteid);
         Session::put('is_admin', $user->isAdmin());
-        
+
         return redirect()->route('admin.dashboard')
             ->with('success', 'Du er nå logget inn som ' . $user->username);
     }
@@ -186,12 +172,12 @@ class UserController extends Controller
     public function stopImpersonate()
     {
         $originalId = Session::get('impersonate.original_id');
-        
+
         if ($originalId) {
             $originalUser = User::find($originalId);
             if ($originalUser) {
                 Auth::login($originalUser);
-                
+
                 // Restore session variables
                 Session::put('loggedin', true);
                 Session::put('id', $originalUser->id);
@@ -199,10 +185,10 @@ class UserController extends Controller
                 Session::put('siteid', $originalUser->siteid);
                 Session::put('is_admin', $originalUser->isAdmin());
             }
-            
+
             Session::forget('impersonate');
         }
-        
+
         return redirect()->route('admin.dashboard')
             ->with('success', 'Tilbake til din egen bruker.');
     }

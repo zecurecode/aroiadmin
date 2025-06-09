@@ -1,19 +1,18 @@
 @extends('layouts.admin')
 
-@section('title', 'Manage Sites')
+@section('title', 'Administrer Steder')
 
 @section('content')
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1 class="h3 mb-0">Manage Sites</h1>
-                <a href="{{ route('admin.sites.create') }}" class="btn btn-primary">
-                    <i class="fas fa-plus me-2"></i>Add New Site
-                </a>
-            </div>
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="fas fa-store me-2"></i>Administrer Steder</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ route('admin.sites.create') }}" class="btn btn-sm btn-primary">
+                <i class="fas fa-plus me-1"></i>Nytt Sted
+            </a>
         </div>
     </div>
+</div>
 
     @if(session('success'))
         <div class="alert alert-success alert-dismissible fade show">
@@ -29,22 +28,25 @@
         </div>
     @endif
 
-    <div class="card">
-        <div class="card-body">
-            @if($sites->count() > 0)
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Site Name</th>
-                                <th>Site ID</th>
-                                <th>URL</th>
-                                <th>License</th>
-                                <th>Users</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Alle steder</h5>
+    </div>
+    <div class="card-body">
+        @if($sites->count() > 0)
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Stedsnavn</th>
+                            <th>Sted ID</th>
+                            <th>URL</th>
+                            <th>Lisens</th>
+                            <th>Brukere</th>
+                            <th>Status</th>
+                            <th>Handlinger</th>
+                        </tr>
+                    </thead>
                         <tbody>
                             @foreach($sites as $site)
                                 <tr>
@@ -62,12 +64,12 @@
                                         @if($site->license > 0)
                                             <span class="badge bg-success">{{ $site->license }}</span>
                                         @else
-                                            <span class="badge bg-secondary">No License</span>
+                                            <span class="badge bg-secondary">Ingen Lisens</span>
                                         @endif
                                     </td>
                                     <td>
                                         <span class="badge bg-primary">
-                                            {{ $site->users_count ?? 0 }} users
+                                            {{ $site->users_count ?? 0 }} brukere
                                         </span>
                                         <a href="{{ route('admin.sites.users', $site) }}" class="btn btn-sm btn-outline-info ms-1">
                                             <i class="fas fa-users"></i>
@@ -75,7 +77,7 @@
                                     </td>
                                     <td>
                                         <span class="badge {{ $site->active ? 'bg-success' : 'bg-danger' }}">
-                                            {{ $site->active ? 'Active' : 'Inactive' }}
+                                            {{ $site->active ? 'Aktiv' : 'Inaktiv' }}
                                         </span>
                                     </td>
                                     <td>
@@ -104,71 +106,66 @@
                 <div class="d-flex justify-content-center">
                     {{ $sites->links() }}
                 </div>
-            @else
-                <div class="text-center py-4">
-                    <i class="fas fa-store fa-3x text-muted mb-3"></i>
-                    <p class="text-muted">No sites found.</p>
-                    <a href="{{ route('admin.sites.create') }}" class="btn btn-primary">
-                        <i class="fas fa-plus me-2"></i>Add First Site
-                    </a>
-                </div>
-            @endif
-        </div>
+        @else
+            <div class="text-center py-4">
+                <i class="fas fa-store fa-3x text-muted mb-3"></i>
+                <p class="text-muted">Ingen steder funnet.</p>
+                <a href="{{ route('admin.sites.create') }}" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>Opprett Første Sted
+                </a>
+            </div>
+        @endif
     </div>
+</div>
 
-    <!-- WooCommerce Credentials Info -->
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">
-                        <i class="fas fa-info-circle me-2"></i>WooCommerce Integration Info
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h6>Consumer Keys & Secrets</h6>
-                            <p class="small text-muted">
-                                These are the WooCommerce API credentials used to connect to each site.
-                                Consumer keys and secrets are obtained from WooCommerce → Settings → Advanced → REST API.
-                            </p>
-                        </div>
-                        <div class="col-md-6">
-                            <h6>PCKasse License Numbers</h6>
-                            <p class="small text-muted">
-                                License numbers are used for POS system integration with PCKasse.
-                                These numbers are assigned to each location for order processing.
-                            </p>
-                        </div>
-                    </div>
-                </div>
+<!-- WooCommerce Credentials Info -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-info-circle me-2"></i>WooCommerce Integrasjon Info
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Consumer Keys & Secrets</h6>
+                <p class="small text-muted">
+                    Dette er WooCommerce API-legitimasjonen som brukes til å koble til hvert sted.
+                    Consumer keys og secrets fås fra WooCommerce → Innstillinger → Avansert → REST API.
+                </p>
+            </div>
+            <div class="col-md-6">
+                <h6>PCKasse Lisens Numre</h6>
+                <p class="small text-muted">
+                    Lisens numre brukes til POS-system integrasjon med PCKasse.
+                    Disse numrene tildeles til hver lokasjon for ordrebehandling.
+                </p>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Delete Site Modal -->
+<!-- Slett Sted Modal -->
 <div class="modal fade" id="deleteSiteModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Delete Site</h5>
+                <h5 class="modal-title">Slett Sted</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p>Are you sure you want to delete this site? This action cannot be undone.</p>
+                <p>Er du sikker på at du vil slette dette stedet? Denne handlingen kan ikke angres.</p>
                 <div class="alert alert-warning">
                     <i class="fas fa-exclamation-triangle me-2"></i>
-                    <strong>Warning:</strong> Deleting a site will affect all users assigned to it.
+                    <strong>Advarsel:</strong> Sletting av et sted vil påvirke alle brukere som er tildelt det.
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Avbryt</button>
                 <form id="deleteSiteForm" method="POST" style="display: inline;">
                     @csrf
                     @method('DELETE')
-                    <button type="submit" class="btn btn-danger">Delete Site</button>
+                    <button type="submit" class="btn btn-danger">Slett Sted</button>
                 </form>
             </div>
         </div>

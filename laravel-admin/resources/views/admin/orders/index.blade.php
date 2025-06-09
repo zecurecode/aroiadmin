@@ -109,10 +109,10 @@
                                     </td>
                                     <td>
                                         <div class="btn-group" role="group">
-                                            <a href="{{ route('admin.orders.show', $order) }}"
-                                               class="btn btn-sm btn-outline-primary" title="Se detaljer">
+                                            <button type="button" class="btn btn-sm btn-outline-primary"
+                                                    onclick="showOrderDetails({{ $order->id }})" title="Se detaljer">
                                                 <i class="bi bi-eye"></i>
-                                            </a>
+                                            </button>
 
                                             @if(!$order->paid)
                                                 <button type="button" class="btn btn-sm btn-outline-success mark-paid-btn"
@@ -159,8 +159,112 @@
 </div>
 @endsection
 
+<!-- Order Details Modal -->
+<div class="modal fade" id="orderDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Ordre detaljer</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="orderDetailsContent">
+                <div class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Laster...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 @push('scripts')
 <script>
+// Configure default fetch options for all AJAX requests
+const defaultFetchOptions = {
+    credentials: 'same-origin',
+    headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Cache-Control': 'no-cache'
+    }
+};
+
+// Helper function for making authenticated fetch requests
+function authenticatedFetch(url, options = {}) {
+    const mergedOptions = {
+        ...defaultFetchOptions,
+        ...options,
+        headers: {
+            ...defaultFetchOptions.headers,
+            ...options.headers
+        }
+    };
+
+    return fetch(url, mergedOptions)
+        .then(response => {
+            if (!response.ok) {
+                if (response.status === 401) {
+                    console.log('Session expired, reloading page');
+                    window.location.reload();
+                    return Promise.reject(new Error('Session expired'));
+                }
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response;
+        });
+}
+
+// Show order details
+function showOrderDetails(orderId) {
+    const modal = new bootstrap.Modal(document.getElementById('orderDetailsModal'));
+    document.querySelector('#orderDetailsModal .modal-title').textContent = 'Ordre detaljer';
+    modal.show();
+
+    // Show loading indicator
+    document.getElementById('orderDetailsContent').innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Laster ordre detaljer...</span>
+            </div>
+            <p class="mt-2">Laster ordre detaljer...</p>
+        </div>
+    `;
+
+    authenticatedFetch(`/admin/orders/${orderId}`, {
+        headers: {
+            'Accept': 'text/html'
+        }
+    })
+        .then(response => response.text())
+        .then(html => {
+            console.log('AJAX Response length:', html.length);
+            console.log('Response contains navbar:', html.includes('navbar') || html.includes('Aroi Admin'));
+
+            // Only use content inside the .order-details div if it exists
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            const orderDetails = tempDiv.querySelector('.order-details');
+
+            if (orderDetails) {
+                document.getElementById('orderDetailsContent').innerHTML = orderDetails.innerHTML;
+            } else {
+                document.getElementById('orderDetailsContent').innerHTML = html;
+            }
+        })
+        .catch(error => {
+            console.error('Error loading order details:', error);
+            document.getElementById('orderDetailsContent').innerHTML = `
+                <div class="alert alert-danger">
+                    <h6>Feil ved lasting av ordre detaljer</h6>
+                    <p>Kunne ikke laste ordre detaljer. Prøv å oppdatere siden.</p>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="location.reload()">
+                        <i class="fas fa-sync me-1"></i>Oppdater siden
+                    </button>
+                </div>
+            `;
+        });
+}
+
 // Mark order as paid
 document.querySelectorAll('.mark-paid-btn').forEach(button => {
     button.addEventListener('click', function() {
