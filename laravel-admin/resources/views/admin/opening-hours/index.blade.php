@@ -30,7 +30,7 @@
                     </h5>
                     <select id="locationSelect" class="form-select">
                         @foreach($locations as $location)
-                        <option value="{{ $location->Id }}" {{ $loop->first ? 'selected' : '' }}>
+                        <option value="{{ $location->Id }}" {{ $location->Id == $selectedLocationId ? 'selected' : '' }}>
                             {{ $location->Navn }}
                         </option>
                         @endforeach
@@ -558,10 +558,17 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
-    let currentLocationId = $('#locationSelect').val();
+    let currentLocationId = $('#locationSelect').val() || {{ $selectedLocationId ?? 'null' }};
     let currentMonth = $('#monthSelect').val();
     let calendarData = {};
     let locationData = {};
+
+    // Ensure we have a valid location ID
+    if (!currentLocationId) {
+        console.error('No location ID available');
+        showAlert('Ingen lokasjon tilgjengelig', 'danger');
+        return;
+    }
 
     // Setup CSRF token for AJAX requests
     $.ajaxSetup({

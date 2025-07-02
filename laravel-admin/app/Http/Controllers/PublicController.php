@@ -19,14 +19,27 @@ class PublicController extends Controller
         $locations = Location::where('active', true)->orderBy('name')->get();
 
         // Get today's day name and current time
-        $todayDay = Carbon::now()->format('l'); // Monday, Tuesday, etc.
+        $todayDayEnglish = Carbon::now()->format('l'); // Monday, Tuesday, etc.
         $currentTime = Carbon::now();
+        
+        // Map English days to Norwegian
+        $dayMapping = [
+            'Monday' => 'Mandag',
+            'Tuesday' => 'Tirsdag',
+            'Wednesday' => 'Onsdag',
+            'Thursday' => 'Torsdag',
+            'Friday' => 'Fredag',
+            'Saturday' => 'Lørdag',
+            'Sunday' => 'Søndag'
+        ];
+        
+        $todayDay = $dayMapping[$todayDayEnglish] ?? $todayDayEnglish;
 
         // Get opening hours for today
         $openingHours = OpeningHours::where('day', $todayDay)->first();
 
         // Get all days opening hours for displaying full schedule
-        $allOpeningHours = OpeningHours::orderByRaw("FIELD(day, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')")->get();
+        $allOpeningHours = OpeningHours::orderByRaw("FIELD(day, 'Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag', 'Søndag')")->get();
 
         // Prepare location data with opening hours and status
         $locationsData = [];
@@ -66,9 +79,18 @@ class PublicController extends Controller
 
                 // Check if currently open (changed logic - if there are opening hours, consider it open today)
                 if ($openTime && $closeTime) {
-                    $openDateTime = Carbon::createFromFormat('H:i:s', $openTime);
-                    $closeDateTime = Carbon::createFromFormat('H:i:s', $closeTime);
-                    $locationData['is_open'] = ($currentTime->format('H:i:s') >= $openTime && $currentTime->format('H:i:s') <= $closeTime);
+                    // Remove any whitespace and handle both H:i and H:i:s formats
+                    $openTime = trim($openTime);
+                    $closeTime = trim($closeTime);
+                    
+                    // Don't use Carbon for simple time comparison
+                    $openTimeFormatted = strlen($openTime) == 5 ? $openTime . ':00' : $openTime;
+                    $closeTimeFormatted = strlen($closeTime) == 5 ? $closeTime . ':00' : $closeTime;
+                    
+                    // Check if location is open AND status is 1 (open)
+                    $currentTimeStr = $currentTime->format('H:i:s');
+                    $isWithinHours = ($currentTimeStr >= $openTimeFormatted && $currentTimeStr <= $closeTimeFormatted);
+                    $locationData['is_open'] = $isWithinHours && $status == 1;
                     $locationData['is_closed_today'] = false; // Has opening hours today
                 } else {
                     $locationData['is_closed_today'] = true; // No opening hours today
@@ -99,7 +121,7 @@ class PublicController extends Controller
         return view('public.locations', [
             'locations' => $locationsData,
             'today' => Carbon::now()->format('l, d. F Y'),
-            'current_day' => $todayDay
+            'current_day' => $todayDay . ' (' . $todayDayEnglish . ')'
         ]);
     }
 

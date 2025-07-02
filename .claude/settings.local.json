@@ -2,7 +2,14 @@
   "permissions": {
     "allow": [
       "Bash(php artisan migrate:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(php artisan tinker:*)",
+      "Bash(curl:*)",
+      "Bash(grep:*)",
+      "Bash(ls:*)",
+      "Bash(pkill:*)",
+      "Bash(php artisan config:clear:*)",
+      "Bash(php artisan:*)"
     ],
     "deny": []
   }

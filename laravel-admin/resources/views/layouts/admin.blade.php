@@ -347,6 +347,9 @@
                                 <li><a class="dropdown-item" href="{{ route('admin.sites.index') }}">
                                     <i class="bi bi-shop me-2"></i>Steder
                                 </a></li>
+                                <li><a class="dropdown-item" href="{{ route('admin.locations.index') }}">
+                                    <i class="bi bi-geo-alt me-2"></i>Lokasjoner
+                                </a></li>
                                 <li><a class="dropdown-item" href="{{ route('admin.settings.index') }}">
                                     <i class="bi bi-gear me-2"></i>Systeminnstillinger
                                 </a></li>

@@ -173,21 +173,27 @@ class UserController extends Controller
     {
         $originalId = Session::get('impersonate.original_id');
 
-        if ($originalId) {
-            $originalUser = User::find($originalId);
-            if ($originalUser) {
-                Auth::login($originalUser);
-
-                // Restore session variables
-                Session::put('loggedin', true);
-                Session::put('id', $originalUser->id);
-                Session::put('username', $originalUser->username);
-                Session::put('siteid', $originalUser->siteid);
-                Session::put('is_admin', $originalUser->isAdmin());
-            }
-
-            Session::forget('impersonate');
+        // Security check: Only allow if currently impersonating
+        if (!$originalId) {
+            return redirect()->route('admin.dashboard')
+                ->with('error', 'Du impersonerer ikke en bruker for øyeblikket.');
         }
+
+        $originalUser = User::find($originalId);
+        if ($originalUser) {
+            Auth::login($originalUser);
+
+            // Restore session variables
+            Session::put('loggedin', true);
+            Session::put('id', $originalUser->id);
+            Session::put('username', $originalUser->username);
+            Session::put('siteid', $originalUser->siteid);
+            Session::put('is_admin', $originalUser->isAdmin());
+        }
+
+        // Clean up impersonation session data
+        Session::forget('impersonate.original_id');
+        Session::forget('impersonate.original_username');
 
         return redirect()->route('admin.dashboard')
             ->with('success', 'Tilbake til din egen bruker.');

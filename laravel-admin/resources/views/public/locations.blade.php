@@ -385,7 +385,6 @@
             <div class="date-info">
                 <h2>Velkommen til Aroi Asia!</h2>
                 <p>{{ $today }} - Klikk på avdelingen for å se meny og bestille mat</p>
-                <small class="text-muted">Debug: Dagens dag er {{ $current_day }}</small>
             </div>
 
             <!-- Locations Grid -->
@@ -484,7 +483,6 @@
                                             @if($dayHours['is_today'])
                                                 <span class="badge bg-primary ms-1">I dag</span>
                                             @endif
-                                            <!-- Debug: {{ $dayHours['day'] }} -->
                                         </div>
                                         <div class="day-time">
                                             @if($dayHours['is_open'])

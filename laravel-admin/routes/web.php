@@ -75,6 +75,9 @@ Route::middleware(['custom.auth'])->group(function () {
     Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
     Route::post('/admin/dashboard/toggle-status', [AdminDashboardController::class, 'toggleStatus'])->name('admin.dashboard.toggle-status');
 
+    // Stop impersonate route - needs to be outside admin middleware since impersonated users don't have admin rights
+    Route::post('/admin/stop-impersonate', [UserController::class, 'stopImpersonate'])->name('admin.stop-impersonate');
+
     // Opening hours management routes
     Route::prefix('admin/opening-hours')->name('admin.opening-hours.')->group(function () {
         Route::get('/', [OpeningHoursController::class, 'index'])->name('index');
@@ -103,7 +106,6 @@ Route::middleware(['custom.auth', 'admin'])->prefix('admin')->name('admin.')->gr
     // User management
     Route::resource('users', UserController::class);
     Route::post('users/{user}/impersonate', [UserController::class, 'impersonate'])->name('users.impersonate');
-    Route::post('stop-impersonate', [UserController::class, 'stopImpersonate'])->name('stop-impersonate');
 
     // Site management
     Route::resource('sites', SiteController::class);

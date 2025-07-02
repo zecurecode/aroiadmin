@@ -20,14 +20,18 @@ class OpeningHoursController extends Controller
     {
         $user = Auth::user();
         $locations = collect();
+        $selectedLocationId = null;
 
         // Get locations based on user permissions
         if ($user->is_admin) {
             $locations = AvdelingAlternative::with('openingHours')->get();
+            // For admin, allow selecting any location or default to first
+            $selectedLocationId = $request->get('location_id') ?? $locations->first()?->Id;
         } else {
             $locations = AvdelingAlternative::with('openingHours')
                 ->where('Id', $user->siteid)
                 ->get();
+            $selectedLocationId = $user->siteid;
         }
 
         // Get current month or requested month
@@ -43,6 +47,9 @@ class OpeningHoursController extends Controller
             ->when(!$user->is_admin, function ($query) use ($user) {
                 return $query->forLocation($user->siteid);
             })
+            ->when($user->is_admin && $selectedLocationId, function ($query) use ($selectedLocationId) {
+                return $query->forLocation($selectedLocationId);
+            })
             ->orderBy('date')
             ->get();
 
@@ -50,11 +57,12 @@ class OpeningHoursController extends Controller
             'locations',
             'specialHours',
             'viewDate',
-            'currentDate'
+            'currentDate',
+            'selectedLocationId'
         ));
     }
 
-        /**
+    /**
      * Get calendar data for AJAX requests
      */
     public function getCalendarData(Request $request)
@@ -72,12 +80,24 @@ class OpeningHoursController extends Controller
                 'month' => $month
             ]);
 
-            // For non-admin users, force their location
-            if (!$user->is_admin) {
+            // Handle location selection based on user type
+            if ($user->is_admin) {
+                // Admin can see all locations
+                if (!$locationId) {
+                    // If no location specified, get the first available location
+                    $firstLocation = AvdelingAlternative::with('openingHours')->first();
+                    if (!$firstLocation) {
+                        return response()->json(['error' => 'No locations found'], 404);
+                    }
+                    $locationId = $firstLocation->Id;
+                    Log::info('Admin: Using first available location', ['location_id' => $locationId]);
+                }
+            } else {
+                // For non-admin users, force their location
                 $locationId = $user->siteid;
             }
 
-            // Validate location access
+            // Validate location access for non-admin users
             if (!$user->is_admin && $locationId != $user->siteid) {
                 Log::warning('Unauthorized location access attempt', [
                     'user_id' => $user->id,
@@ -109,62 +129,62 @@ class OpeningHoursController extends Controller
                 return response()->json(['error' => 'Opening hours not found for this location'], 404);
             }
 
-        // Get special hours for this period
-        $specialHours = SpecialHours::forLocation($locationId)
-            ->inDateRange($startDate, $endDate)
-            ->get()
-            ->keyBy('date');
+            // Get special hours for this period
+            $specialHours = SpecialHours::forLocation($locationId)
+                ->inDateRange($startDate, $endDate)
+                ->get()
+                ->keyBy('date');
 
-        // Generate calendar data
-        $calendarData = [];
-        $current = $startDate->copy();
+            // Generate calendar data
+            $calendarData = [];
+            $current = $startDate->copy();
 
-        while ($current <= $endDate) {
-            $dateStr = $current->format('Y-m-d');
-            $dayOfWeek = strtolower($current->format('l'));
+            while ($current <= $endDate) {
+                $dateStr = $current->format('Y-m-d');
+                $dayOfWeek = strtolower($current->format('l'));
 
-            // Check for special hours first
-            if ($specialHours->has($dateStr)) {
-                $special = $specialHours[$dateStr];
-                $calendarData[] = [
-                    'date' => $dateStr,
-                    'day' => $current->day,
-                    'dayOfWeek' => $dayOfWeek,
-                    'isSpecial' => true,
-                    'isClosed' => $special->is_closed,
-                    'hours' => $special->formatted_hours,
-                    'reason' => $special->reason,
-                    'type' => $special->type,
-                    'specialId' => $special->id
-                ];
-            } else {
-                // Use regular hours
-                $regularHours = $location->openingHours->getHoursForDay($dayOfWeek);
-                $calendarData[] = [
-                    'date' => $dateStr,
-                    'day' => $current->day,
-                    'dayOfWeek' => $dayOfWeek,
-                    'isSpecial' => false,
-                    'isClosed' => $regularHours['closed'] == 1 || $location->openingHours->isSeasonClosed(),
-                    'hours' => $regularHours['closed'] == 1 ? 'Stengt' :
-                              ($regularHours['start'] && $regularHours['stop'] ?
-                               $regularHours['start'] . ' - ' . $regularHours['stop'] : 'Stengt'),
-                    'reason' => $location->openingHours->isSeasonClosed() ? 'Sesongstengt' : null,
-                    'type' => 'regular'
-                ];
+                // Check for special hours first
+                if ($specialHours->has($dateStr)) {
+                    $special = $specialHours[$dateStr];
+                    $calendarData[] = [
+                        'date' => $dateStr,
+                        'day' => $current->day,
+                        'dayOfWeek' => $dayOfWeek,
+                        'isSpecial' => true,
+                        'isClosed' => $special->is_closed,
+                        'hours' => $special->formatted_hours,
+                        'reason' => $special->reason,
+                        'type' => $special->type,
+                        'specialId' => $special->id
+                    ];
+                } else {
+                    // Use regular hours
+                    $regularHours = $location->openingHours->getHoursForDay($dayOfWeek);
+                    $calendarData[] = [
+                        'date' => $dateStr,
+                        'day' => $current->day,
+                        'dayOfWeek' => $dayOfWeek,
+                        'isSpecial' => false,
+                        'isClosed' => $regularHours['closed'] == 1 || $location->openingHours->isSeasonClosed(),
+                        'hours' => $regularHours['closed'] == 1 ? 'Stengt' :
+                                  ($regularHours['start'] && $regularHours['stop'] ?
+                                   $regularHours['start'] . ' - ' . $regularHours['stop'] : 'Stengt'),
+                        'reason' => $location->openingHours->isSeasonClosed() ? 'Sesongstengt' : null,
+                        'type' => 'regular'
+                    ];
+                }
+
+                $current->addDay();
             }
 
-            $current->addDay();
-        }
-
-        return response()->json([
-            'calendarData' => $calendarData,
-            'location' => [
-                'id' => $location->Id,
-                'name' => $location->Navn,
-                'regularHours' => $location->openingHours->getWeekHours()
-            ]
-        ]);
+            return response()->json([
+                'calendarData' => $calendarData,
+                'location' => [
+                    'id' => $location->Id,
+                    'name' => $location->Navn,
+                    'regularHours' => $location->openingHours->getWeekHours()
+                ]
+            ]);
 
         } catch (\Exception $e) {
             Log::error('Error loading calendar data', [
