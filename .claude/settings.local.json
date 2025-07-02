@@ -9,7 +9,9 @@
       "Bash(ls:*)",
       "Bash(pkill:*)",
       "Bash(php artisan config:clear:*)",
-      "Bash(php artisan:*)"
+      "Bash(php artisan:*)",
+      "Bash(php:*)",
+      "Bash(rm:*)"
     ],
     "deny": []
   }

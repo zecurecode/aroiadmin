@@ -162,7 +162,15 @@
             color: white;
         }
 
-                        /* Mobile styles */
+                        /* Ensure sidebar is visible on desktop */
+        @media (min-width: 768px) {
+            .sidebar {
+                display: block !important;
+                transform: translateX(0) !important;
+            }
+        }
+
+        /* Mobile styles */
         @media (max-width: 767.98px) {
             .sidebar {
                 transform: translateX(-100%);
@@ -400,7 +408,7 @@
         <div class="row">
             @if(auth()->user() && auth()->user()->isAdmin() && request()->routeIs('admin.*'))
                 <!-- Sidebar (only for admin pages) -->
-                <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse show">
+                <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-light sidebar">
                     <div class="sidebar-sticky pt-3">
                         <ul class="nav flex-column">
                             <li class="nav-item">
