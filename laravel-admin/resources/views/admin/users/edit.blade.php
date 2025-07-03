@@ -60,13 +60,23 @@
                         <select class="form-select @error('siteid') is-invalid @enderror" 
                                 id="siteid" name="siteid">
                             <option value="">Velg lokasjon</option>
-                            <option value="7" {{ old('siteid', $user->siteid) == '7' ? 'selected' : '' }}>Namsos</option>
-                            <option value="4" {{ old('siteid', $user->siteid) == '4' ? 'selected' : '' }}>Lade</option>
-                            <option value="6" {{ old('siteid', $user->siteid) == '6' ? 'selected' : '' }}>Moan</option>
-                            <option value="5" {{ old('siteid', $user->siteid) == '5' ? 'selected' : '' }}>Gramyra</option>
-                            <option value="10" {{ old('siteid', $user->siteid) == '10' ? 'selected' : '' }}>Frosta</option>
-                            <option value="11" {{ old('siteid', $user->siteid) == '11' ? 'selected' : '' }}>Hell</option>
-                            <option value="13" {{ old('siteid', $user->siteid) == '13' ? 'selected' : '' }}>Steinkjer</option>
+                            @if(isset($sites))
+                                @foreach($sites as $site)
+                                    <option value="{{ $site->site_id }}" 
+                                            {{ old('siteid', $user->siteid) == $site->site_id ? 'selected' : '' }}>
+                                        {{ $site->name }}
+                                    </option>
+                                @endforeach
+                            @else
+                                <!-- Fallback hardcoded options if $sites is not available -->
+                                <option value="7" {{ old('siteid', $user->siteid) == '7' ? 'selected' : '' }}>Namsos</option>
+                                <option value="4" {{ old('siteid', $user->siteid) == '4' ? 'selected' : '' }}>Lade</option>
+                                <option value="6" {{ old('siteid', $user->siteid) == '6' ? 'selected' : '' }}>Moan</option>
+                                <option value="5" {{ old('siteid', $user->siteid) == '5' ? 'selected' : '' }}>Gramyra</option>
+                                <option value="10" {{ old('siteid', $user->siteid) == '10' ? 'selected' : '' }}>Frosta</option>
+                                <option value="11" {{ old('siteid', $user->siteid) == '11' ? 'selected' : '' }}>Hell</option>
+                                <option value="13" {{ old('siteid', $user->siteid) == '13' ? 'selected' : '' }}>Steinkjer</option>
+                            @endif
                         </select>
                         @error('siteid')
                             <div class="invalid-feedback">{{ $message }}</div>

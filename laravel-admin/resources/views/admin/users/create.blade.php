@@ -59,13 +59,23 @@
                         <select class="form-select @error('siteid') is-invalid @enderror" 
                                 id="siteid" name="siteid">
                             <option value="">Velg lokasjon</option>
-                            <option value="7" {{ old('siteid') == '7' ? 'selected' : '' }}>Namsos</option>
-                            <option value="4" {{ old('siteid') == '4' ? 'selected' : '' }}>Lade</option>
-                            <option value="6" {{ old('siteid') == '6' ? 'selected' : '' }}>Moan</option>
-                            <option value="5" {{ old('siteid') == '5' ? 'selected' : '' }}>Gramyra</option>
-                            <option value="10" {{ old('siteid') == '10' ? 'selected' : '' }}>Frosta</option>
-                            <option value="11" {{ old('siteid') == '11' ? 'selected' : '' }}>Hell</option>
-                            <option value="13" {{ old('siteid') == '13' ? 'selected' : '' }}>Steinkjer</option>
+                            @if(isset($sites))
+                                @foreach($sites as $site)
+                                    <option value="{{ $site->site_id }}" 
+                                            {{ old('siteid') == $site->site_id ? 'selected' : '' }}>
+                                        {{ $site->name }}
+                                    </option>
+                                @endforeach
+                            @else
+                                <!-- Fallback hardcoded options if $sites is not available -->
+                                <option value="7" {{ old('siteid') == '7' ? 'selected' : '' }}>Namsos</option>
+                                <option value="4" {{ old('siteid') == '4' ? 'selected' : '' }}>Lade</option>
+                                <option value="6" {{ old('siteid') == '6' ? 'selected' : '' }}>Moan</option>
+                                <option value="5" {{ old('siteid') == '5' ? 'selected' : '' }}>Gramyra</option>
+                                <option value="10" {{ old('siteid') == '10' ? 'selected' : '' }}>Frosta</option>
+                                <option value="11" {{ old('siteid') == '11' ? 'selected' : '' }}>Hell</option>
+                                <option value="13" {{ old('siteid') == '13' ? 'selected' : '' }}>Steinkjer</option>
+                            @endif
                         </select>
                         @error('siteid')
                             <div class="invalid-feedback">{{ $message }}</div>
@@ -115,18 +125,33 @@ document.getElementById('role').addEventListener('change', function() {
 // Auto-fill license based on site selection
 document.getElementById('siteid').addEventListener('change', function() {
     const licenseField = document.getElementById('license');
-    const licenses = {
-        '7': '6714',   // Namsos
-        '4': '12381',  // Lade
-        '6': '5203',   // Moan
-        '5': '6715',   // Gramyra
-        '10': '14780', // Frosta
-        '13': '30221'  // Steinkjer
-    };
     
-    if (licenses[this.value]) {
-        licenseField.value = licenses[this.value];
-    }
+    @if(isset($sites))
+        // Use data from database
+        const siteLicenses = {
+            @foreach($sites as $site)
+                '{{ $site->site_id }}': '{{ $site->license }}',
+            @endforeach
+        };
+        
+        if (siteLicenses[this.value]) {
+            licenseField.value = siteLicenses[this.value];
+        }
+    @else
+        // Fallback to hardcoded licenses
+        const licenses = {
+            '7': '6714',   // Namsos
+            '4': '12381',  // Lade
+            '6': '5203',   // Moan
+            '5': '6715',   // Gramyra
+            '10': '14780', // Frosta
+            '13': '30221'  // Steinkjer
+        };
+        
+        if (licenses[this.value]) {
+            licenseField.value = licenses[this.value];
+        }
+    @endif
 });
 </script>
 @endpush

@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Aroi Asia - Thai Kitchen</title>
+    <title>Aroi Asia - Th</title>
     <meta name="description" content="Velkommen til Aroi Asia! Vi har restauranter i Namsos, Lade, Moan, Gramyra, Frosta, Hell og Steinkjer. Se våre åpningstider og bestill mat online.">
 
     <!-- Bootstrap CSS -->
@@ -15,8 +15,8 @@
 
     <style>
         :root {
-            --primary-purple: #8B5CF6;
-            --primary-purple-dark: #7C3AED;
+            --primary-purple: #8a3794;
+            --primary-purple-dark: #7a2d84;
             --success-green: #10B981;
             --warning-orange: #F59E0B;
             --danger-red: #EF4444;
@@ -37,6 +37,19 @@
             color: white;
             padding: 2rem 0;
             text-align: center;
+        }
+
+        .header-logo {
+            max-height: 80px;
+            max-width: 300px;
+            height: auto;
+            width: auto;
+            display: block;
+            margin: 0 auto;
+            /* Removed white filter - use original logo colors */
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 10px;
         }
 
         .header h1 {
@@ -269,11 +282,11 @@
         }
 
         .day-hours.today {
-            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(139, 92, 246, 0.05) 100%);
+            background: linear-gradient(135deg, rgba(138, 55, 148, 0.15) 0%, rgba(138, 55, 148, 0.05) 100%);
             border: 2px solid var(--primary-purple);
             padding: 0.75rem;
             font-weight: 600;
-            box-shadow: 0 2px 4px rgba(139, 92, 246, 0.1);
+            box-shadow: 0 2px 4px rgba(138, 55, 148, 0.1);
         }
 
                 .day-name {
@@ -334,8 +347,9 @@
         }
 
         @media (max-width: 768px) {
-            .header h1 {
-                font-size: 2rem;
+            .header-logo {
+                max-height: 60px;
+                max-width: 250px;
             }
 
             .btn-group-custom {
@@ -373,8 +387,7 @@
     <!-- Header -->
     <div class="header">
         <div class="container">
-            <h1><i class="bi bi-cup-hot-fill"></i> Aroi Asia</h1>
-            <p>Thai Kitchen</p>
+            <img src="{{ asset('images/logo.png') }}" alt="Aroi Asia Thai Kitchen" class="header-logo" width="500" height="500">
         </div>
     </div>
 
@@ -384,7 +397,7 @@
             <!-- Date Info -->
             <div class="date-info">
                 <h2>Velkommen til Aroi Asia!</h2>
-                <p>{{ $today }} - Klikk på avdelingen for å se meny og bestille mat</p>
+                <p>Klikk på avdelingen for å se meny og bestille mat</p>
             </div>
 
             <!-- Locations Grid -->
@@ -543,7 +556,7 @@
     <!-- Footer -->
     <div class="footer">
         <div class="container">
-            <p>&copy; {{ date('Y') }} Aroi Asia Thai Kitchen. Laget med kjærlighet siden 2020.</p>
+            <p>&copy; {{ date('Y') }} Aroi Asia AS</p>
         </div>
     </div>
 

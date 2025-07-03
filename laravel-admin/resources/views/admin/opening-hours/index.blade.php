@@ -1038,15 +1038,27 @@ $(document).ready(function() {
 
     function saveRegularHours() {
         const formData = new FormData($('#editRegularHoursForm')[0]);
+        
+        // Convert FormData to JSON object
+        const hours = {};
+        const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+        
+        days.forEach(day => {
+            hours[day] = {
+                start: formData.get(`hours[${day}][start]`) || null,
+                end: formData.get(`hours[${day}][end]`) || null,
+                closed: formData.get(`hours[${day}][closed]`) === '1'
+            };
+        });
 
         $.ajax({
             url: `/admin/opening-hours/regular/${currentLocationId}`,
             method: 'POST',
-            data: formData,
-            processData: false,
-            contentType: false,
+            data: JSON.stringify({ hours: hours }),
+            contentType: 'application/json',
             headers: {
-                'X-HTTP-Method-Override': 'PUT'
+                'X-HTTP-Method-Override': 'PUT',
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
             }
         })
         .done(function(response) {
@@ -1056,6 +1068,7 @@ $(document).ready(function() {
         })
         .fail(function(xhr) {
             const response = xhr.responseJSON;
+            console.error('Save regular hours error:', response);
             showAlert(response?.message || 'Feil ved lagring', 'danger');
         });
     }

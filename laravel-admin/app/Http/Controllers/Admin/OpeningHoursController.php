@@ -231,8 +231,8 @@ class OpeningHoursController extends Controller
         $request->validate([
             'hours' => 'required|array',
             'hours.*.start' => 'nullable|date_format:H:i',
-            'hours.*.end' => 'nullable|date_format:H:i',
-            'hours.*.closed' => 'boolean'
+            'hours.*.end' => 'nullable|date_format:H:i', 
+            'hours.*.closed' => 'required|boolean'
         ]);
 
         $location = ApningstidAlternative::where('AvdID', $locationId)->first();

@@ -1,6 +1,12 @@
 @extends('layouts.admin')
 
 @section('content')
+{{-- Debug info --}}
+@if(config('app.debug'))
+<div class="alert alert-info">
+    <small>Debug: Method spoofing is {{ method_field('DELETE') ? 'enabled' : 'disabled' }}</small>
+</div>
+@endif
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2"><i class="fas fa-map-marker-alt me-2"></i>Lokasjoner</h1>
     <div class="btn-toolbar mb-2 mb-md-0">
@@ -55,7 +61,11 @@
                                     <td>{{ $location->address ?: '-' }}</td>
                                     <td>{{ $location->phone ?: '-' }}</td>
                                     <td>{{ $location->email ?: '-' }}</td>
-                                    <td>{{ $location->license }}</td>
+                                    <td>{{ $location->license }}
+                                        @if($location->users()->count() > 0)
+                                            <br><small class="text-muted">{{ $location->users()->count() }} bruker(e)</small>
+                                        @endif
+                                    </td>
                                     <td>
                                         @if($location->active)
                                             <span class="badge bg-success">Aktiv</span>
@@ -69,16 +79,11 @@
                                                class="btn btn-sm btn-primary">
                                                 <i class="fas fa-edit"></i> Rediger
                                             </a>
-                                            <form action="{{ route('admin.locations.destroy', $location->id) }}" 
-                                                  method="POST" 
-                                                  style="display: inline-block;"
-                                                  onsubmit="return confirm('Er du sikker på at du vil slette lokasjonen {{ $location->name }}? Dette kan ikke angres.');">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="btn btn-sm btn-danger">
-                                                    <i class="fas fa-trash"></i> Slett
-                                                </button>
-                                            </form>
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-danger" 
+                                                    onclick="deleteLocation({{ $location->id }}, '{{ $location->name }}')">
+                                                <i class="fas fa-trash"></i> Slett
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>
@@ -97,4 +102,24 @@
         </div>
     </div>
 </div>
+
+{{-- Hidden form for deletion --}}
+<form id="delete-form" method="POST" style="display: none;">
+    @csrf
+    @method('DELETE')
+</form>
+
 @endsection
+
+@push('scripts')
+<script>
+function deleteLocation(id, name) {
+    if (confirm('Er du sikker på at du vil slette lokasjonen ' + name + '? Dette kan ikke angres.')) {
+        const form = document.getElementById('delete-form');
+        form.action = '{{ route("admin.locations.index") }}/' + id;
+        console.log('Submitting delete form to:', form.action);
+        form.submit();
+    }
+}
+</script>
+@endpush

@@ -108,20 +108,46 @@ class LocationController extends Controller
     {
         $location = Location::findOrFail($id);
         
+        // Log the deletion attempt
+        \Log::info('Attempting to delete location', [
+            'location_id' => $location->id,
+            'location_name' => $location->name,
+            'site_id' => $location->site_id,
+            'user_count' => $location->users()->count(),
+            'order_count' => $location->orders()->count(),
+            'request_method' => request()->method(),
+            'is_delete_method' => request()->isMethod('DELETE')
+        ]);
+        
         // Check if there are associated users
-        if ($location->users()->count() > 0) {
+        $userCount = $location->users()->count();
+        if ($userCount > 0) {
+            \Log::warning('Cannot delete location with users', [
+                'location_id' => $location->id,
+                'user_count' => $userCount
+            ]);
             return redirect()->route('admin.locations.index')
-                ->with('error', 'Kan ikke slette lokasjon som har tilknyttede brukere. Vennligst fjern eller flytt brukerne først.');
+                ->with('error', "Kan ikke slette lokasjon '{$location->name}' som har {$userCount} tilknyttede brukere. Vennligst fjern eller flytt brukerne først.");
         }
         
         // Check if there are associated orders
-        if ($location->orders()->count() > 0) {
+        $orderCount = $location->orders()->count();
+        if ($orderCount > 0) {
+            \Log::warning('Cannot delete location with orders', [
+                'location_id' => $location->id,
+                'order_count' => $orderCount
+            ]);
             return redirect()->route('admin.locations.index')
-                ->with('error', 'Kan ikke slette lokasjon som har eksisterende ordrer.');
+                ->with('error', "Kan ikke slette lokasjon '{$location->name}' som har {$orderCount} eksisterende ordrer.");
         }
         
         $locationName = $location->name;
         $location->delete();
+        
+        \Log::info('Location deleted successfully', [
+            'location_id' => $id,
+            'location_name' => $locationName
+        ]);
 
         return redirect()->route('admin.locations.index')
             ->with('success', "Lokasjon '{$locationName}' ble slettet.");
