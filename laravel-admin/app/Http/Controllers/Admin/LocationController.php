@@ -37,7 +37,7 @@ class LocationController extends Controller
             'phone' => 'nullable|string|max:50',
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string|max:500',
-            'active' => 'boolean'
+            'active' => 'nullable|in:on,1,true,0,false'
         ]);
 
         Location::create([
@@ -47,7 +47,7 @@ class LocationController extends Controller
             'phone' => $request->phone,
             'email' => $request->email,
             'address' => $request->address,
-            'active' => $request->has('active')
+            'active' => $request->active == '1' || $request->active === true
         ]);
 
         return redirect()->route('admin.locations.index')
@@ -85,7 +85,7 @@ class LocationController extends Controller
             'phone' => 'nullable|string|max:50',
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string|max:500',
-            'active' => 'boolean'
+            'active' => 'nullable|in:on,1,true,0,false'
         ]);
 
         $location->update([
@@ -94,7 +94,7 @@ class LocationController extends Controller
             'phone' => $request->phone,
             'email' => $request->email,
             'address' => $request->address,
-            'active' => $request->has('active')
+            'active' => $request->active == '1' || $request->active === true
         ]);
 
         return redirect()->route('admin.locations.index')
@@ -107,9 +107,23 @@ class LocationController extends Controller
     public function destroy(string $id)
     {
         $location = Location::findOrFail($id);
+        
+        // Check if there are associated users
+        if ($location->users()->count() > 0) {
+            return redirect()->route('admin.locations.index')
+                ->with('error', 'Kan ikke slette lokasjon som har tilknyttede brukere. Vennligst fjern eller flytt brukerne først.');
+        }
+        
+        // Check if there are associated orders
+        if ($location->orders()->count() > 0) {
+            return redirect()->route('admin.locations.index')
+                ->with('error', 'Kan ikke slette lokasjon som har eksisterende ordrer.');
+        }
+        
+        $locationName = $location->name;
         $location->delete();
 
         return redirect()->route('admin.locations.index')
-            ->with('success', 'Lokasjon slettet.');
+            ->with('success', "Lokasjon '{$locationName}' ble slettet.");
     }
 }

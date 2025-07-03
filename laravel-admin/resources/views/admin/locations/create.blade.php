@@ -87,7 +87,8 @@
                     </div>
 
                     <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="active" name="active" 
+                        <input type="hidden" name="active" value="0">
+                        <input type="checkbox" class="form-check-input" id="active" name="active" value="1"
                                {{ old('active') ? 'checked' : '' }}>
                         <label class="form-check-label" for="active">
                             Aktiv lokasjon

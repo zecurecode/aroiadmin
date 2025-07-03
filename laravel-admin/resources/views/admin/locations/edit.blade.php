@@ -96,7 +96,8 @@
                         <div class="col-md-6 mb-3">
                             <label class="form-label d-block">Status</label>
                             <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="active" name="active" 
+                                <input type="hidden" name="active" value="0">
+                                <input class="form-check-input" type="checkbox" id="active" name="active" value="1"
                                        {{ old('active', $location->active) ? 'checked' : '' }}>
                                 <label class="form-check-label" for="active">
                                     Lokasjon er aktiv

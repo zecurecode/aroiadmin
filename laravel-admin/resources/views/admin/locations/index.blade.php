@@ -25,6 +25,13 @@
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
                 @endif
+                
+                @if(session('error'))
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="fas fa-exclamation-circle me-2"></i>{{ session('error') }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                @endif
 
                 <div class="table-responsive">
                     <table class="table table-striped">
@@ -57,10 +64,22 @@
                                         @endif
                                     </td>
                                     <td>
-                                        <a href="{{ route('admin.locations.edit', $location->id) }}" 
-                                           class="btn btn-sm btn-primary">
-                                            <i class="fas fa-edit"></i> Rediger
-                                        </a>
+                                        <div class="btn-group" role="group">
+                                            <a href="{{ route('admin.locations.edit', $location->id) }}" 
+                                               class="btn btn-sm btn-primary">
+                                                <i class="fas fa-edit"></i> Rediger
+                                            </a>
+                                            <form action="{{ route('admin.locations.destroy', $location->id) }}" 
+                                                  method="POST" 
+                                                  style="display: inline-block;"
+                                                  onsubmit="return confirm('Er du sikker på at du vil slette lokasjonen {{ $location->name }}? Dette kan ikke angres.');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn btn-sm btn-danger">
+                                                    <i class="fas fa-trash"></i> Slett
+                                                </button>
+                                            </form>
+                                        </div>
                                     </td>
                                 </tr>
                             @empty
