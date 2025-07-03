@@ -627,8 +627,14 @@ $(document).ready(function() {
         })
         .fail(function(xhr) {
             console.error('Failed to load calendar data:', xhr);
-            showAlert('Feil ved lasting av kalenderdata', 'danger');
+            const errorMsg = xhr.responseJSON?.error || xhr.responseJSON?.message || 'Feil ved lasting av kalenderdata';
+            showAlert(`Feil: ${errorMsg}`, 'danger');
             $('#calendarLoading').hide();
+            
+            // Show more detailed error info in console
+            if (xhr.responseJSON) {
+                console.error('Error details:', xhr.responseJSON);
+            }
         });
     }
 

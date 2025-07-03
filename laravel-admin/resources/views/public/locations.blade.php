@@ -35,21 +35,28 @@
         .header {
             background: var(--primary-purple);
             color: white;
-            padding: 2rem 0;
+            padding: 2.5rem 0;
             text-align: center;
         }
 
         .header-logo {
-            max-height: 80px;
-            max-width: 300px;
+            max-height: 120px;
+            max-width: 400px;
             height: auto;
             width: auto;
             display: block;
             margin: 0 auto;
             /* Removed white filter - use original logo colors */
-            background: rgba(255, 255, 255, 0.1);
-            padding: 10px;
-            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .header-logo:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
         }
 
         .header h1 {
@@ -348,9 +355,19 @@
 
         @media (max-width: 768px) {
             .header-logo {
-                max-height: 60px;
-                max-width: 250px;
+                max-height: 90px;
+                max-width: 300px;
+                padding: 15px;
             }
+        }
+
+        @media (max-width: 480px) {
+            .header-logo {
+                max-height: 70px;
+                max-width: 250px;
+                padding: 12px;
+            }
+        }
 
             .btn-group-custom {
                 flex-direction: column;

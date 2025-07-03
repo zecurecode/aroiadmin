@@ -77,7 +77,8 @@ class OpeningHoursController extends Controller
                 'is_admin' => $user->is_admin,
                 'user_siteid' => $user->siteid,
                 'requested_location_id' => $locationId,
-                'month' => $month
+                'month' => $month,
+                'request_url' => $request->fullUrl()
             ]);
 
             // Handle location selection based on user type
@@ -116,16 +117,25 @@ class OpeningHoursController extends Controller
             Log::info('Location lookup result', [
                 'location_id' => $locationId,
                 'location_found' => $location !== null,
-                'opening_hours_found' => $location && $location->openingHours !== null
+                'location_name' => $location ? $location->Navn : null,
+                'opening_hours_found' => $location && $location->openingHours !== null,
+                'opening_hours_avd_id' => $location && $location->openingHours ? $location->openingHours->AvdID : null
             ]);
 
             if (!$location) {
-                Log::error('Location not found', ['location_id' => $locationId]);
+                Log::error('Location not found', [
+                    'location_id' => $locationId,
+                    'all_location_ids' => AvdelingAlternative::pluck('Id')->toArray()
+                ]);
                 return response()->json(['error' => 'Location not found'], 404);
             }
 
             if (!$location->openingHours) {
-                Log::error('Opening hours not found for location', ['location_id' => $locationId]);
+                Log::error('Opening hours not found for location', [
+                    'location_id' => $locationId,
+                    'location_name' => $location->Navn,
+                    'checking_apningstid_table' => ApningstidAlternative::where('AvdID', $locationId)->exists()
+                ]);
                 return response()->json(['error' => 'Opening hours not found for this location'], 404);
             }
 
@@ -159,22 +169,66 @@ class OpeningHoursController extends Controller
                     ];
                 } else {
                     // Use regular hours
-                    $regularHours = $location->openingHours->getHoursForDay($dayOfWeek);
-                    $calendarData[] = [
-                        'date' => $dateStr,
-                        'day' => $current->day,
-                        'dayOfWeek' => $dayOfWeek,
-                        'isSpecial' => false,
-                        'isClosed' => $regularHours['closed'] == 1 || $location->openingHours->isSeasonClosed(),
-                        'hours' => $regularHours['closed'] == 1 ? 'Stengt' :
-                                  ($regularHours['start'] && $regularHours['stop'] ?
-                                   $regularHours['start'] . ' - ' . $regularHours['stop'] : 'Stengt'),
-                        'reason' => $location->openingHours->isSeasonClosed() ? 'Sesongstengt' : null,
-                        'type' => 'regular'
-                    ];
+                    try {
+                        $regularHours = $location->openingHours->getHoursForDay($dayOfWeek);
+                        $isSeasonClosed = $location->openingHours->isSeasonClosed();
+                        
+                        $calendarData[] = [
+                            'date' => $dateStr,
+                            'day' => $current->day,
+                            'dayOfWeek' => $dayOfWeek,
+                            'isSpecial' => false,
+                            'isClosed' => $regularHours['closed'] == 1 || $isSeasonClosed,
+                            'hours' => $regularHours['closed'] == 1 ? 'Stengt' :
+                                      ($regularHours['start'] && $regularHours['stop'] ?
+                                       $regularHours['start'] . ' - ' . $regularHours['stop'] : 'Stengt'),
+                            'reason' => $isSeasonClosed ? 'Sesongstengt' : null,
+                            'type' => 'regular'
+                        ];
+                    } catch (\Exception $e) {
+                        Log::error('Error getting hours for day', [
+                            'location_id' => $locationId,
+                            'day_of_week' => $dayOfWeek,
+                            'date' => $dateStr,
+                            'error' => $e->getMessage()
+                        ]);
+                        
+                        // Fallback data
+                        $calendarData[] = [
+                            'date' => $dateStr,
+                            'day' => $current->day,
+                            'dayOfWeek' => $dayOfWeek,
+                            'isSpecial' => false,
+                            'isClosed' => true,
+                            'hours' => 'Feil ved lasting',
+                            'reason' => null,
+                            'type' => 'regular'
+                        ];
+                    }
                 }
 
                 $current->addDay();
+            }
+
+            // Get week hours with error handling
+            $weekHours = [];
+            try {
+                $weekHours = $location->openingHours->getWeekHours();
+            } catch (\Exception $e) {
+                Log::error('Error getting week hours', [
+                    'location_id' => $locationId,
+                    'error' => $e->getMessage()
+                ]);
+                // Provide empty week hours as fallback
+                $weekHours = [
+                    'monday' => ['start' => null, 'stop' => null, 'closed' => 1],
+                    'tuesday' => ['start' => null, 'stop' => null, 'closed' => 1],
+                    'wednesday' => ['start' => null, 'stop' => null, 'closed' => 1],
+                    'thursday' => ['start' => null, 'stop' => null, 'closed' => 1],
+                    'friday' => ['start' => null, 'stop' => null, 'closed' => 1],
+                    'saturday' => ['start' => null, 'stop' => null, 'closed' => 1],
+                    'sunday' => ['start' => null, 'stop' => null, 'closed' => 1]
+                ];
             }
 
             return response()->json([
@@ -182,7 +236,7 @@ class OpeningHoursController extends Controller
                 'location' => [
                     'id' => $location->Id,
                     'name' => $location->Navn,
-                    'regularHours' => $location->openingHours->getWeekHours()
+                    'regularHours' => $weekHours
                 ]
             ]);
 
@@ -230,9 +284,32 @@ class OpeningHoursController extends Controller
 
         $request->validate([
             'hours' => 'required|array',
-            'hours.*.start' => 'nullable|date_format:H:i',
-            'hours.*.end' => 'nullable|date_format:H:i', 
-            'hours.*.closed' => 'required|boolean'
+            'hours.monday.start' => 'nullable|date_format:H:i',
+            'hours.monday.end' => 'nullable|date_format:H:i',
+            'hours.monday.closed' => 'required|boolean',
+            'hours.tuesday.start' => 'nullable|date_format:H:i',
+            'hours.tuesday.end' => 'nullable|date_format:H:i',
+            'hours.tuesday.closed' => 'required|boolean',
+            'hours.wednesday.start' => 'nullable|date_format:H:i',
+            'hours.wednesday.end' => 'nullable|date_format:H:i',
+            'hours.wednesday.closed' => 'required|boolean',
+            'hours.thursday.start' => 'nullable|date_format:H:i',
+            'hours.thursday.end' => 'nullable|date_format:H:i',
+            'hours.thursday.closed' => 'required|boolean',
+            'hours.friday.start' => 'nullable|date_format:H:i',
+            'hours.friday.end' => 'nullable|date_format:H:i',
+            'hours.friday.closed' => 'required|boolean',
+            'hours.saturday.start' => 'nullable|date_format:H:i',
+            'hours.saturday.end' => 'nullable|date_format:H:i',
+            'hours.saturday.closed' => 'required|boolean',
+            'hours.sunday.start' => 'nullable|date_format:H:i',
+            'hours.sunday.end' => 'nullable|date_format:H:i',
+            'hours.sunday.closed' => 'required|boolean'
+        ], [
+            'hours.*.start.date_format' => 'Starttid må være i formatet TT:MM (f.eks. 09:00)',
+            'hours.*.end.date_format' => 'Sluttid må være i formatet TT:MM (f.eks. 17:00)',
+            'hours.*.closed.required' => 'Du må angi om dagen er stengt eller ikke',
+            'hours.*.closed.boolean' => 'Stengt-feltet må være sant eller usant'
         ]);
 
         $location = ApningstidAlternative::where('AvdID', $locationId)->first();

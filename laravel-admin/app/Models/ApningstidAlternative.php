@@ -12,6 +12,7 @@ class ApningstidAlternative extends Model
     protected $table = '_apningstid';
     public $timestamps = false; // The original table doesn't have timestamps
     protected $primaryKey = 'AvdID';
+    public $incrementing = false; // AvdID is not auto-incrementing
 
     protected $fillable = [
         'AvdID',

@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Location;
 use App\Models\Site;
-use App\Models\OpeningHours;
+use App\Models\AvdelingAlternative;
+use App\Models\ApningstidAlternative;
+use App\Models\SpecialHours;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -13,39 +15,41 @@ class PublicController extends Controller
     /**
      * Show all locations with opening hours and status
      */
-        public function locations()
+    public function locations()
     {
-        // Get all active locations
-        $locations = Location::where('active', true)->orderBy('name')->get();
+        // Get all active locations with their opening hours
+        $locations = Location::where('active', true)
+            ->orderBy('name')
+            ->get();
 
-        // Get today's day name and current time
-        $todayDayEnglish = Carbon::now()->format('l'); // Monday, Tuesday, etc.
-        $currentTime = Carbon::now();
+        // Get today's information
+        $today = Carbon::now();
+        $todayDayEnglish = $today->format('l'); // Monday, Tuesday, etc.
+        $todayDate = $today->format('Y-m-d');
         
-        // Map English days to Norwegian
-        $dayMapping = [
-            'Monday' => 'Mandag',
-            'Tuesday' => 'Tirsdag',
-            'Wednesday' => 'Onsdag',
-            'Thursday' => 'Torsdag',
-            'Friday' => 'Fredag',
-            'Saturday' => 'Lørdag',
-            'Sunday' => 'Søndag'
-        ];
-        
-        $todayDay = $dayMapping[$todayDayEnglish] ?? $todayDayEnglish;
-
-        // Get opening hours for today
-        $openingHours = OpeningHours::where('day', $todayDay)->first();
-
-        // Get all days opening hours for displaying full schedule
-        $allOpeningHours = OpeningHours::orderByRaw("FIELD(day, 'Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag', 'Søndag')")->get();
-
         // Prepare location data with opening hours and status
         $locationsData = [];
 
         foreach ($locations as $location) {
-            $locationName = strtolower($location->name);
+            // Get the corresponding avdeling and opening hours from _apningstid table
+            $avdeling = AvdelingAlternative::where('Id', $location->site_id)->first();
+            if (!$avdeling) {
+                continue; // Skip if no avdeling found
+            }
+
+            $openingHours = ApningstidAlternative::where('AvdID', $avdeling->Id)->first();
+            if (!$openingHours) {
+                continue; // Skip if no opening hours found
+            }
+
+            // Check for special hours for today
+            $specialHours = SpecialHours::where('location_id', $avdeling->Id)
+                ->where('date', '<=', $todayDate)
+                ->where(function($query) use ($todayDate) {
+                    $query->whereNull('end_date')
+                          ->orWhere('end_date', '>=', $todayDate);
+                })
+                ->first();
 
             $locationData = [
                 'id' => $location->id,
@@ -59,60 +63,98 @@ class PublicController extends Controller
                 'is_open' => false,
                 'open_time' => null,
                 'close_time' => null,
-                'status' => 0,
                 'is_closed_today' => false,
                 'special_notes' => null,
                 'weekly_hours' => [],
             ];
 
-            // Get today's opening hours
-            if ($openingHours) {
-                $openTime = $openingHours->getOpenTime($locationName);
-                $closeTime = $openingHours->getCloseTime($locationName);
-                $status = $openingHours->getStatus($locationName);
-                $notes = $openingHours->getNotes($locationName);
-
-                $locationData['open_time'] = $openTime;
-                $locationData['close_time'] = $closeTime;
-                $locationData['status'] = $status;
-                $locationData['special_notes'] = $notes;
-
-                // Check if currently open (changed logic - if there are opening hours, consider it open today)
-                if ($openTime && $closeTime) {
-                    // Remove any whitespace and handle both H:i and H:i:s formats
-                    $openTime = trim($openTime);
-                    $closeTime = trim($closeTime);
-                    
-                    // Don't use Carbon for simple time comparison
-                    $openTimeFormatted = strlen($openTime) == 5 ? $openTime . ':00' : $openTime;
-                    $closeTimeFormatted = strlen($closeTime) == 5 ? $closeTime . ':00' : $closeTime;
-                    
-                    // Check if location is open AND status is 1 (open)
-                    $currentTimeStr = $currentTime->format('H:i:s');
-                    $isWithinHours = ($currentTimeStr >= $openTimeFormatted && $currentTimeStr <= $closeTimeFormatted);
-                    $locationData['is_open'] = $isWithinHours && $status == 1;
-                    $locationData['is_closed_today'] = false; // Has opening hours today
+            // If there are special hours for today, use them
+            if ($specialHours) {
+                if ($specialHours->is_closed) {
+                    $locationData['is_closed_today'] = true;
+                    $locationData['special_notes'] = $specialHours->reason;
                 } else {
-                    $locationData['is_closed_today'] = true; // No opening hours today
+                    $locationData['open_time'] = $specialHours->open_time;
+                    $locationData['close_time'] = $specialHours->close_time;
+                    $locationData['special_notes'] = $specialHours->reason;
+                    
+                    // Check if currently open
+                    if ($specialHours->open_time && $specialHours->close_time) {
+                        $openTime = Carbon::createFromTimeString($specialHours->open_time);
+                        $closeTime = Carbon::createFromTimeString($specialHours->close_time);
+                        $locationData['is_open'] = $today->between($openTime, $closeTime);
+                    }
+                }
+            } else {
+                // Use regular hours from _apningstid table
+                $dayHours = $openingHours->getHoursForDay(strtolower($todayDayEnglish));
+                
+                if ($dayHours && !$dayHours['closed'] && !$openingHours->isSeasonClosed()) {
+                    $locationData['open_time'] = $dayHours['start'];
+                    $locationData['close_time'] = $dayHours['stop'];
+                    
+                    // Check if currently open
+                    if ($dayHours['start'] && $dayHours['stop']) {
+                        $openTime = Carbon::createFromTimeString($dayHours['start']);
+                        $closeTime = Carbon::createFromTimeString($dayHours['stop']);
+                        $locationData['is_open'] = $today->between($openTime, $closeTime);
+                    }
+                } else {
+                    $locationData['is_closed_today'] = true;
+                    if ($openingHours->isSeasonClosed()) {
+                        $locationData['special_notes'] = $openingHours->StengtMelding ?: 'Sesongstengt';
+                    }
                 }
             }
 
             // Get weekly schedule
-            foreach ($allOpeningHours as $dayHours) {
-                $dayOpenTime = $dayHours->getOpenTime($locationName);
-                $dayCloseTime = $dayHours->getCloseTime($locationName);
-                $dayStatus = $dayHours->getStatus($locationName);
-                $dayNotes = $dayHours->getNotes($locationName);
+            $days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+            $dayTranslations = [
+                'monday' => 'Mandag',
+                'tuesday' => 'Tirsdag',
+                'wednesday' => 'Onsdag',
+                'thursday' => 'Torsdag',
+                'friday' => 'Fredag',
+                'saturday' => 'Lørdag',
+                'sunday' => 'Søndag'
+            ];
 
-                $locationData['weekly_hours'][] = [
-                    'day' => $dayHours->day,
-                    'open_time' => $dayOpenTime,
-                    'close_time' => $dayCloseTime,
-                    'status' => $dayStatus,
-                    'notes' => $dayNotes,
-                    'is_today' => $dayHours->day === $todayDay,
-                    'is_open' => ($dayOpenTime && $dayCloseTime && $dayStatus == 1)
-                ];
+            foreach ($days as $day) {
+                $dayCapitalized = ucfirst($day);
+                $norwegianDay = $dayTranslations[$day];
+                
+                // Check for special hours for this day in the current week
+                $dayDate = $today->copy()->next($dayCapitalized);
+                if ($today->format('l') == $dayCapitalized) {
+                    $dayDate = $today;
+                }
+                
+                $daySpecialHours = SpecialHours::where('location_id', $avdeling->Id)
+                    ->where('date', '<=', $dayDate->format('Y-m-d'))
+                    ->where(function($query) use ($dayDate) {
+                        $query->whereNull('end_date')
+                              ->orWhere('end_date', '>=', $dayDate->format('Y-m-d'));
+                    })
+                    ->first();
+
+                if ($daySpecialHours) {
+                    $locationData['weekly_hours'][] = [
+                        'day' => $dayCapitalized,
+                        'open_time' => $daySpecialHours->is_closed ? null : $daySpecialHours->open_time,
+                        'close_time' => $daySpecialHours->is_closed ? null : $daySpecialHours->close_time,
+                        'is_today' => strtolower($todayDayEnglish) == $day,
+                        'is_open' => !$daySpecialHours->is_closed
+                    ];
+                } else {
+                    $dayHours = $openingHours->getHoursForDay($day);
+                    $locationData['weekly_hours'][] = [
+                        'day' => $dayCapitalized,
+                        'open_time' => $dayHours['closed'] || $openingHours->isSeasonClosed() ? null : $dayHours['start'],
+                        'close_time' => $dayHours['closed'] || $openingHours->isSeasonClosed() ? null : $dayHours['stop'],
+                        'is_today' => strtolower($todayDayEnglish) == $day,
+                        'is_open' => !$dayHours['closed'] && !$openingHours->isSeasonClosed()
+                    ];
+                }
             }
 
             $locationsData[] = $locationData;
@@ -120,8 +162,8 @@ class PublicController extends Controller
 
         return view('public.locations', [
             'locations' => $locationsData,
-            'today' => Carbon::now()->format('l, d. F Y'),
-            'current_day' => $todayDay . ' (' . $todayDayEnglish . ')'
+            'today' => $today->locale('nb')->isoFormat('dddd, D. MMMM YYYY'),
+            'current_day' => $todayDayEnglish
         ]);
     }
 
