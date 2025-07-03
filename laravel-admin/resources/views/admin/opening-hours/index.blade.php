@@ -250,7 +250,8 @@
 
                     <div class="mb-3">
                         <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="specialIsClosed" name="is_closed">
+                            <input type="hidden" name="is_closed" value="0">
+                            <input class="form-check-input" type="checkbox" id="specialIsClosed" name="is_closed" value="1">
                             <label class="form-check-label" for="specialIsClosed">
                                 Stengt hele dagen
                             </label>
@@ -260,14 +261,38 @@
                     <div id="specialTimeFields" class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="specialOpenTime" class="form-label">Åpningstid</label>
-                                <input type="time" id="specialOpenTime" name="open_time" class="form-control time-input-24h">
+                                <label class="form-label">Åpningstid</label>
+                                <div class="d-flex gap-2">
+                                    <select class="form-select" id="specialOpenHour" style="width: auto;">
+                                        <option value="">Timer</option>
+                                    </select>
+                                    <span class="align-self-center">:</span>
+                                    <select class="form-select" id="specialOpenMin" style="width: auto;">
+                                        <option value="00">00</option>
+                                        <option value="15">15</option>
+                                        <option value="30">30</option>
+                                        <option value="45">45</option>
+                                    </select>
+                                    <input type="hidden" id="specialOpenTime" name="open_time">
+                                </div>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="specialCloseTime" class="form-label">Stengetid</label>
-                                <input type="time" id="specialCloseTime" name="close_time" class="form-control time-input-24h">
+                                <label class="form-label">Stengetid</label>
+                                <div class="d-flex gap-2">
+                                    <select class="form-select" id="specialCloseHour" style="width: auto;">
+                                        <option value="">Timer</option>
+                                    </select>
+                                    <span class="align-self-center">:</span>
+                                    <select class="form-select" id="specialCloseMin" style="width: auto;">
+                                        <option value="00">00</option>
+                                        <option value="15">15</option>
+                                        <option value="30">30</option>
+                                        <option value="45">45</option>
+                                    </select>
+                                    <input type="hidden" id="specialCloseTime" name="close_time">
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -351,7 +376,8 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <div class="form-check mt-4">
-                                    <input class="form-check-input" type="checkbox" id="editSpecialIsClosed" name="is_closed">
+                                    <input type="hidden" name="is_closed" value="0">
+                                    <input class="form-check-input" type="checkbox" id="editSpecialIsClosed" name="is_closed" value="1">
                                     <label class="form-check-label" for="editSpecialIsClosed">
                                         Stengt hele dagen
                                     </label>
@@ -363,14 +389,38 @@
                     <div id="editSpecialTimeFields" class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="editSpecialOpenTime" class="form-label">Åpningstid</label>
-                                <input type="time" id="editSpecialOpenTime" name="open_time" class="form-control time-input-24h">
+                                <label class="form-label">Åpningstid</label>
+                                <div class="d-flex gap-2">
+                                    <select class="form-select" id="editSpecialOpenHour" style="width: auto;">
+                                        <option value="">Timer</option>
+                                    </select>
+                                    <span class="align-self-center">:</span>
+                                    <select class="form-select" id="editSpecialOpenMin" style="width: auto;">
+                                        <option value="00">00</option>
+                                        <option value="15">15</option>
+                                        <option value="30">30</option>
+                                        <option value="45">45</option>
+                                    </select>
+                                    <input type="hidden" id="editSpecialOpenTime" name="open_time">
+                                </div>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="editSpecialCloseTime" class="form-label">Stengetid</label>
-                                <input type="time" id="editSpecialCloseTime" name="close_time" class="form-control time-input-24h">
+                                <label class="form-label">Stengetid</label>
+                                <div class="d-flex gap-2">
+                                    <select class="form-select" id="editSpecialCloseHour" style="width: auto;">
+                                        <option value="">Timer</option>
+                                    </select>
+                                    <span class="align-self-center">:</span>
+                                    <select class="form-select" id="editSpecialCloseMin" style="width: auto;">
+                                        <option value="00">00</option>
+                                        <option value="15">15</option>
+                                        <option value="30">30</option>
+                                        <option value="45">45</option>
+                                    </select>
+                                    <input type="hidden" id="editSpecialCloseTime" name="close_time">
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -563,7 +613,37 @@
 }
 
 .time-input-24h::-webkit-datetime-edit-ampm-field {
-    display: none;
+    display: none !important;
+}
+
+/* Additional rules to force 24-hour format */
+input[type="time"]::-webkit-datetime-edit-ampm-field {
+    display: none !important;
+}
+
+/* Firefox */
+input[type="time"] {
+    -moz-appearance: textfield;
+}
+
+/* Force 24-hour format for all browsers */
+input[type="time"].time-input-24h {
+    -webkit-appearance: none;
+    -moz-appearance: textfield;
+}
+
+/* Style for text-based time inputs */
+.time-input-24h {
+    font-family: monospace;
+}
+
+.time-input-24h.is-invalid {
+    border-color: #dc3545;
+}
+
+.time-input-24h::placeholder {
+    color: #6c757d;
+    opacity: 0.7;
 }
 </style>
 @endpush
@@ -590,21 +670,44 @@ $(document).ready(function() {
         }
     });
 
-    // Force 24-hour format on all time inputs globally
-    function force24HourFormat() {
-        $('input[type="time"]').each(function() {
-            // Set attributes to force 24-hour format
-            $(this).attr('step', '300'); // 5-minute steps
-            
-            // For browsers that support it, force 24-hour format
-            if (this.type === 'time') {
-                this.setAttribute('data-format', '24');
-            }
+    // No longer needed - using select boxes instead
+
+    // Initialize hour options for special hours
+    function initializeSpecialHoursSelects() {
+        // Add hours
+        $('#specialOpenHour, #specialCloseHour, #editSpecialOpenHour, #editSpecialCloseHour').each(function() {
+            $(this).html('<option value="">Timer</option>' + generateHourOptions(''));
         });
+        
+        // Add change handlers
+        $('#specialOpenHour, #specialOpenMin').on('change', function() {
+            updateTimeInput('specialOpenTime', $('#specialOpenHour').val(), $('#specialOpenMin').val());
+        });
+        
+        $('#specialCloseHour, #specialCloseMin').on('change', function() {
+            updateTimeInput('specialCloseTime', $('#specialCloseHour').val(), $('#specialCloseMin').val());
+        });
+        
+        $('#editSpecialOpenHour, #editSpecialOpenMin').on('change', function() {
+            updateTimeInput('editSpecialOpenTime', $('#editSpecialOpenHour').val(), $('#editSpecialOpenMin').val());
+        });
+        
+        $('#editSpecialCloseHour, #editSpecialCloseMin').on('change', function() {
+            updateTimeInput('editSpecialCloseTime', $('#editSpecialCloseHour').val(), $('#editSpecialCloseMin').val());
+        });
+    }
+    
+    function updateTimeInput(inputId, hour, min) {
+        const input = $('#' + inputId);
+        if (hour && min) {
+            input.val(`${hour}:${min}`);
+        } else {
+            input.val('');
+        }
     }
 
     // Initialize
-    force24HourFormat();
+    initializeSpecialHoursSelects();
     loadCalendarData();
 
     // Event handlers
@@ -915,8 +1018,32 @@ $(document).ready(function() {
         $('#editSpecialDate').val(data.date);
         $('#editSpecialEndDate').val(data.end_date || '');
         $('#editSpecialIsClosed').prop('checked', data.is_closed);
-        $('#editSpecialOpenTime').val(data.open_time ? formatTimeTo24Hour(data.open_time.substring(0, 5)) : '');
-        $('#editSpecialCloseTime').val(data.close_time ? formatTimeTo24Hour(data.close_time.substring(0, 5)) : '');
+        
+        // Set time selects
+        if (data.open_time) {
+            const openTime = data.open_time.substring(0, 5);
+            const [openHour, openMin] = openTime.split(':');
+            $('#editSpecialOpenHour').val(openHour);
+            $('#editSpecialOpenMin').val(openMin);
+            $('#editSpecialOpenTime').val(openTime);
+        } else {
+            $('#editSpecialOpenHour').val('');
+            $('#editSpecialOpenMin').val('00');
+            $('#editSpecialOpenTime').val('');
+        }
+        
+        if (data.close_time) {
+            const closeTime = data.close_time.substring(0, 5);
+            const [closeHour, closeMin] = closeTime.split(':');
+            $('#editSpecialCloseHour').val(closeHour);
+            $('#editSpecialCloseMin').val(closeMin);
+            $('#editSpecialCloseTime').val(closeTime);
+        } else {
+            $('#editSpecialCloseHour').val('');
+            $('#editSpecialCloseMin').val('00');
+            $('#editSpecialCloseTime').val('');
+        }
+        
         $('#editSpecialReason').val(data.reason || '');
         $('#editSpecialRecurring').prop('checked', data.recurring_yearly);
         $('#editSpecialNotes').val(data.notes || '');
@@ -943,6 +1070,28 @@ $(document).ready(function() {
         $('#editSpecialIsClosed').trigger('change');
     }
 
+    // Generate hour options for select
+    function generateHourOptions(selectedHour) {
+        let options = '';
+        for (let i = 0; i < 24; i++) {
+            const hour = i.toString().padStart(2, '0');
+            const selected = hour === selectedHour ? 'selected' : '';
+            options += `<option value="${hour}" ${selected}>${hour}</option>`;
+        }
+        return options;
+    }
+    
+    // Generate minute options for select
+    function generateMinuteOptions(selectedMin) {
+        let options = '';
+        const minutes = ['00', '15', '30', '45'];
+        minutes.forEach(min => {
+            const selected = min === selectedMin ? 'selected' : '';
+            options += `<option value="${min}" ${selected}>${min}</option>`;
+        });
+        return options;
+    }
+
     // Helper function to convert time to 24-hour format
     function formatTimeTo24Hour(timeStr) {
         if (!timeStr) return '';
@@ -960,21 +1109,42 @@ $(document).ready(function() {
             return '0' + timeStr;
         }
         
-        // Handle AM/PM format
-        if (timeStr.includes('am') || timeStr.includes('pm')) {
-            const isPM = timeStr.includes('pm');
-            const timeOnly = timeStr.replace(/\s*(am|pm)\s*/, '');
-            const [hours, minutes] = timeOnly.split(':').map(num => parseInt(num, 10));
-            
-            let hour24 = hours;
+        // Handle H:MM am/pm or HH:MM am/pm format
+        const amPmMatch = timeStr.match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/i);
+        if (amPmMatch) {
+            let hours = parseInt(amPmMatch[1], 10);
+            const minutes = amPmMatch[2];
+            const isPM = amPmMatch[3].toLowerCase() === 'pm';
             
             if (isPM && hours !== 12) {
-                hour24 = hours + 12;
+                hours = hours + 12;
             } else if (!isPM && hours === 12) {
-                hour24 = 0;
+                hours = 0;
             }
             
-            return `${hour24.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+            return `${hours.toString().padStart(2, '0')}:${minutes}`;
+        }
+        
+        // Handle AM/PM format with spaces
+        if (timeStr.includes('am') || timeStr.includes('pm')) {
+            const isPM = timeStr.includes('pm');
+            const timeOnly = timeStr.replace(/\s*(am|pm)\s*/i, '');
+            const timeParts = timeOnly.split(':');
+            
+            if (timeParts.length === 2) {
+                const hours = parseInt(timeParts[0], 10);
+                const minutes = parseInt(timeParts[1], 10);
+                
+                let hour24 = hours;
+                
+                if (isPM && hours !== 12) {
+                    hour24 = hours + 12;
+                } else if (!isPM && hours === 12) {
+                    hour24 = 0;
+                }
+                
+                return `${hour24.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+            }
         }
         
         return timeStr;
@@ -991,9 +1161,22 @@ $(document).ready(function() {
             const hours = locationData.regularHours[day];
             const isClosed = hours.closed == 1;
             
-            // Format times to ensure 24-hour format
-            const startTime = formatTimeTo24Hour(hours.start);
-            const endTime = formatTimeTo24Hour(hours.stop);
+            // Parse times
+            let startHour = '', startMin = '', endHour = '', endMin = '';
+            if (hours.start) {
+                const startParts = hours.start.split(':');
+                startHour = startParts[0] || '';
+                startMin = startParts[1] || '00';
+            }
+            if (hours.stop) {
+                const endParts = hours.stop.split(':');
+                endHour = endParts[0] || '';
+                endMin = endParts[1] || '00';
+            }
+
+            // Set proper time values
+            const startTimeValue = startHour && startMin ? `${startHour}:${startMin}` : '';
+            const endTimeValue = endHour && endMin ? `${endHour}:${endMin}` : '';
 
             const fieldset = $(`
                 <div class="mb-3 p-3 border rounded">
@@ -1005,14 +1188,32 @@ $(document).ready(function() {
                     </div>
                     <div class="row time-fields" ${isClosed ? 'style="display: none;"' : ''}>
                         <div class="col-md-6">
-                            <label for="start_${day}" class="form-label">Åpner</label>
-                            <input type="time" id="start_${day}" name="hours[${day}][start]"
-                                   class="form-control time-input-24h" value="${startTime}" ${isClosed ? '' : 'required'}>
+                            <label class="form-label">Åpner</label>
+                            <div class="d-flex gap-2">
+                                <select class="form-select" id="start_hour_${day}" style="width: auto;" ${isClosed ? '' : 'required'}>
+                                    <option value="">Timer</option>
+                                    ${generateHourOptions(startHour)}
+                                </select>
+                                <span class="align-self-center">:</span>
+                                <select class="form-select" id="start_min_${day}" style="width: auto;" ${isClosed ? '' : 'required'}>
+                                    ${generateMinuteOptions(startMin)}
+                                </select>
+                                <input type="hidden" id="start_${day}" name="hours[${day}][start]" value="${startTimeValue}">
+                            </div>
                         </div>
                         <div class="col-md-6">
-                            <label for="end_${day}" class="form-label">Stenger</label>
-                            <input type="time" id="end_${day}" name="hours[${day}][end]"
-                                   class="form-control time-input-24h" value="${endTime}" ${isClosed ? '' : 'required'}>
+                            <label class="form-label">Stenger</label>
+                            <div class="d-flex gap-2">
+                                <select class="form-select" id="end_hour_${day}" style="width: auto;" ${isClosed ? '' : 'required'}>
+                                    <option value="">Timer</option>
+                                    ${generateHourOptions(endHour)}
+                                </select>
+                                <span class="align-self-center">:</span>
+                                <select class="form-select" id="end_min_${day}" style="width: auto;" ${isClosed ? '' : 'required'}>
+                                    ${generateMinuteOptions(endMin)}
+                                </select>
+                                <input type="hidden" id="end_${day}" name="hours[${day}][end]" value="${endTimeValue}">
+                            </div>
                         </div>
                     </div>
                     <input type="hidden" name="hours[${day}][closed]" class="closed-hidden" value="${isClosed ? '1' : '0'}">
@@ -1022,22 +1223,25 @@ $(document).ready(function() {
             container.append(fieldset);
         });
 
-        // Force 24-hour format on all time inputs
-        $('.time-input-24h').each(function() {
-            // Set step to avoid AM/PM issues
-            $(this).attr('step', '300'); // 5 minute intervals
+        // Add change handlers for select boxes
+        container.find('select').on('change', function() {
+            const id = $(this).attr('id');
+            const day = id.split('_').pop();
+            const isStart = id.includes('start');
             
-            // Set data format attribute
-            this.setAttribute('data-format', '24');
+            const hourSelect = $(`#${isStart ? 'start' : 'end'}_hour_${day}`);
+            const minSelect = $(`#${isStart ? 'start' : 'end'}_min_${day}`);
+            const hiddenInput = $(`#${isStart ? 'start' : 'end'}_${day}`);
             
-            // Ensure the input shows 24-hour format
-            $(this).on('focus', function() {
-                this.showPicker && this.showPicker();
-            });
+            const hour = hourSelect.val();
+            const min = minSelect.val();
+            
+            if (hour && min) {
+                hiddenInput.val(`${hour}:${min}`);
+            } else {
+                hiddenInput.val('');
+            }
         });
-        
-        // Apply global 24-hour formatting to new inputs
-        force24HourFormat();
 
         // Add event handlers for closed checkboxes
         $('.day-closed-check').change(function() {
@@ -1045,15 +1249,18 @@ $(document).ready(function() {
             const isClosed = $(this).is(':checked');
             const timeFields = $(this).closest('.mb-3').find('.time-fields');
             const hiddenField = $(this).closest('.mb-3').find('.closed-hidden');
-            const timeInputs = timeFields.find('input[type="time"]');
+            const selects = timeFields.find('select');
 
             if (isClosed) {
                 timeFields.hide();
-                timeInputs.prop('required', false);
+                selects.prop('required', false);
                 hiddenField.val('1');
+                // Clear hidden time inputs
+                $(`#start_${day}`).val('');
+                $(`#end_${day}`).val('');
             } else {
                 timeFields.show();
-                timeInputs.prop('required', true);
+                selects.prop('required', true);
                 hiddenField.val('0');
             }
         });
@@ -1137,11 +1344,12 @@ $(document).ready(function() {
         days.forEach(day => {
             const startTime = formData.get(`hours[${day}][start]`) || null;
             const endTime = formData.get(`hours[${day}][end]`) || null;
+            const isClosed = formData.get(`hours[${day}][closed]`) === '1';
             
             hours[day] = {
-                start: startTime ? formatTimeTo24Hour(startTime) : null,
-                end: endTime ? formatTimeTo24Hour(endTime) : null,
-                closed: formData.get(`hours[${day}][closed]`) === '1'
+                start: isClosed ? null : startTime,
+                end: isClosed ? null : endTime,
+                closed: isClosed
             };
         });
 
