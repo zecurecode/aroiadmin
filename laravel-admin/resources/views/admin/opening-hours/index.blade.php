@@ -261,13 +261,13 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="specialOpenTime" class="form-label">Åpningstid</label>
-                                <input type="time" id="specialOpenTime" name="open_time" class="form-control">
+                                <input type="time" id="specialOpenTime" name="open_time" class="form-control time-input-24h">
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="specialCloseTime" class="form-label">Stengetid</label>
-                                <input type="time" id="specialCloseTime" name="close_time" class="form-control">
+                                <input type="time" id="specialCloseTime" name="close_time" class="form-control time-input-24h">
                             </div>
                         </div>
                     </div>
@@ -364,13 +364,13 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="editSpecialOpenTime" class="form-label">Åpningstid</label>
-                                <input type="time" id="editSpecialOpenTime" name="open_time" class="form-control">
+                                <input type="time" id="editSpecialOpenTime" name="open_time" class="form-control time-input-24h">
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="editSpecialCloseTime" class="form-label">Stengetid</label>
-                                <input type="time" id="editSpecialCloseTime" name="close_time" class="form-control">
+                                <input type="time" id="editSpecialCloseTime" name="close_time" class="form-control time-input-24h">
                             </div>
                         </div>
                     </div>
@@ -552,6 +552,19 @@
     color: #dc3545;
     font-style: italic;
 }
+
+/* Force 24-hour time format */
+.time-input-24h::-webkit-datetime-edit-hour-field:not([data-placeholder]) {
+    color: inherit;
+}
+
+.time-input-24h::-webkit-datetime-edit-minute-field:not([data-placeholder]) {
+    color: inherit;
+}
+
+.time-input-24h::-webkit-datetime-edit-ampm-field {
+    display: none;
+}
 </style>
 @endpush
 
@@ -577,7 +590,21 @@ $(document).ready(function() {
         }
     });
 
+    // Force 24-hour format on all time inputs globally
+    function force24HourFormat() {
+        $('input[type="time"]').each(function() {
+            // Set attributes to force 24-hour format
+            $(this).attr('step', '300'); // 5-minute steps
+            
+            // For browsers that support it, force 24-hour format
+            if (this.type === 'time') {
+                this.setAttribute('data-format', '24');
+            }
+        });
+    }
+
     // Initialize
+    force24HourFormat();
     loadCalendarData();
 
     // Event handlers
@@ -888,8 +915,8 @@ $(document).ready(function() {
         $('#editSpecialDate').val(data.date);
         $('#editSpecialEndDate').val(data.end_date || '');
         $('#editSpecialIsClosed').prop('checked', data.is_closed);
-        $('#editSpecialOpenTime').val(data.open_time ? data.open_time.substring(0, 5) : '');
-        $('#editSpecialCloseTime').val(data.close_time ? data.close_time.substring(0, 5) : '');
+        $('#editSpecialOpenTime').val(data.open_time ? formatTimeTo24Hour(data.open_time.substring(0, 5)) : '');
+        $('#editSpecialCloseTime').val(data.close_time ? formatTimeTo24Hour(data.close_time.substring(0, 5)) : '');
         $('#editSpecialReason').val(data.reason || '');
         $('#editSpecialRecurring').prop('checked', data.recurring_yearly);
         $('#editSpecialNotes').val(data.notes || '');
@@ -908,12 +935,49 @@ $(document).ready(function() {
         // Parse hours if available
         if (data.hours && data.hours !== 'Stengt' && data.hours.includes(' - ')) {
             const [open, close] = data.hours.split(' - ');
-            $('#editSpecialOpenTime').val(open);
-            $('#editSpecialCloseTime').val(close);
+            $('#editSpecialOpenTime').val(formatTimeTo24Hour(open));
+            $('#editSpecialCloseTime').val(formatTimeTo24Hour(close));
         }
 
         // Toggle time fields
         $('#editSpecialIsClosed').trigger('change');
+    }
+
+    // Helper function to convert time to 24-hour format
+    function formatTimeTo24Hour(timeStr) {
+        if (!timeStr) return '';
+        
+        // Remove extra spaces and convert to lowercase
+        timeStr = timeStr.trim().toLowerCase();
+        
+        // If already in HH:MM format (24-hour), return as is
+        if (/^\d{2}:\d{2}$/.test(timeStr)) {
+            return timeStr;
+        }
+        
+        // If in H:MM format, add leading zero
+        if (/^\d{1}:\d{2}$/.test(timeStr)) {
+            return '0' + timeStr;
+        }
+        
+        // Handle AM/PM format
+        if (timeStr.includes('am') || timeStr.includes('pm')) {
+            const isPM = timeStr.includes('pm');
+            const timeOnly = timeStr.replace(/\s*(am|pm)\s*/, '');
+            const [hours, minutes] = timeOnly.split(':').map(num => parseInt(num, 10));
+            
+            let hour24 = hours;
+            
+            if (isPM && hours !== 12) {
+                hour24 = hours + 12;
+            } else if (!isPM && hours === 12) {
+                hour24 = 0;
+            }
+            
+            return `${hour24.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+        }
+        
+        return timeStr;
     }
 
     function renderRegularHoursForm() {
@@ -926,6 +990,10 @@ $(document).ready(function() {
         days.forEach((day, index) => {
             const hours = locationData.regularHours[day];
             const isClosed = hours.closed == 1;
+            
+            // Format times to ensure 24-hour format
+            const startTime = formatTimeTo24Hour(hours.start);
+            const endTime = formatTimeTo24Hour(hours.stop);
 
             const fieldset = $(`
                 <div class="mb-3 p-3 border rounded">
@@ -939,12 +1007,12 @@ $(document).ready(function() {
                         <div class="col-md-6">
                             <label for="start_${day}" class="form-label">Åpner</label>
                             <input type="time" id="start_${day}" name="hours[${day}][start]"
-                                   class="form-control" value="${hours.start || ''}" ${isClosed ? '' : 'required'}>
+                                   class="form-control time-input-24h" value="${startTime}" ${isClosed ? '' : 'required'}>
                         </div>
                         <div class="col-md-6">
                             <label for="end_${day}" class="form-label">Stenger</label>
                             <input type="time" id="end_${day}" name="hours[${day}][end]"
-                                   class="form-control" value="${hours.stop || ''}" ${isClosed ? '' : 'required'}>
+                                   class="form-control time-input-24h" value="${endTime}" ${isClosed ? '' : 'required'}>
                         </div>
                     </div>
                     <input type="hidden" name="hours[${day}][closed]" class="closed-hidden" value="${isClosed ? '1' : '0'}">
@@ -953,6 +1021,23 @@ $(document).ready(function() {
 
             container.append(fieldset);
         });
+
+        // Force 24-hour format on all time inputs
+        $('.time-input-24h').each(function() {
+            // Set step to avoid AM/PM issues
+            $(this).attr('step', '300'); // 5 minute intervals
+            
+            // Set data format attribute
+            this.setAttribute('data-format', '24');
+            
+            // Ensure the input shows 24-hour format
+            $(this).on('focus', function() {
+                this.showPicker && this.showPicker();
+            });
+        });
+        
+        // Apply global 24-hour formatting to new inputs
+        force24HourFormat();
 
         // Add event handlers for closed checkboxes
         $('.day-closed-check').change(function() {
@@ -1050,11 +1135,21 @@ $(document).ready(function() {
         const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
         
         days.forEach(day => {
+            const startTime = formData.get(`hours[${day}][start]`) || null;
+            const endTime = formData.get(`hours[${day}][end]`) || null;
+            
             hours[day] = {
-                start: formData.get(`hours[${day}][start]`) || null,
-                end: formData.get(`hours[${day}][end]`) || null,
+                start: startTime ? formatTimeTo24Hour(startTime) : null,
+                end: endTime ? formatTimeTo24Hour(endTime) : null,
                 closed: formData.get(`hours[${day}][closed]`) === '1'
             };
+        });
+
+        // Debug logging
+        console.log('Sending hours data:', hours);
+        console.log('Sample time values:', {
+            mondayStart: hours.monday.start,
+            mondayEnd: hours.monday.end
         });
 
         $.ajax({
@@ -1075,7 +1170,20 @@ $(document).ready(function() {
         .fail(function(xhr) {
             const response = xhr.responseJSON;
             console.error('Save regular hours error:', response);
-            showAlert(response?.message || 'Feil ved lagring', 'danger');
+            
+            let errorMessage = 'Feil ved lagring';
+            
+            if (response) {
+                if (response.errors) {
+                    // Show validation errors
+                    const errors = Object.values(response.errors).flat();
+                    errorMessage = errors.join('<br>');
+                } else if (response.message) {
+                    errorMessage = response.message;
+                }
+            }
+            
+            showAlert(errorMessage, 'danger');
         });
     }
 
