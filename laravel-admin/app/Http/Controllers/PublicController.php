@@ -58,7 +58,7 @@ class PublicController extends Controller
                 'phone' => $location->phone,
                 'email' => $location->email,
                 'address' => $location->address,
-                'url' => $this->getLocationUrl($location->site_id),
+                'url' => $location->order_url ?: $this->getLocationUrl($location->site_id), // Use order_url from location if available
                 'maps_url' => $this->getGoogleMapsUrl($location->address),
                 'is_open' => false,
                 'open_time' => null,

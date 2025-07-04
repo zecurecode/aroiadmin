@@ -16,6 +16,7 @@ class Location extends Model
         'phone',
         'email',
         'address',
+        'order_url',
         'active',
     ];
 

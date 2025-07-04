@@ -47,7 +47,7 @@
                                 <th>Navn</th>
                                 <th>Adresse</th>
                                 <th>Telefon</th>
-                                <th>E-post</th>
+                                <th>Bestillings-URL</th>
                                 <th>Lisens</th>
                                 <th>Status</th>
                                 <th>Handlinger</th>
@@ -60,7 +60,15 @@
                                     <td><strong>{{ $location->name }}</strong></td>
                                     <td>{{ $location->address ?: '-' }}</td>
                                     <td>{{ $location->phone ?: '-' }}</td>
-                                    <td>{{ $location->email ?: '-' }}</td>
+                                    <td>
+                                        @if($location->order_url)
+                                            <a href="{{ $location->order_url }}" target="_blank" class="text-truncate d-inline-block" style="max-width: 200px;">
+                                                {{ $location->order_url }}
+                                            </a>
+                                        @else
+                                            <span class="text-muted">-</span>
+                                        @endif
+                                    </td>
                                     <td>{{ $location->license }}
                                         @if($location->users()->count() > 0)
                                             <br><small class="text-muted">{{ $location->users()->count() }} bruker(e)</small>

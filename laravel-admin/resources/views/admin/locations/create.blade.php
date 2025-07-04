@@ -86,6 +86,17 @@
                         @enderror
                     </div>
 
+                    <div class="mb-3">
+                        <label for="order_url" class="form-label">Bestillings-URL</label>
+                        <input type="url" class="form-control @error('order_url') is-invalid @enderror" 
+                               id="order_url" name="order_url" value="{{ old('order_url') }}" 
+                               placeholder="https://bestilling.example.com/lokasjon">
+                        <small class="text-muted">URL hvor besøkende sendes når de klikker "Se meny og bestill"</small>
+                        @error('order_url')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+
                     <div class="mb-3 form-check">
                         <input type="hidden" name="active" value="0">
                         <input type="checkbox" class="form-check-input" id="active" name="active" value="1"

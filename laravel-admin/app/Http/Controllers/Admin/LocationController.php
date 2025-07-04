@@ -37,6 +37,7 @@ class LocationController extends Controller
             'phone' => 'nullable|string|max:50',
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string|max:500',
+            'order_url' => 'nullable|url|max:500',
             'active' => 'nullable|in:on,1,true,0,false'
         ]);
 
@@ -47,6 +48,7 @@ class LocationController extends Controller
             'phone' => $request->phone,
             'email' => $request->email,
             'address' => $request->address,
+            'order_url' => $request->order_url,
             'active' => $request->active == '1' || $request->active === true
         ]);
 
@@ -85,6 +87,7 @@ class LocationController extends Controller
             'phone' => 'nullable|string|max:50',
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string|max:500',
+            'order_url' => 'nullable|url|max:500',
             'active' => 'nullable|in:on,1,true,0,false'
         ]);
 
@@ -94,6 +97,7 @@ class LocationController extends Controller
             'phone' => $request->phone,
             'email' => $request->email,
             'address' => $request->address,
+            'order_url' => $request->order_url,
             'active' => $request->active == '1' || $request->active === true
         ]);
 
