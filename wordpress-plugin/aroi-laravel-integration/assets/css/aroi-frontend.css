@@ -1,0 +1,209 @@
+/**
+ * Aroi Laravel Integration Frontend Styles
+ */
+
+/* Opening Hours Display */
+.aroi-opening-hours {
+    margin: 20px 0;
+    padding: 15px;
+    background: #f9f9f9;
+    border-radius: 5px;
+}
+
+.aroi-opening-hours .hours {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.aroi-opening-hours .status {
+    font-size: 16px;
+    margin: 5px 0;
+}
+
+.aroi-opening-hours .status.open span {
+    color: #46b450;
+}
+
+.aroi-opening-hours .status.closed span {
+    color: #dc3232;
+}
+
+/* Location Status */
+.aroi-location-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 15px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+.aroi-location-status.is-open {
+    border-color: #46b450;
+}
+
+.aroi-location-status.is-closed {
+    border-color: #dc3232;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.status-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #999;
+}
+
+.is-open .status-dot {
+    background: #46b450;
+    animation: pulse 2s infinite;
+}
+
+.is-closed .status-dot {
+    background: #dc3232;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(70, 180, 80, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(70, 180, 80, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(70, 180, 80, 0);
+    }
+}
+
+.hours-info {
+    font-size: 14px;
+    color: #666;
+}
+
+/* Weekly Hours Table */
+.aroi-weekly-hours {
+    margin: 20px 0;
+}
+
+.aroi-weekly-hours table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.aroi-weekly-hours td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #eee;
+}
+
+.aroi-weekly-hours tr:last-child td {
+    border-bottom: none;
+}
+
+.aroi-weekly-hours .day {
+    font-weight: bold;
+    width: 40%;
+}
+
+.aroi-weekly-hours .hours {
+    color: #333;
+}
+
+.aroi-weekly-hours tr.today {
+    background: #f0f8ff;
+}
+
+.aroi-weekly-hours tr.today .day {
+    color: #0073aa;
+}
+
+.aroi-weekly-hours .closed {
+    color: #999;
+    font-style: italic;
+}
+
+.aroi-weekly-hours .notes {
+    font-size: 12px;
+    color: #666;
+    font-style: italic;
+}
+
+/* Delivery Time */
+.aroi-delivery-time {
+    font-weight: bold;
+    color: #0073aa;
+}
+
+/* Simple Status */
+.aroi-status {
+    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 3px;
+    font-weight: bold;
+}
+
+.aroi-status.open {
+    background: #d4edda;
+    color: #155724;
+}
+
+.aroi-status.closed {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.aroi-status.unknown {
+    background: #fff3cd;
+    color: #856404;
+}
+
+/* Pickup Time Selection */
+.wps-drop select {
+    width: 100%;
+    max-width: 300px;
+}
+
+/* Navigation Arrows */
+.dsklink {
+    margin: 20px 0;
+}
+
+.dsklink a {
+    text-decoration: none;
+    transition: transform 0.2s;
+    display: inline-block;
+}
+
+.dsklink a:hover {
+    transform: translateX(-5px);
+}
+
+/* Info Box */
+.aroi-info-box {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    padding: 20px;
+    margin: 20px 0;
+    border-radius: 4px;
+}
+
+.aroi-info-box h3 {
+    margin-top: 0;
+}
+
+.aroi-info-box table {
+    width: 100%;
+    margin-top: 10px;
+}
+
+.aroi-info-box td {
+    padding: 8px 0;
+}

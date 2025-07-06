@@ -11,7 +11,8 @@
       "Bash(php artisan config:clear:*)",
       "Bash(php artisan:*)",
       "Bash(php:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(mkdir:*)"
     ],
     "deny": []
   }

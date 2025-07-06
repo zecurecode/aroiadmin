@@ -23,6 +23,16 @@ Route::prefix('v1')->group(function () {
     // Legacy compatibility endpoint
     Route::get('/', [ApiController::class, 'processOrders']);
     Route::post('/', [ApiController::class, 'processOrders']);
+    
+    // WordPress integration endpoints
+    Route::prefix('wordpress')->group(function () {
+        Route::get('/location/{siteId}', [App\Http\Controllers\Api\WordPressController::class, 'getLocation']);
+        Route::get('/location/{siteId}/delivery-time', [App\Http\Controllers\Api\WordPressController::class, 'getDeliveryTime']);
+        Route::get('/location/{siteId}/opening-hours', [App\Http\Controllers\Api\WordPressController::class, 'getOpeningHours']);
+        Route::get('/location/{siteId}/all-hours', [App\Http\Controllers\Api\WordPressController::class, 'getAllOpeningHours']);
+        Route::get('/location/{siteId}/is-open', [App\Http\Controllers\Api\WordPressController::class, 'isOpenNow']);
+        Route::post('/location/{siteId}/update-status', [App\Http\Controllers\Api\WordPressController::class, 'updateStatus']);
+    });
 });
 
 // Internal API routes for admin panel
