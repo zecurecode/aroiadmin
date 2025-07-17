@@ -429,7 +429,7 @@ function checkNewOrders() {
                 if (Notification.permission === "granted") {
                     new Notification("Ny ordre!", {
                         body: "Det har kommet inn en ny ordre",
-                        icon: "/favicon.ico"
+                        icon: "{{ asset('images/logo.png') }}"
                     });
                 }
 

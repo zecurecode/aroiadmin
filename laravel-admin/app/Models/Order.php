@@ -28,7 +28,16 @@ class Order extends Model
         'seordre',
         'paymentmethod',
         'hentes',
-        'sms'
+        'sms',
+        'is_catering',
+        'delivery_date',
+        'delivery_time',
+        'delivery_address',
+        'number_of_guests',
+        'special_requirements',
+        'catering_notes',
+        'catering_status',
+        'catering_email'
     ];
 
     protected $casts = [
@@ -39,6 +48,10 @@ class Order extends Model
         'sms' => 'integer',
         'datetime' => 'datetime',
         'curltime' => 'datetime',
+        'is_catering' => 'boolean',
+        'delivery_date' => 'date',
+        'delivery_time' => 'string',
+        'number_of_guests' => 'integer',
     ];
 
     /**
@@ -159,5 +172,45 @@ class Order extends Model
     public function markSMSAsSent()
     {
         return $this->update(['sms' => 1]);
+    }
+
+    /**
+     * Scope for catering orders.
+     */
+    public function scopeCatering($query)
+    {
+        return $query->where('is_catering', true);
+    }
+
+    /**
+     * Scope for regular orders.
+     */
+    public function scopeRegular($query)
+    {
+        return $query->where('is_catering', false);
+    }
+
+    /**
+     * Check if order is catering.
+     */
+    public function isCatering()
+    {
+        return $this->is_catering;
+    }
+
+    /**
+     * Get catering settings for this order's location.
+     */
+    public function cateringSettings()
+    {
+        return CateringSettings::where('site_id', $this->site)->first();
+    }
+
+    /**
+     * Update catering status.
+     */
+    public function updateCateringStatus($status)
+    {
+        return $this->update(['catering_status' => $status]);
     }
 }

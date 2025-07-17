@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\ApiController;
+use App\Http\Controllers\Api\CateringController;
 use App\Http\Controllers\Admin\OrderController;
 
 Route::get('/user', function (Request $request) {
@@ -32,6 +33,16 @@ Route::prefix('v1')->group(function () {
         Route::get('/location/{siteId}/all-hours', [App\Http\Controllers\Api\WordPressController::class, 'getAllOpeningHours']);
         Route::get('/location/{siteId}/is-open', [App\Http\Controllers\Api\WordPressController::class, 'isOpenNow']);
         Route::post('/location/{siteId}/update-status', [App\Http\Controllers\Api\WordPressController::class, 'updateStatus']);
+    });
+
+    // Catering endpoints
+    Route::prefix('catering')->group(function () {
+        Route::get('/location/{siteId}/settings', [CateringController::class, 'getSettings']);
+        Route::post('/location/{siteId}/check-availability', [CateringController::class, 'checkAvailability']);
+        Route::get('/location/{siteId}/blocked-dates', [CateringController::class, 'getBlockedDates']);
+        Route::post('/orders', [CateringController::class, 'createOrder']);
+        Route::post('/orders/mark-paid', [CateringController::class, 'markPaid']);
+        Route::put('/orders/{orderId}/status', [CateringController::class, 'updateStatus']);
     });
 });
 

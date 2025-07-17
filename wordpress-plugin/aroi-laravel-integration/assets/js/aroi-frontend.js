@@ -25,6 +25,14 @@
             checkLocationStatus($(this).data('site-id'));
         });
         
+        // Initialize location cards functionality
+        initializeLocationCards();
+        
+        // Auto-refresh location cards every 5 minutes
+        if ($('.aroi-locations-grid').length > 0) {
+            setInterval(refreshLocationCards, 300000); // 5 minutes
+        }
+        
     });
     
     /**
@@ -202,6 +210,130 @@
             minutes: parseInt(parts[1])
         };
     }
+    
+    /**
+     * Initialize location cards
+     */
+    function initializeLocationCards() {
+        // Add click tracking
+        $('.aroi-location-card').on('click', function(e) {
+            var locationName = $(this).find('.location-name').text();
+            if (typeof gtag !== 'undefined') {
+                gtag('event', 'location_click', {
+                    'event_category': 'engagement',
+                    'event_label': locationName
+                });
+            }
+        });
+        
+        // Add hover effects
+        $('.aroi-location-card').hover(
+            function() {
+                $(this).find('.location-link-text i').addClass('animated');
+            },
+            function() {
+                $(this).find('.location-link-text i').removeClass('animated');
+            }
+        );
+        
+        // Initialize maps lazy loading
+        initializeLazyMaps();
+    }
+    
+    /**
+     * Refresh location cards status
+     */
+    function refreshLocationCards() {
+        $('.aroi-location-card').each(function() {
+            var $card = $(this);
+            var siteId = $card.data('site-id');
+            
+            if (siteId) {
+                $.ajax({
+                    url: aroi_ajax.ajax_url,
+                    type: 'POST',
+                    data: {
+                        action: 'aroi_check_open_status',
+                        nonce: aroi_ajax.nonce,
+                        site_id: siteId
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            updateLocationCardStatus($card, response.data);
+                        }
+                    }
+                });
+            }
+        });
+    }
+    
+    /**
+     * Update individual location card status
+     */
+    function updateLocationCardStatus($card, data) {
+        // Update open/closed class
+        $card.removeClass('location-open location-closed');
+        $card.addClass(data.is_open ? 'location-open' : 'location-closed');
+        
+        // Update status indicator
+        var $indicator = $card.find('.status-indicator');
+        $indicator.removeClass('status-open status-closed');
+        $indicator.addClass(data.is_open ? 'status-open' : 'status-closed');
+        
+        // Update status text
+        $card.find('.status-text').text(data.message);
+        
+        // Update hours if available
+        if (data.open_time && data.close_time) {
+            var hoursText = data.open_time + ' - ' + data.close_time;
+            $card.find('.location-info-item .fa-clock').parent().find('span').text(hoursText);
+        }
+    }
+    
+    /**
+     * Initialize lazy loading for maps
+     */
+    function initializeLazyMaps() {
+        var mapObserver = new IntersectionObserver(function(entries) {
+            entries.forEach(function(entry) {
+                if (entry.isIntersecting) {
+                    var $map = $(entry.target);
+                    var src = $map.data('src');
+                    if (src && !$map.attr('src')) {
+                        $map.attr('src', src);
+                        mapObserver.unobserve(entry.target);
+                    }
+                }
+            });
+        }, {
+            rootMargin: '100px'
+        });
+        
+        $('.location-map iframe, .location-map-large iframe').each(function() {
+            var $iframe = $(this);
+            var src = $iframe.attr('src');
+            if (src) {
+                $iframe.data('src', src);
+                $iframe.removeAttr('src');
+                mapObserver.observe(this);
+            }
+        });
+    }
+    
+    /**
+     * Filter locations by status
+     */
+    window.filterLocationsByStatus = function(status) {
+        if (status === 'all') {
+            $('.aroi-location-card').show();
+        } else if (status === 'open') {
+            $('.aroi-location-card').hide();
+            $('.aroi-location-card.location-open').show();
+        } else if (status === 'closed') {
+            $('.aroi-location-card').hide();
+            $('.aroi-location-card.location-closed').show();
+        }
+    };
 
 })(jQuery);
 

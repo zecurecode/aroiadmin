@@ -95,9 +95,11 @@ class Aroi_Laravel_Integration {
     private function includes() {
         require_once AROI_LARAVEL_PLUGIN_DIR . 'includes/class-api-client.php';
         require_once AROI_LARAVEL_PLUGIN_DIR . 'includes/class-location-functions.php';
+        require_once AROI_LARAVEL_PLUGIN_DIR . 'includes/class-location-listing.php';
         require_once AROI_LARAVEL_PLUGIN_DIR . 'includes/class-order-handler.php';
         require_once AROI_LARAVEL_PLUGIN_DIR . 'includes/class-opening-hours.php';
         require_once AROI_LARAVEL_PLUGIN_DIR . 'includes/class-product-addons.php';
+        require_once AROI_LARAVEL_PLUGIN_DIR . 'includes/class-catering-handler.php';
         
         if (is_admin()) {
             require_once AROI_LARAVEL_PLUGIN_DIR . 'includes/class-admin-settings.php';
@@ -154,6 +156,8 @@ class Aroi_Laravel_Integration {
         add_shortcode('gettid2', array('Aroi_Location_Functions', 'shortcode_opening_hours'));
         add_shortcode('aroi_location_status', array('Aroi_Location_Functions', 'shortcode_location_status'));
         add_shortcode('aroi_weekly_hours', array('Aroi_Location_Functions', 'shortcode_weekly_hours'));
+        add_shortcode('aroi_locations', array('Aroi_Location_Listing', 'shortcode_location_cards'));
+        add_shortcode('aroi_single_location', array('Aroi_Location_Listing', 'shortcode_single_location'));
     }
     
     /**

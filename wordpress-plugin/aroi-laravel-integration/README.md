@@ -51,6 +51,37 @@ The plugin automatically maps WordPress multisite blog IDs to location IDs:
 
 ### Shortcodes
 
+#### Display All Locations
+```
+[aroi_locations]
+```
+Displays all active locations as clickable cards with real-time status.
+
+Options:
+- `columns` - Number of columns (2, 3, or 4). Default: 3
+- `show_map` - Show Google Maps (yes/no). Default: yes
+- `show_hours` - Show opening hours (yes/no). Default: yes
+- `show_phone` - Show phone number (yes/no). Default: yes
+- `show_status` - Show open/closed status (yes/no). Default: yes
+
+Example:
+```
+[aroi_locations columns="2" show_map="no"]
+```
+
+#### Display Single Location
+```
+[aroi_single_location site="7"]
+```
+Displays detailed information for a single location.
+
+Options:
+- `site` - Site ID (required)
+- `show_map` - Show Google Maps (yes/no). Default: yes
+- `show_hours` - Show opening hours (yes/no). Default: yes
+- `show_phone` - Show phone number (yes/no). Default: yes
+- `show_status` - Show open/closed status (yes/no). Default: yes
+
 #### Display Delivery Time
 ```
 [gettid]

@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\SiteController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\LocationController;
 use App\Http\Controllers\Admin\OpeningHoursController;
+use App\Http\Controllers\Admin\CateringController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
@@ -98,6 +99,19 @@ Route::middleware(['custom.auth'])->group(function () {
         Route::post('/{order}/send-sms', [OrderController::class, 'sendSMS'])->name('send-sms');
         Route::patch('/{order}/status', [OrderController::class, 'updateStatus'])->name('update-status');
         Route::delete('/{order}', [OrderController::class, 'destroy'])->name('destroy');
+    });
+
+    // Catering management routes
+    Route::prefix('admin/catering')->name('admin.catering.')->group(function () {
+        Route::get('/', [CateringController::class, 'index'])->name('index');
+        Route::get('/orders/{order}', [CateringController::class, 'show'])->name('show');
+        Route::patch('/orders/{order}/status', [CateringController::class, 'updateStatus'])->name('update-status');
+        Route::get('/settings', [CateringController::class, 'settings'])->name('settings');
+        Route::post('/settings/{siteId}', [CateringController::class, 'updateSettings'])->name('update-settings');
+        Route::get('/blocked-dates/{siteId}', [CateringController::class, 'blockedDates'])->name('blocked-dates');
+        Route::post('/blocked-dates/{siteId}/add', [CateringController::class, 'addBlockedDate'])->name('add-blocked-date');
+        Route::post('/blocked-dates/{siteId}/remove', [CateringController::class, 'removeBlockedDate'])->name('remove-blocked-date');
+        Route::get('/export', [CateringController::class, 'export'])->name('export');
     });
 });
 

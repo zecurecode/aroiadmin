@@ -6,6 +6,12 @@
     <title>Aroi Asia - Th</title>
     <meta name="description" content="Velkommen til Aroi Asia! Vi har restauranter i Namsos, Lade, Moan, Gramyra, Frosta, Hell og Steinkjer. Se våre åpningstider og bestill mat online.">
 
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('images/logo.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('images/logo.png') }}">
+    <link rel="shortcut icon" href="{{ asset('images/logo.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('images/logo.png') }}">
+
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
@@ -35,92 +41,125 @@
         .header {
             background: var(--primary-purple);
             color: white;
-            padding: 2.5rem 0;
+            padding: 4rem 0 3rem;
             text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, var(--primary-purple) 0%, var(--primary-purple-dark) 50%, #6B2C70 100%);
+            opacity: 0.9;
+        }
+
+        .header .container {
+            position: relative;
+            z-index: 2;
         }
 
         .header-logo {
-            max-height: 120px;
-            max-width: 400px;
+            max-height: 180px;
+            max-width: 600px;
             height: auto;
             width: auto;
             display: block;
-            margin: 0 auto;
-            /* Removed white filter - use original logo colors */
-            background: rgba(255, 255, 255, 0.15);
-            padding: 20px;
-            border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            margin: 0 auto 2rem;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 30px;
+            border-radius: 25px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3), 0 4px 15px rgba(255, 255, 255, 0.1) inset;
             transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: 2px solid rgba(255, 255, 255, 0.1);
         }
 
         .header-logo:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), 0 6px 20px rgba(255, 255, 255, 0.15) inset;
         }
 
         .header h1 {
-            font-size: 2.5rem;
+            font-size: 3rem;
             font-weight: 700;
-            margin-bottom: 0.5rem;
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
         }
 
         .header p {
-            font-size: 1.1rem;
-            opacity: 0.9;
+            font-size: 1.3rem;
+            opacity: 0.95;
             margin-bottom: 0;
+            font-weight: 300;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
         }
 
         .main-content {
-            padding: 2rem 0;
+            padding: 3rem 0;
             min-height: calc(100vh - 200px);
+            position: relative;
         }
 
         .date-info {
-            background: white;
-            border-radius: 15px;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            border-radius: 20px;
+            padding: 2.5rem;
+            margin-bottom: 3rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
             text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.8);
         }
 
         .date-info h2 {
             color: var(--text-dark);
-            font-size: 1.5rem;
-            font-weight: 600;
-            margin-bottom: 0.5rem;
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, var(--primary-purple) 0%, var(--primary-purple-dark) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
         .date-info p {
             color: var(--text-light);
+            font-size: 1.1rem;
             margin-bottom: 0;
+            font-weight: 400;
         }
 
         .location-card {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            background: linear-gradient(135deg, #ffffff 0%, #fefefe 100%);
+            border-radius: 25px;
+            box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.1), 0 5px 15px -5px rgba(0, 0, 0, 0.05);
             transition: all 0.3s ease;
             overflow: hidden;
-            margin-bottom: 1.5rem;
+            margin-bottom: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
         }
 
         .location-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 20px 35px -5px rgba(0, 0, 0, 0.15), 0 10px 15px -5px rgba(0, 0, 0, 0.08);
+            transform: translateY(-8px);
+            box-shadow: 0 25px 50px -5px rgba(0, 0, 0, 0.15), 0 10px 25px -5px rgba(0, 0, 0, 0.1);
         }
 
         .card-header {
-            padding: 1.5rem;
+            padding: 2rem;
             border-bottom: 1px solid #E5E7EB;
+            background: linear-gradient(135deg, #fafafa 0%, #ffffff 100%);
         }
 
         .location-name {
-            font-size: 1.5rem;
+            font-size: 1.75rem;
             font-weight: 700;
             color: var(--text-dark);
-            margin-bottom: 0.5rem;
+            margin-bottom: 1rem;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
         }
 
         .status-badge {
@@ -186,6 +225,13 @@
             font-size: 1.5rem;
             font-weight: 700;
             color: var(--text-dark);
+        }
+
+        .next-opening-time {
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-light);
+            margin-top: 0.5rem;
         }
 
         .contact-info {
@@ -256,11 +302,20 @@
         }
 
         .footer {
-            background: rgba(255, 255, 255, 0.1);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%);
             color: white;
-            padding: 2rem 0;
+            padding: 3rem 0;
             text-align: center;
-            margin-top: 3rem;
+            margin-top: 4rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .footer p {
+            font-size: 1.1rem;
+            font-weight: 300;
+            margin: 0;
+            opacity: 0.9;
         }
 
                 .weekly-hours {
@@ -354,20 +409,43 @@
         }
 
         @media (max-width: 768px) {
+            .header {
+                padding: 3rem 0 2.5rem;
+            }
+
             .header-logo {
-                max-height: 90px;
-                max-width: 300px;
-                padding: 15px;
+                max-height: 140px;
+                max-width: 450px;
+                padding: 25px;
+            }
+
+            .header h1 {
+                font-size: 2.5rem;
+            }
+
+            .header p {
+                font-size: 1.2rem;
             }
         }
 
         @media (max-width: 480px) {
-            .header-logo {
-                max-height: 70px;
-                max-width: 250px;
-                padding: 12px;
+            .header {
+                padding: 2.5rem 0 2rem;
             }
-        }
+
+            .header-logo {
+                max-height: 110px;
+                max-width: 350px;
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .header p {
+                font-size: 1.1rem;
+            }
 
             .btn-group-custom {
                 flex-direction: column;
@@ -378,11 +456,28 @@
             }
 
             .main-content {
-                padding: 1rem 0;
+                padding: 2rem 0;
+            }
+
+            .date-info {
+                margin-bottom: 2rem;
+                padding: 2rem;
+            }
+
+            .date-info h2 {
+                font-size: 1.6rem;
             }
 
             .location-card {
-                margin-bottom: 1rem;
+                margin-bottom: 1.5rem;
+            }
+
+            .card-header {
+                padding: 1.5rem;
+            }
+
+            .location-name {
+                font-size: 1.5rem;
             }
         }
 
@@ -428,6 +523,8 @@
                             <div class="status-badge
                                 @if($location['is_closed_today'])
                                     status-closed
+                                @elseif($location['past_closing_time'])
+                                    status-closed
                                 @elseif($location['is_open'])
                                     status-open
                                 @else
@@ -437,12 +534,23 @@
                                 @if($location['is_closed_today'])
                                     <i class="bi bi-x-circle-fill"></i>
                                     Stengt
+                                @elseif($location['past_closing_time'])
+                                    <i class="bi bi-clock-fill"></i>
+                                    @if($location['next_opening_time'] && $location['next_opening_day'])
+                                        Åpner {{ $location['next_opening_day'] }} {{ date('H:i', strtotime($location['next_opening_time'])) }}
+                                    @else
+                                        Stengt
+                                    @endif
                                 @elseif($location['is_open'])
                                     <i class="bi bi-check-circle-fill pulse"></i>
                                     Åpen
                                 @else
                                     <i class="bi bi-clock-fill"></i>
-                                    Stengt
+                                    @if($location['next_opening_time'] && $location['next_opening_day'])
+                                        Åpner {{ $location['next_opening_day'] }} {{ date('H:i', strtotime($location['next_opening_time'])) }}
+                                    @else
+                                        Stengt
+                                    @endif
                                 @endif
                             </div>
                         </div>
@@ -451,7 +559,7 @@
                         <div class="card-body">
                             <!-- Today's Opening Hours - More Prominent -->
                             <div class="todays-hours">
-                                @if($location['open_time'] && $location['close_time'] && !$location['is_closed_today'])
+                                @if($location['open_time'] && $location['close_time'] && !$location['is_closed_today'] && !$location['past_closing_time'])
                                     <div class="todays-status open">
                                         <div class="status-header">
                                             <i class="bi bi-clock-fill"></i>
@@ -461,12 +569,29 @@
                                             {{ date('H:i', strtotime($location['open_time'])) }} - {{ date('H:i', strtotime($location['close_time'])) }}
                                         </div>
                                     </div>
+                                @elseif($location['past_closing_time'])
+                                    <div class="todays-status closed">
+                                        <div class="status-header">
+                                            <i class="bi bi-x-circle-fill"></i>
+                                            <strong>Stengt nå</strong>
+                                        </div>
+                                        @if($location['next_opening_time'] && $location['next_opening_day'])
+                                            <div class="todays-time text-muted">
+                                                Åpner {{ $location['next_opening_day'] }} klokken {{ date('H:i', strtotime($location['next_opening_time'])) }}
+                                            </div>
+                                        @endif
+                                    </div>
                                 @else
                                     <div class="todays-status closed">
                                         <div class="status-header">
                                             <i class="bi bi-x-circle-fill"></i>
-                                            <strong>Stengt i dag</strong>
+                                            <strong>Stengt</strong>
                                         </div>
+                                        @if($location['next_opening_time'] && $location['next_opening_day'])
+                                            <div class="todays-time text-muted">
+                                                Åpner {{ $location['next_opening_day'] }} klokken {{ date('H:i', strtotime($location['next_opening_time'])) }}
+                                            </div>
+                                        @endif
                                     </div>
                                 @endif
 
