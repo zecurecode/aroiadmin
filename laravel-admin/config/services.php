@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'woocommerce' => [
+        'base_url' => env('WOOCOMMERCE_BASE_URL', 'https://aroiasia.no'),
+        'consumer_key' => env('WOOCOMMERCE_CONSUMER_KEY'),
+        'consumer_secret' => env('WOOCOMMERCE_CONSUMER_SECRET'),
+    ],
+
 ];

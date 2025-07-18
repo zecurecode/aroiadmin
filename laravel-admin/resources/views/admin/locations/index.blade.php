@@ -45,6 +45,8 @@
                             <tr>
                                 <th>Site ID</th>
                                 <th>Navn</th>
+                                <th>Gruppe</th>
+                                <th>Rekkefølge</th>
                                 <th>Adresse</th>
                                 <th>Telefon</th>
                                 <th>Bestillings-URL</th>
@@ -58,6 +60,14 @@
                                 <tr>
                                     <td>{{ $location->site_id }}</td>
                                     <td><strong>{{ $location->name }}</strong></td>
+                                    <td>
+                                        @if($location->group_name)
+                                            <span class="badge bg-info">{{ $location->group_name }}</span>
+                                        @else
+                                            <span class="text-muted">-</span>
+                                        @endif
+                                    </td>
+                                    <td>{{ $location->display_order }}</td>
                                     <td>{{ $location->address ?: '-' }}</td>
                                     <td>{{ $location->phone ?: '-' }}</td>
                                     <td>
@@ -97,7 +107,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="8" class="text-center text-muted py-4">
+                                    <td colspan="10" class="text-center text-muted py-4">
                                         <i class="fas fa-map-marker-alt fa-2x mb-2"></i><br>
                                         Ingen lokasjoner funnet
                                     </td>

@@ -10,7 +10,8 @@ use App\Http\Controllers\Admin\SiteController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\LocationController;
 use App\Http\Controllers\Admin\OpeningHoursController;
-use App\Http\Controllers\Admin\CateringController;
+use App\Http\Controllers\Admin\CateringController as AdminCateringController;
+use App\Http\Controllers\CateringController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
@@ -142,6 +143,17 @@ Route::middleware('custom.auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+});
+
+// Public catering routes
+Route::prefix('catering')->name('catering.')->group(function () {
+    Route::get('/', [CateringController::class, 'index'])->name('index');
+    Route::get('/location/{location}/products', [CateringController::class, 'selectProducts'])->name('products');
+    Route::post('/store-products', [CateringController::class, 'storeProducts'])->name('store-products');
+    Route::get('/location/{location}/order-form', [CateringController::class, 'orderForm'])->name('order-form');
+    Route::post('/store', [CateringController::class, 'store'])->name('store');
+    Route::get('/confirmation/{order}', [CateringController::class, 'confirmation'])->name('confirmation');
+    Route::post('/check-availability', [CateringController::class, 'checkAvailability'])->name('check-availability');
 });
 
 require __DIR__.'/auth.php';

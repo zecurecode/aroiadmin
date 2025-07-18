@@ -96,6 +96,36 @@
                     
                     <div class="row">
                         <div class="col-md-6 mb-3">
+                            <label for="group_name" class="form-label">Gruppe/Region</label>
+                            <input type="text" class="form-control @error('group_name') is-invalid @enderror" 
+                                   id="group_name" name="group_name" value="{{ old('group_name', $location->group_name) }}"
+                                   placeholder="F.eks. Trøndelag, Nordland, etc."
+                                   list="group-names">
+                            <datalist id="group-names">
+                                @foreach(\App\Models\Location::getGroups() as $group)
+                                    <option value="{{ $group }}">
+                                @endforeach
+                            </datalist>
+                            <small class="text-muted">Brukes for å gruppere lokasjoner på forsiden</small>
+                            @error('group_name')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="display_order" class="form-label">Rekkefølge</label>
+                            <input type="number" class="form-control @error('display_order') is-invalid @enderror" 
+                                   id="display_order" name="display_order" value="{{ old('display_order', $location->display_order) }}"
+                                   min="0" step="1">
+                            <small class="text-muted">Lavere tall vises først (standard: 0)</small>
+                            @error('display_order')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
                             <label for="license" class="form-label">PCKasse Lisens <span class="text-danger">*</span></label>
                             <input type="number" class="form-control @error('license') is-invalid @enderror" 
                                    id="license" name="license" value="{{ old('license', $location->license) }}" required>

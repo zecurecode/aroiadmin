@@ -12,18 +12,21 @@ class Location extends Model
     protected $fillable = [
         'site_id',
         'name',
+        'group_name',
         'license',
         'phone',
         'email',
         'address',
         'order_url',
         'active',
+        'display_order',
     ];
 
     protected $casts = [
         'site_id' => 'integer',
         'license' => 'integer',
         'active' => 'boolean',
+        'display_order' => 'integer',
     ];
 
     /**
@@ -90,5 +93,42 @@ class Location extends Model
     {
         $day = now()->format('l'); // Monday, Tuesday, etc.
         return $this->openingHours()->where('day', $day)->first();
+    }
+
+    /**
+     * Get catering settings for this location.
+     */
+    public function cateringSettings()
+    {
+        return $this->hasOne(CateringSettings::class, 'site_id', 'site_id');
+    }
+
+    /**
+     * Scope for locations in a specific group.
+     */
+    public function scopeInGroup($query, $group)
+    {
+        return $query->where('group_name', $group);
+    }
+
+    /**
+     * Scope for ordering by display order and name.
+     */
+    public function scopeOrdered($query)
+    {
+        return $query->orderBy('display_order', 'asc')
+                    ->orderBy('name', 'asc');
+    }
+
+    /**
+     * Get all unique group names.
+     */
+    public static function getGroups()
+    {
+        return self::whereNotNull('group_name')
+                   ->distinct()
+                   ->pluck('group_name')
+                   ->sort()
+                   ->values();
     }
 }

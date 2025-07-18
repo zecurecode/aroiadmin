@@ -13,7 +13,7 @@ class LocationController extends Controller
      */
     public function index()
     {
-        $locations = Location::orderBy('name')->get();
+        $locations = Location::ordered()->get();
         return view('admin.locations.index', compact('locations'));
     }
 
@@ -38,6 +38,8 @@ class LocationController extends Controller
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string|max:500',
             'order_url' => 'nullable|url|max:500',
+            'group_name' => 'nullable|string|max:100',
+            'display_order' => 'nullable|integer|min:0',
             'active' => 'nullable|in:on,1,true,0,false'
         ]);
 
@@ -49,6 +51,8 @@ class LocationController extends Controller
             'email' => $request->email,
             'address' => $request->address,
             'order_url' => $request->order_url,
+            'group_name' => $request->group_name,
+            'display_order' => $request->display_order ?? 0,
             'active' => $request->active == '1' || $request->active === true
         ]);
 
@@ -88,6 +92,8 @@ class LocationController extends Controller
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string|max:500',
             'order_url' => 'nullable|url|max:500',
+            'group_name' => 'nullable|string|max:100',
+            'display_order' => 'nullable|integer|min:0',
             'active' => 'nullable|in:on,1,true,0,false'
         ]);
 
@@ -98,6 +104,8 @@ class LocationController extends Controller
             'email' => $request->email,
             'address' => $request->address,
             'order_url' => $request->order_url,
+            'group_name' => $request->group_name,
+            'display_order' => $request->display_order ?? 0,
             'active' => $request->active == '1' || $request->active === true
         ]);
 

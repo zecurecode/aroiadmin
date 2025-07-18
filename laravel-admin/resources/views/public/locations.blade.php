@@ -38,6 +38,66 @@
             margin: 0;
         }
 
+        /* Sorting and Grouping Controls */
+        .btn-group .btn-sm {
+            padding: 0.4rem 1rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            border-radius: 0.375rem;
+            transition: all 0.2s ease;
+        }
+
+        .btn-outline-primary {
+            color: var(--primary-purple);
+            border-color: var(--primary-purple);
+        }
+
+        .btn-outline-primary:hover {
+            background-color: var(--primary-purple);
+            border-color: var(--primary-purple);
+        }
+
+        .btn-primary {
+            background-color: var(--primary-purple);
+            border-color: var(--primary-purple);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-purple-dark);
+            border-color: var(--primary-purple-dark);
+        }
+
+        .btn-outline-success {
+            color: var(--success-green);
+            border-color: var(--success-green);
+        }
+
+        .btn-outline-success:hover {
+            background-color: var(--success-green);
+            border-color: var(--success-green);
+        }
+
+        .btn-success {
+            background-color: var(--success-green);
+            border-color: var(--success-green);
+        }
+
+        .btn-success:hover {
+            background-color: #0EA570;
+            border-color: #0EA570;
+        }
+
+        /* Group Headers */
+        .group-header {
+            color: white;
+            font-size: 1.75rem;
+            font-weight: 600;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
         .header {
             background: var(--primary-purple);
             color: white;
@@ -512,9 +572,53 @@
                 <p>Klikk på avdelingen for å se meny og bestille mat</p>
             </div>
 
+            <!-- Sorting and Grouping Controls -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="btn-group" role="group" aria-label="Sortering">
+                        <a href="?sort=default{{ $currentGroupBy !== 'none' ? '&group_by=' . $currentGroupBy : '' }}" 
+                           class="btn btn-sm {{ $currentSort === 'default' ? 'btn-primary' : 'btn-outline-primary' }}">
+                            Standard rekkefølge
+                        </a>
+                        <a href="?sort=name{{ $currentGroupBy !== 'none' ? '&group_by=' . $currentGroupBy : '' }}" 
+                           class="btn btn-sm {{ $currentSort === 'name' ? 'btn-primary' : 'btn-outline-primary' }}">
+                            Alfabetisk
+                        </a>
+                        <a href="?sort=group{{ $currentGroupBy !== 'none' ? '&group_by=' . $currentGroupBy : '' }}" 
+                           class="btn btn-sm {{ $currentSort === 'group' ? 'btn-primary' : 'btn-outline-primary' }}">
+                            Etter gruppe
+                        </a>
+                    </div>
+                </div>
+                <div class="col-md-6 text-end">
+                    <div class="btn-group" role="group" aria-label="Gruppering">
+                        <a href="?{{ $currentSort !== 'default' ? 'sort=' . $currentSort . '&' : '' }}group_by=none" 
+                           class="btn btn-sm {{ $currentGroupBy === 'none' ? 'btn-success' : 'btn-outline-success' }}">
+                            Vis alle
+                        </a>
+                        <a href="?{{ $currentSort !== 'default' ? 'sort=' . $currentSort . '&' : '' }}group_by=region" 
+                           class="btn btn-sm {{ $currentGroupBy === 'region' ? 'btn-success' : 'btn-outline-success' }}">
+                            Grupper etter region
+                        </a>
+                    </div>
+                </div>
+            </div>
+
             <!-- Locations Grid -->
-            <div class="row">
-                @foreach($locations as $location)
+            @if($currentGroupBy === 'region')
+                @foreach($groupedLocations as $groupName => $groupLocations)
+                    @if($groupName !== 'all')
+                        <h3 class="group-header mt-4 mb-3">{{ $groupName }}</h3>
+                    @endif
+                    <div class="row">
+                        @foreach($groupLocations as $location)
+                            @include('public.partials.location-card', ['location' => $location])
+                        @endforeach
+                    </div>
+                @endforeach
+            @else
+                <div class="row">
+                    @foreach($locations as $location)
                 <div class="col-lg-6 col-xl-4">
                     <div class="location-card">
                         <!-- Card Header -->
@@ -691,7 +795,8 @@
                     </div>
                 </div>
                 @endforeach
-            </div>
+                </div>
+            @endif
         </div>
     </div>
 

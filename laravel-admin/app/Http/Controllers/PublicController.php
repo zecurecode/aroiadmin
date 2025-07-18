@@ -15,12 +15,28 @@ class PublicController extends Controller
     /**
      * Show all locations with opening hours and status
      */
-    public function locations()
+    public function locations(Request $request)
     {
         // Get all active locations with their opening hours
-        $locations = Location::where('active', true)
-            ->orderBy('name')
-            ->get();
+        $query = Location::where('active', true);
+        
+        // Apply sorting
+        if ($request->has('sort')) {
+            switch ($request->sort) {
+                case 'name':
+                    $query->orderBy('name');
+                    break;
+                case 'group':
+                    $query->orderBy('group_name')->orderBy('display_order')->orderBy('name');
+                    break;
+                default:
+                    $query->ordered(); // Use display_order and name
+            }
+        } else {
+            $query->ordered(); // Default to custom ordering
+        }
+        
+        $locations = $query->get();
 
         // Get today's information
         $today = Carbon::now();
@@ -55,6 +71,8 @@ class PublicController extends Controller
                 'id' => $location->id,
                 'site_id' => $location->site_id,
                 'name' => $location->name,
+                'group_name' => $location->group_name,
+                'display_order' => $location->display_order,
                 'phone' => $location->phone,
                 'email' => $location->email,
                 'address' => $location->address,
@@ -180,10 +198,29 @@ class PublicController extends Controller
             $locationsData[] = $locationData;
         }
 
+        // Group locations by group_name if requested
+        $groupedLocations = [];
+        if ($request->has('group_by') && $request->group_by === 'region') {
+            foreach ($locationsData as $location) {
+                $groupName = $location['group_name'] ?: 'Andre';
+                if (!isset($groupedLocations[$groupName])) {
+                    $groupedLocations[$groupName] = [];
+                }
+                $groupedLocations[$groupName][] = $location;
+            }
+            ksort($groupedLocations);
+        } else {
+            $groupedLocations['all'] = $locationsData;
+        }
+
         return view('public.locations', [
             'locations' => $locationsData,
+            'groupedLocations' => $groupedLocations,
             'today' => $today->locale('nb')->isoFormat('dddd, D. MMMM YYYY'),
-            'current_day' => $todayDayEnglish
+            'current_day' => $todayDayEnglish,
+            'currentSort' => $request->get('sort', 'default'),
+            'currentGroupBy' => $request->get('group_by', 'none'),
+            'availableGroups' => Location::getGroups()
         ]);
     }
 
