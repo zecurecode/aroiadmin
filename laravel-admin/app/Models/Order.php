@@ -37,7 +37,10 @@ class Order extends Model
         'special_requirements',
         'catering_notes',
         'catering_status',
-        'catering_email'
+        'catering_email',
+        'pck_export_status',
+        'pck_exported_at',
+        'pck_last_error'
     ];
 
     protected $casts = [
@@ -52,6 +55,7 @@ class Order extends Model
         'delivery_date' => 'date',
         'delivery_time' => 'string',
         'number_of_guests' => 'integer',
+        'pck_exported_at' => 'datetime',
     ];
 
     /**
@@ -212,5 +216,100 @@ class Order extends Model
     public function updateCateringStatus($status)
     {
         return $this->update(['catering_status' => $status]);
+    }
+
+    /**
+     * Scope for orders ready for PCK export.
+     */
+    public function scopeReadyForPckExport($query)
+    {
+        return $query->where('pck_export_status', 'new')
+                    ->where('paid', true);
+    }
+
+    /**
+     * Scope for orders not yet exported to PCK.
+     */
+    public function scopeNotExportedToPck($query)
+    {
+        return $query->where('pck_export_status', 'new');
+    }
+
+    /**
+     * Scope for orders successfully exported to PCK.
+     */
+    public function scopeExportedToPck($query)
+    {
+        return $query->where('pck_export_status', 'sent');
+    }
+
+    /**
+     * Scope for orders with PCK export failures.
+     */
+    public function scopePckExportFailed($query)
+    {
+        return $query->where('pck_export_status', 'ack_failed');
+    }
+
+    /**
+     * Mark order as exported to PCK.
+     */
+    public function markAsExportedToPck()
+    {
+        return $this->update([
+            'pck_export_status' => 'sent',
+            'pck_exported_at' => now(),
+            'pck_last_error' => null
+        ]);
+    }
+
+    /**
+     * Mark order as failed to export to PCK.
+     */
+    public function markPckExportFailed($error)
+    {
+        return $this->update([
+            'pck_export_status' => 'ack_failed',
+            'pck_last_error' => $error
+        ]);
+    }
+
+    /**
+     * Reset PCK export status for retry.
+     */
+    public function resetPckExportStatus()
+    {
+        return $this->update([
+            'pck_export_status' => 'new',
+            'pck_last_error' => null
+        ]);
+    }
+
+    /**
+     * Check if order has been exported to PCK.
+     */
+    public function isExportedToPck()
+    {
+        return $this->pck_export_status === 'sent';
+    }
+
+    /**
+     * Check if order had PCK export failure.
+     */
+    public function hasPckExportFailed()
+    {
+        return $this->pck_export_status === 'ack_failed';
+    }
+
+    /**
+     * Get orders for PCK getOrders method.
+     */
+    public static function getOrdersForPckExport(int $tenantId, int $limit = 100)
+    {
+        return static::where('site', $tenantId)
+                    ->readyForPckExport()
+                    ->orderBy('datetime')
+                    ->limit($limit)
+                    ->get();
     }
 }

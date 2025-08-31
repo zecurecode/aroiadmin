@@ -364,6 +364,10 @@
                                 <li><a class="dropdown-item" href="{{ route('admin.locations.index') }}">
                                     <i class="bi bi-geo-alt me-2"></i>Lokasjoner
                                 </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{{ route('admin.pck-soap.index') }}">
+                                    <i class="fas fa-server me-2"></i>PCK SOAP
+                                </a></li>
                                 <li><a class="dropdown-item" href="{{ route('admin.settings.index') }}">
                                     <i class="bi bi-gear me-2"></i>Systeminnstillinger
                                 </a></li>
@@ -431,7 +435,7 @@
                             </li>
 
                             <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle {{ request()->routeIs('admin.users.*') || request()->routeIs('admin.sites.*') || request()->routeIs('admin.settings.*') ? 'active' : '' }}"
+                                <a class="nav-link dropdown-toggle {{ request()->routeIs('admin.users.*') || request()->routeIs('admin.sites.*') || request()->routeIs('admin.settings.*') || request()->routeIs('admin.pck-soap.*') ? 'active' : '' }}"
                                    href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
                                     <i class="fas fa-cogs me-2"></i>Admin
                                 </a>

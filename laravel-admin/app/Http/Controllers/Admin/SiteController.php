@@ -31,22 +31,59 @@ class SiteController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'site_id' => 'required|integer|unique:sites',
-            'url' => 'required|url|max:255',
-            'consumer_key' => 'required|string|max:255',
-            'consumer_secret' => 'required|string|max:255',
-            'license' => 'required|integer|min:0',
-            'active' => 'boolean',
+        // Log the incoming request for debugging
+        \Log::info('SiteController::store - Request received', [
+            'request_data' => $request->all(),
+            'method' => $request->method(),
+            'url' => $request->url(),
         ]);
 
-        $validated['active'] = $request->has('active');
+        try {
+            $validated = $request->validate([
+                'name' => 'required|string|max:255',
+                'site_id' => 'required|integer|unique:sites',
+                'url' => 'required|url|max:255',
+                'consumer_key' => 'required|string|max:255',
+                'consumer_secret' => 'required|string|max:255',
+                'license' => 'required|integer|min:0',
+                'active' => 'nullable', // Remove boolean validation to handle checkbox properly
+            ]);
 
-        Site::create($validated);
+            \Log::info('SiteController::store - Validation passed', ['validated_data' => $validated]);
 
-        return redirect()->route('admin.sites.index')
-            ->with('success', 'Site created successfully.');
+            // Handle checkbox properly - convert "on" to boolean
+            $validated['active'] = $request->has('active');
+
+            \Log::info('SiteController::store - About to create site', ['final_data' => $validated]);
+
+            $site = Site::create($validated);
+
+            \Log::info('SiteController::store - Site created successfully', [
+                'site_id' => $site->id,
+                'site_data' => $site->toArray(),
+            ]);
+
+            return redirect()->route('admin.sites.index')
+                ->with('success', 'Site created successfully.');
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('SiteController::store - Validation failed', [
+                'errors' => $e->errors(),
+                'request_data' => $request->all(),
+            ]);
+            throw $e;
+
+        } catch (\Exception $e) {
+            \Log::error('SiteController::store - Unexpected error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request_data' => $request->all(),
+            ]);
+            
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'An error occurred while creating the site: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -78,7 +115,7 @@ class SiteController extends Controller
             'consumer_key' => 'required|string|max:255',
             'consumer_secret' => 'required|string|max:255',
             'license' => 'required|integer|min:0',
-            'active' => 'boolean',
+            'active' => 'nullable', // Handle checkbox properly
         ]);
 
         $validated['active'] = $request->has('active');

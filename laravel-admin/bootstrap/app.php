@@ -16,6 +16,15 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
             'custom.auth' => \App\Http\Middleware\CustomAuthMiddleware::class,
         ]);
+        
+        // Exclude SOAP endpoints from CSRF verification
+        $middleware->validateCsrfTokens(except: [
+            'soap/pck',
+            'soap/pck/*',
+            'wsdl/*',
+            'pck/health',
+            'pck/tenant/*',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

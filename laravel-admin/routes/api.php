@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\ApiController;
 use App\Http\Controllers\Api\CateringController;
 use App\Http\Controllers\Admin\OrderController;
+use App\Http\Controllers\Soap\PckSoapController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -50,3 +51,4 @@ Route::prefix('v1')->group(function () {
 Route::middleware(['web', 'custom.auth'])->group(function () {
     Route::get('/orders/count', [OrderController::class, 'getOrderCount']);
 });
+

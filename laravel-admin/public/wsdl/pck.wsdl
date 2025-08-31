@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<definitions xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" 
+             xmlns:tns="https://webservice.driftsikker.no/" 
+             xmlns:s="http://www.w3.org/2001/XMLSchema" 
+             targetNamespace="https://webservice.driftsikker.no/" 
+             xmlns="http://schemas.xmlsoap.org/wsdl/">
+
+  <types>
+    <s:schema elementFormDefault="qualified" targetNamespace="https://webservice.driftsikker.no/">
+      
+      <!-- insertUpdateResponse -->
+      <s:complexType name="insertUpdateResponse">
+        <s:sequence>
+          <s:element name="deltaId" type="s:int"/>
+          <s:element name="errorHelpLink" type="s:string" minOccurs="0"/>
+          <s:element name="errorMessage" type="s:string" minOccurs="0"/>
+          <s:element name="humanErrorMessage" type="s:string" minOccurs="0"/>
+          <s:element name="operationResult" type="s:int"/>
+        </s:sequence>
+      </s:complexType>
+
+      <!-- webCompany -->
+      <s:complexType name="webCompany">
+        <s:sequence>
+          <s:element name="deliveryAddressLine1" type="s:string" minOccurs="0"/>
+          <s:element name="deliveryAddressLine2" type="s:string" minOccurs="0"/>
+          <s:element name="deliveryCity" type="s:string" minOccurs="0"/>
+          <s:element name="deliveryZipCode" type="s:string" minOccurs="0"/>
+          <s:element name="email" type="s:string" minOccurs="0"/>
+          <s:element name="emailWebshopInfo" type="s:string" minOccurs="0"/>
+          <s:element name="name" type="s:string" minOccurs="0"/>
+          <s:element name="licenseNo" type="s:string" minOccurs="0"/>
+          <s:element name="orgNo" type="s:string" minOccurs="0"/>
+          <s:element name="password" type="s:string" minOccurs="0"/>
+          <s:element name="legalName" type="s:string" minOccurs="0"/>
+        </s:sequence>
+      </s:complexType>
+
+      <!-- createDeltasWebshopResponse -->
+      <s:complexType name="createDeltasWebshopResponse">
+        <s:sequence>
+          <s:element name="adminUserName" type="s:string" minOccurs="0"/>
+          <s:element name="adminUserPassword" type="s:string" minOccurs="0"/>
+          <s:element name="deltasoftId" type="s:int"/>
+          <s:element name="insertUpdate" type="tns:insertUpdateResponse"/>
+          <s:element name="password" type="s:string" minOccurs="0"/>
+        </s:sequence>
+      </s:complexType>
+
+      <!-- article -->
+      <s:complexType name="article">
+        <s:sequence>
+          <s:element name="articleId" type="s:int"/>
+          <s:element name="articleNo" type="s:string" minOccurs="0"/>
+          <s:element name="name" type="s:string" minOccurs="0"/>
+          <s:element name="description" type="s:string" minOccurs="0"/>
+          <s:element name="salesPrice" type="s:decimal"/>
+          <s:element name="vat" type="s:decimal"/>
+          <s:element name="stockCount" type="s:int"/>
+          <s:element name="visibleOnWeb" type="s:boolean"/>
+          <s:element name="timestamp" type="s:long"/>
+        </s:sequence>
+      </s:complexType>
+
+      <!-- Document/Literal Wrapped Elements -->
+      <s:element name="createWebshop">
+        <s:complexType>
+          <s:sequence>
+            <s:element name="webcompany" type="tns:webCompany"/>
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+
+      <s:element name="createWebshopResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element name="createWebshopResult" type="tns:createDeltasWebshopResponse"/>
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+
+      <s:element name="sendArticle">
+        <s:complexType>
+          <s:sequence>
+            <s:element name="login" type="s:int"/>
+            <s:element name="password" type="s:string"/>
+            <s:element name="article" type="tns:article"/>
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+
+      <s:element name="sendArticleResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element name="sendArticleResult" type="tns:insertUpdateResponse"/>
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+
+    </s:schema>
+  </types>
+
+  <!-- Messages for Document/Literal -->
+  <message name="createWebshopSoapIn">
+    <part name="parameters" element="tns:createWebshop"/>
+  </message>
+  <message name="createWebshopSoapOut">
+    <part name="parameters" element="tns:createWebshopResponse"/>
+  </message>
+
+  <message name="sendArticleSoapIn">
+    <part name="parameters" element="tns:sendArticle"/>
+  </message>
+  <message name="sendArticleSoapOut">
+    <part name="parameters" element="tns:sendArticleResponse"/>
+  </message>
+
+  <!-- Port Type -->
+  <portType name="WebshopWSSoap">
+    <operation name="createWebshop">
+      <input message="tns:createWebshopSoapIn"/>
+      <output message="tns:createWebshopSoapOut"/>
+    </operation>
+    <operation name="sendArticle">
+      <input message="tns:sendArticleSoapIn"/>
+      <output message="tns:sendArticleSoapOut"/>
+    </operation>
+  </portType>
+
+  <!-- Binding for Document/Literal -->
+  <binding name="WebshopWSSoap" type="tns:WebshopWSSoap">
+    <soap:binding transport="http://schemas.xmlsoap.org/soap/http"/>
+    
+    <operation name="createWebshop">
+      <soap:operation soapAction="https://webservice.driftsikker.no/createWebshop" style="document"/>
+      <input>
+        <soap:body use="literal"/>
+      </input>
+      <output>
+        <soap:body use="literal"/>
+      </output>
+    </operation>
+    
+    <operation name="sendArticle">
+      <soap:operation soapAction="https://webservice.driftsikker.no/sendArticle" style="document"/>
+      <input>
+        <soap:body use="literal"/>
+      </input>
+      <output>
+        <soap:body use="literal"/>
+      </output>
+    </operation>
+  </binding>
+
+  <!-- Service -->
+  <service name="WebshopWS">
+    <port name="WebshopWSSoap" binding="tns:WebshopWSSoap">
+      <soap:address location="http://localhost/soap/pck"/>
+    </port>
+  </service>
+
+</definitions>
