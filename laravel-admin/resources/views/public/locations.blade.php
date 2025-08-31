@@ -575,31 +575,35 @@
             <!-- Sorting and Grouping Controls -->
             <div class="row mb-4">
                 <div class="col-md-6">
+                    <div class="p-2 rounded" style="background: rgba(255,255,255,0.85); display:inline-block;">
                     <div class="btn-group" role="group" aria-label="Sortering">
-                        <a href="?sort=default{{ $currentGroupBy !== 'none' ? '&group_by=' . $currentGroupBy : '' }}" 
+                        <a href="?sort=default{{ $currentGroupBy !== 'none' ? '&group_by=' . $currentGroupBy : '' }}"
                            class="btn btn-sm {{ $currentSort === 'default' ? 'btn-primary' : 'btn-outline-primary' }}">
                             Standard rekkefølge
                         </a>
-                        <a href="?sort=name{{ $currentGroupBy !== 'none' ? '&group_by=' . $currentGroupBy : '' }}" 
+                        <a href="?sort=name{{ $currentGroupBy !== 'none' ? '&group_by=' . $currentGroupBy : '' }}"
                            class="btn btn-sm {{ $currentSort === 'name' ? 'btn-primary' : 'btn-outline-primary' }}">
                             Alfabetisk
                         </a>
-                        <a href="?sort=group{{ $currentGroupBy !== 'none' ? '&group_by=' . $currentGroupBy : '' }}" 
+                        <a href="?sort=group{{ $currentGroupBy !== 'none' ? '&group_by=' . $currentGroupBy : '' }}"
                            class="btn btn-sm {{ $currentSort === 'group' ? 'btn-primary' : 'btn-outline-primary' }}">
                             Etter gruppe
                         </a>
                     </div>
+                    </div>
                 </div>
                 <div class="col-md-6 text-end">
+                    <div class="p-2 rounded" style="background: rgba(255,255,255,0.85); display:inline-block;">
                     <div class="btn-group" role="group" aria-label="Gruppering">
-                        <a href="?{{ $currentSort !== 'default' ? 'sort=' . $currentSort . '&' : '' }}group_by=none" 
+                        <a href="?{{ $currentSort !== 'default' ? 'sort=' . $currentSort . '&' : '' }}group_by=none"
                            class="btn btn-sm {{ $currentGroupBy === 'none' ? 'btn-success' : 'btn-outline-success' }}">
                             Vis alle
                         </a>
-                        <a href="?{{ $currentSort !== 'default' ? 'sort=' . $currentSort . '&' : '' }}group_by=region" 
+                        <a href="?{{ $currentSort !== 'default' ? 'sort=' . $currentSort . '&' : '' }}group_by=region"
                            class="btn btn-sm {{ $currentGroupBy === 'region' ? 'btn-success' : 'btn-outline-success' }}">
                             Grupper etter region
                         </a>
+                    </div>
                     </div>
                 </div>
             </div>

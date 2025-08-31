@@ -19,7 +19,7 @@ class PublicController extends Controller
     {
         // Get all active locations with their opening hours
         $query = Location::where('active', true);
-        
+
         // Apply sorting
         if ($request->has('sort')) {
             switch ($request->sort) {
@@ -35,7 +35,7 @@ class PublicController extends Controller
         } else {
             $query->ordered(); // Default to custom ordering
         }
-        
+
         $locations = $query->get();
 
         // Get today's information
@@ -50,12 +50,56 @@ class PublicController extends Controller
             // Get the corresponding avdeling and opening hours from _apningstid table
             $avdeling = AvdelingAlternative::where('Id', $location->site_id)->first();
             if (!$avdeling) {
-                continue; // Skip if no avdeling found
+                // Fallback: still show the location even if avdeling mapping is missing
+                $locationsData[] = [
+                    'id' => $location->id,
+                    'site_id' => $location->site_id,
+                    'name' => $location->name,
+                    'group_name' => $location->group_name,
+                    'display_order' => $location->display_order,
+                    'phone' => $location->phone,
+                    'email' => $location->email,
+                    'address' => $location->address,
+                    'url' => $location->order_url ?: $this->getLocationUrl($location->site_id),
+                    'maps_url' => $this->getGoogleMapsUrl($location->address),
+                    'is_open' => false,
+                    'open_time' => null,
+                    'close_time' => null,
+                    'is_closed_today' => true,
+                    'past_closing_time' => false,
+                    'next_opening_time' => null,
+                    'next_opening_day' => null,
+                    'special_notes' => null,
+                    'weekly_hours' => [],
+                ];
+                continue;
             }
 
             $openingHours = ApningstidAlternative::where('AvdID', $avdeling->Id)->first();
             if (!$openingHours) {
-                continue; // Skip if no opening hours found
+                // Fallback: show the location but mark as closed (no hours available)
+                $locationsData[] = [
+                    'id' => $location->id,
+                    'site_id' => $location->site_id,
+                    'name' => $location->name,
+                    'group_name' => $location->group_name,
+                    'display_order' => $location->display_order,
+                    'phone' => $location->phone,
+                    'email' => $location->email,
+                    'address' => $location->address,
+                    'url' => $location->order_url ?: $this->getLocationUrl($location->site_id),
+                    'maps_url' => $this->getGoogleMapsUrl($location->address),
+                    'is_open' => false,
+                    'open_time' => null,
+                    'close_time' => null,
+                    'is_closed_today' => true,
+                    'past_closing_time' => false,
+                    'next_opening_time' => null,
+                    'next_opening_day' => null,
+                    'special_notes' => null,
+                    'weekly_hours' => [],
+                ];
+                continue;
             }
 
             // Check for special hours for today
