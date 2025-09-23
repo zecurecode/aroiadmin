@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\LocationController;
 use App\Http\Controllers\Admin\OpeningHoursController;
 use App\Http\Controllers\Admin\CateringController as AdminCateringController;
+use App\Http\Controllers\Admin\MarketingController;
 use App\Http\Controllers\CateringController;
 use App\Http\Controllers\Soap\PckSoapController;
 use Illuminate\Support\Facades\Route;
@@ -79,9 +80,10 @@ Route::get('/create-users', function () {
 Route::get('/', [App\Http\Controllers\PublicController::class, 'locations'])->name('public.locations');
 
 // Main dashboard routes - use custom auth middleware
-Route::get('/dashboard', [DashboardController::class, 'index'])
-    ->middleware(['custom.auth'])
-    ->name('dashboard');
+// Redirect to orders page for consistency
+Route::get('/dashboard', function() {
+    return redirect('/admin/orders');
+})->middleware(['custom.auth'])->name('dashboard');
 
 // Delivery time route
 Route::post('/admin/delivery-time/update', [DashboardController::class, 'updateDeliveryTime'])
@@ -92,6 +94,9 @@ Route::post('/admin/delivery-time/update', [DashboardController::class, 'updateD
 Route::middleware(['custom.auth'])->group(function () {
     Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
     Route::post('/admin/dashboard/toggle-status', [AdminDashboardController::class, 'toggleStatus'])->name('admin.dashboard.toggle-status');
+
+    // Marketing page
+    Route::get('/admin/marketing', [MarketingController::class, 'index'])->name('admin.marketing');
 
     // Stop impersonate route - needs to be outside admin middleware since impersonated users don't have admin rights
     Route::post('/admin/stop-impersonate', [UserController::class, 'stopImpersonate'])->name('admin.stop-impersonate');

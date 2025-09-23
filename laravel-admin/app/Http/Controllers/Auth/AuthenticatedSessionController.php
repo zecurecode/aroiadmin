@@ -174,7 +174,7 @@ class AuthenticatedSessionController extends Controller
                 'redirect_url' => $redirectUrl
             ]);
         } else {
-            $redirectUrl = '/dashboard';
+            $redirectUrl = '/admin/orders';
             Log::info('Redirecting regular user', [
                 'username' => $username,
                 'redirect_url' => $redirectUrl

@@ -58,6 +58,12 @@ class ApiController extends Controller
             return; // SMS already sent or order not found
         }
 
+        // Check if order is paid - don't send SMS if not paid
+        if ($order->paid == 0) {
+            \Log::info("Skipping SMS for unpaid order {$orderNum}");
+            return;
+        }
+
         $message = "Takk for din ordre. Vi vil gjøre din bestilling klar så fort vi kan. Vi sender deg en ny SMS når maten er klar til henting. Ditt referansenummer er {$orderNum}";
 
         $smsUrl = "https://api1.teletopiasms.no/gateway/v3/plain?" . http_build_query([
@@ -107,7 +113,10 @@ class ApiController extends Controller
      */
     private function checkCurl()
     {
-        $orders = Order::where('curl', 0)->get();
+        // Only process paid orders
+        $orders = Order::where('curl', 0)
+                      ->where('paid', 1)  // Only process paid orders
+                      ->get();
 
         foreach ($orders as $order) {
             $response = $this->queGetOrders($order->site);
@@ -263,12 +272,15 @@ class ApiController extends Controller
 
         $order->update(['paid' => true]);
 
+        // Send initial SMS notification now that order is paid
+        $this->sendSms($order->ordreid, $order->telefon);
+
         // Trigger order processing
         $this->processOrders();
 
         return response()->json([
             'success' => true,
-            'message' => 'Order marked as paid'
+            'message' => 'Order marked as paid and SMS sent'
         ]);
     }
 }

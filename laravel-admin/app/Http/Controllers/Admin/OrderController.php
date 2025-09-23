@@ -42,6 +42,11 @@ class OrderController extends Controller
                     $query->where('curl', 0);
                     break;
             }
+        } else {
+            // By default, only show paid orders unless specifically filtering for unpaid
+            if (!$request->has('show_unpaid') || !$request->show_unpaid) {
+                $query->where('paid', 1);
+            }
         }
 
         // Filter by date
@@ -78,23 +83,26 @@ class OrderController extends Controller
         // Get today's orders
         $today = Carbon::today();
 
-        // New orders (status 0)
+        // New orders (status 0) - only show paid orders
         $newOrders = Order::where('site', $siteid)
             ->where('ordrestatus', 0)
+            ->where('paid', 1)  // Only show paid orders
             ->whereDate('datetime', $today)
             ->orderBy('datetime', 'desc')
             ->get();
 
-        // Ready orders (status 1)
+        // Ready orders (status 1) - only show paid orders
         $readyOrders = Order::where('site', $siteid)
             ->where('ordrestatus', 1)
+            ->where('paid', 1)  // Only show paid orders
             ->whereDate('datetime', $today)
             ->orderBy('datetime', 'desc')
             ->get();
 
-        // Completed orders (status 2)
+        // Completed orders (status 2) - only show paid orders
         $completedOrders = Order::where('site', $siteid)
             ->where('ordrestatus', 2)
+            ->where('paid', 1)  // Only show paid orders
             ->whereDate('datetime', $today)
             ->orderBy('datetime', 'desc')
             ->get();
@@ -242,6 +250,14 @@ class OrderController extends Controller
             abort(403, 'Unauthorized access to order.');
         }
 
+        // Check if order is paid - don't send SMS if not paid
+        if ($order->paid == 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Kan ikke sende SMS for ubetalte ordrer'
+            ], 400);
+        }
+
         if ($order->sms) {
             return response()->json([
                 'success' => false,
@@ -251,6 +267,7 @@ class OrderController extends Controller
 
         // Get SMS message for this location
         $mail = Mail::where('site', $order->site)->first();
+        $locationName = Location::getNameBySiteId($order->site);
         $message = $mail ? $mail->melding : "Hei! Din ordre er klar for henting. Mvh {$locationName}";
         $message = str_replace('{order_id}', $order->ordreid, $message);
 
@@ -288,7 +305,7 @@ class OrderController extends Controller
     }
 
     /**
-     * Update order status.
+     * Update order status with SMS notification.
      */
     public function updateStatus(Request $request, Order $order)
     {
@@ -304,13 +321,23 @@ class OrderController extends Controller
             'status' => 'required|integer|in:0,1,2,3'
         ]);
 
+        // Store previous status for comparison
+        $previousStatus = $order->ordrestatus;
+        $newStatus = $request->status;
+
+        // Update order status
         $order->update([
-            'ordrestatus' => $request->status
+            'ordrestatus' => $newStatus
         ]);
+
+        // Only send SMS if order is paid and status has changed
+        if ($order->paid == 1 && $previousStatus != $newStatus) {
+            $this->sendStatusChangeSMS($order, $newStatus);
+        }
 
         return response()->json([
             'success' => true,
-            'message' => 'Status oppdatert'
+            'message' => 'Status oppdatert' . ($order->paid == 1 ? ' og SMS sendt' : '')
         ]);
     }
 
@@ -322,6 +349,7 @@ class OrderController extends Controller
         $user = Auth::user();
         $count = Order::where('site', $user->siteid)
             ->where('ordrestatus', 0)
+            ->where('paid', 1)  // Only count paid orders
             ->whereDate('datetime', Carbon::today())
             ->count();
 
@@ -412,6 +440,74 @@ class OrderController extends Controller
         }
     }
 
+    /**
+     * Send SMS notification for status changes.
+     */
+    private function sendStatusChangeSMS(Order $order, $status)
+    {
+        // Don't send SMS if order is not paid
+        if ($order->paid == 0) {
+            \Log::info("Skipping SMS for unpaid order {$order->ordreid}");
+            return false;
+        }
+
+        $locationName = Location::getNameBySiteId($order->site);
+
+        // Prepare status-specific message
+        switch ($status) {
+            case 0: // New order
+                $message = "Hei {$order->fornavn}! Vi har mottatt din ordre #{$order->ordreid}. Du får en ny melding når den er klar. Mvh {$locationName}";
+                break;
+            case 1: // Ready for pickup
+                $message = "Hei {$order->fornavn}! Din ordre #{$order->ordreid} er klar for henting. Mvh {$locationName}";
+                break;
+            case 2: // Completed/Picked up
+                $message = "Takk for handelen! Din ordre #{$order->ordreid} er hentet. Velkommen tilbake! Mvh {$locationName}";
+                break;
+            case 3: // Cancelled
+                $message = "Din ordre #{$order->ordreid} har blitt avbrutt. Ta kontakt med oss hvis du har spørsmål. Mvh {$locationName}";
+                break;
+            default:
+                return false;
+        }
+
+        // Get SMS credentials from settings
+        $username = Setting::get('sms_api_username', 'b3166vr0f0l');
+        $password = Setting::get('sms_api_password', '2tm2bxuIo2AixNELhXhwCdP8');
+        $apiUrl = Setting::get('sms_api_url', 'https://api1.teletopiasms.no/gateway/v3/plain');
+        $sender = Setting::get('sms_sender', 'AroiAsia');
+
+        $smsUrl = $apiUrl . "?" . http_build_query([
+            'username' => $username,
+            'password' => $password,
+            'to' => $order->telefon,
+            'text' => $message,
+            'from' => $sender
+        ]);
+
+        try {
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $smsUrl);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+            $output = curl_exec($ch);
+            $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            $success = $httpcode == 200;
+
+            if ($success) {
+                \Log::info("SMS sent for order {$order->ordreid} status change to {$status}");
+            } else {
+                \Log::error("Failed to send SMS for order {$order->ordreid}: HTTP {$httpcode}");
+            }
+
+            return $success;
+        } catch (\Exception $e) {
+            \Log::error("Exception sending SMS for order {$order->ordreid}: " . $e->getMessage());
+            return false;
+        }
+    }
 
 
     /**
