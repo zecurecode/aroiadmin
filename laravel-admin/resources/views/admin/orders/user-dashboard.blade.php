@@ -20,9 +20,10 @@
                                     {{ $isOpen ? 'ÅPEN' : 'STENGT' }}
                                 </label>
                             </div>
-                            <button class="btn btn-sm btn-light ms-2" onclick="location.reload()">
-                                <i class="fas fa-sync-alt"></i>
+                            <button class="btn btn-sm btn-light ms-2" onclick="manualRefresh()" id="refreshBtn">
+                                <i class="fas fa-sync-alt" id="refreshIcon"></i>
                             </button>
+                            <small class="text-white ms-2">Sist oppdatert: <span id="lastUpdate">{{ now()->format('H:i:s') }}</span></small>
                         </div>
                     </div>
                 </div>
@@ -71,7 +72,10 @@
                                 <div class="card-header bg-warning text-dark">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <h5 class="mb-0">#{{ $order->ordreid }}</h5>
-                                        <span class="badge bg-dark">{{ $order->datetime->format('H:i') }}</span>
+                                        <div class="text-end">
+                                            <div class="badge bg-dark">{{ $order->datetime ? $order->datetime->format('D d.m') : 'N/A' }}</div>
+                                            <div class="badge bg-dark">{{ $order->datetime ? $order->datetime->format('H:i') : 'N/A' }}</div>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="card-body">
@@ -115,7 +119,10 @@
                             <div class="card border-info h-100">
                                 <div class="card-header bg-info text-white">
                                     <div class="d-flex justify-content-between align-items-center">
-                                        <h5 class="mb-0">#{{ $order->ordreid }}</h5>
+                                        <div>
+                                            <h5 class="mb-0">#{{ $order->ordreid }}</h5>
+                                            <small>{{ $order->datetime ? $order->datetime->format('D d.m H:i') : 'N/A' }}</small>
+                                        </div>
                                         <span class="badge bg-white text-dark">
                                             @if($order->sms)
                                                 SMS SENDT
@@ -128,7 +135,7 @@
                                 <div class="card-body">
                                     <h6 class="card-title">{{ $order->fornavn }} {{ $order->etternavn }}</h6>
                                     <p class="mb-1"><i class="fas fa-phone me-1"></i>{{ $order->telefon }}</p>
-                                    <p class="mb-2"><i class="fas fa-clock me-1"></i>Klar siden: {{ $order->datetime->format('H:i') }}</p>
+                                    <p class="mb-2"><i class="fas fa-clock me-1"></i>Henting: {{ $order->hentetid ?? 'Ikke spesifisert' }}</p>
 
                                     <div class="d-grid gap-2">
                                         @if(!$order->sms)
@@ -173,10 +180,17 @@
                         <tbody>
                             @foreach($completedOrders as $order)
                                 <tr>
-                                    <td>#{{ $order->ordreid }}</td>
+                                    <td>
+                                        <strong>#{{ $order->ordreid }}</strong><br>
+                                        <small class="text-muted">{{ $order->datetime ? $order->datetime->format('d.m H:i') : 'N/A' }}</small>
+                                    </td>
                                     <td>{{ $order->fornavn }} {{ $order->etternavn }}</td>
                                     <td>{{ $order->telefon }}</td>
-                                    <td>{{ $order->datetime->format('H:i') }}</td>
+                                    <td>
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check me-1"></i>{{ $order->updated_at ? $order->updated_at->format('H:i') : 'N/A' }}
+                                        </span>
+                                    </td>
                                     <td>
                                         <button class="btn btn-sm btn-outline-primary" onclick="showOrderDetails({{ $order->id }})">
                                             <i class="fas fa-eye"></i>
@@ -251,10 +265,8 @@ function authenticatedFetch(url, options = {}) {
         });
 }
 
-// Auto-refresh every 60 seconds
-setInterval(function() {
-    location.reload();
-}, 60000);
+// Auto-refresh removed - using dynamic updates instead
+// This prevents session issues and improves user experience
 
 // Update last refresh time
 function updateLastRefresh() {
@@ -269,21 +281,36 @@ function toggleLocationStatus() {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            'X-CSRF-TOKEN': getCsrfToken()
         },
         body: JSON.stringify({
             status: checkbox.checked ? 1 : 0
         })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
-            location.reload();
+            alert('Status oppdatert!');
         } else {
             alert('Kunne ikke oppdatere status');
             checkbox.checked = !checkbox.checked;
         }
+    })
+    .catch(error => {
+        console.error('Error toggling status:', error);
+        alert('Kunne ikke oppdatere status: ' + error.message);
+        checkbox.checked = !checkbox.checked;
     });
+}
+
+// Get fresh CSRF token from meta tag
+function getCsrfToken() {
+    return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 }
 
 // Mark order as ready
@@ -293,19 +320,31 @@ function markOrderReady(orderId) {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                'X-CSRF-TOKEN': getCsrfToken()
             },
             body: JSON.stringify({
                 status: 1
             })
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
-                location.reload();
+                // Show success message
+                alert(data.message || 'Status oppdatert!');
+                // Refresh order lists dynamically instead of full reload
+                refreshOrderLists(true);
             } else {
                 alert('Feil: ' + data.message);
             }
+        })
+        .catch(error => {
+            console.error('Error marking order ready:', error);
+            alert('Kunne ikke oppdatere ordre: ' + error.message);
         });
     }
 }
@@ -317,17 +356,26 @@ function sendReadySMS(orderId) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                'X-CSRF-TOKEN': getCsrfToken()
             }
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
                 alert('SMS sendt!');
-                location.reload();
+                refreshOrderLists(true);
             } else {
                 alert('Feil: ' + data.message);
             }
+        })
+        .catch(error => {
+            console.error('Error sending SMS:', error);
+            alert('Kunne ikke sende SMS: ' + error.message);
         });
     }
 }
@@ -339,19 +387,29 @@ function markOrderCompleted(orderId) {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                'X-CSRF-TOKEN': getCsrfToken()
             },
             body: JSON.stringify({
                 status: 2
             })
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
-                location.reload();
+                alert(data.message || 'Ordre hentet!');
+                refreshOrderLists(true);
             } else {
                 alert('Feil: ' + data.message);
             }
+        })
+        .catch(error => {
+            console.error('Error marking order completed:', error);
+            alert('Kunne ikke oppdatere ordre: ' + error.message);
         });
     }
 }
@@ -411,6 +469,8 @@ function showOrderDetails(orderId) {
 
 // Add sound notification for new orders
 let lastOrderCount = {{ $newOrders->count() }};
+let lastReadyCount = {{ $readyOrders->count() }};
+let lastCompletedCount = {{ $completedOrders->count() }};
 
 function checkNewOrders() {
     authenticatedFetch('/api/orders/count', {
@@ -420,10 +480,19 @@ function checkNewOrders() {
     })
         .then(response => response.json())
         .then(data => {
+            let hasChanges = false;
+
+            // Check if new orders count changed
             if (data.count > lastOrderCount) {
-                // Play notification sound
-                const audio = new Audio('/sounds/notification.mp3');
-                audio.play().catch(() => {}); // Ignore audio errors
+                // Play notification sound for NEW orders only
+                try {
+                    const audio = new Audio('/sounds/notification.mp3');
+                    audio.play().catch(e => {
+                        console.log('Notification sound not available:', e.message);
+                    });
+                } catch (e) {
+                    console.log('Could not play notification sound');
+                }
 
                 // Show browser notification if permitted
                 if (Notification.permission === "granted") {
@@ -431,17 +500,123 @@ function checkNewOrders() {
                         body: "Det har kommet inn en ny ordre",
                         icon: "{{ asset('images/logo.png') }}"
                     });
+                } else if (Notification.permission === "default") {
+                    // Request permission if not yet asked
+                    Notification.requestPermission();
                 }
-
-                // Refresh page
-                setTimeout(() => location.reload(), 1000);
+                hasChanges = true;
+            } else if (data.count !== lastOrderCount) {
+                // Count changed (decreased or increased)
+                hasChanges = true;
             }
+
+            // Update counts
             lastOrderCount = data.count;
+
+            // Always refresh UI to catch any status changes
+            // This ensures the page updates when orders move between tabs
+            refreshOrderLists();
+
+            // Update last refresh time
+            updateLastRefresh();
         })
         .catch(error => {
             console.error('Error checking new orders:', error);
             // Don't show error to user, just log it
         });
+}
+
+// Refresh order lists dynamically without page reload
+function refreshOrderLists(showLoader = false) {
+    if (showLoader) {
+        const refreshIcon = document.getElementById('refreshIcon');
+        if (refreshIcon) {
+            refreshIcon.classList.add('fa-spin');
+        }
+    }
+
+    fetch(window.location.href, {
+        headers: {
+            'Accept': 'text/html',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.text())
+    .then(html => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+
+        // Update new orders tab
+        const newOrdersContent = doc.querySelector('#new-orders');
+        if (newOrdersContent) {
+            document.querySelector('#new-orders').innerHTML = newOrdersContent.innerHTML;
+        }
+
+        // Update ready orders tab
+        const readyOrdersContent = doc.querySelector('#ready-orders');
+        if (readyOrdersContent) {
+            document.querySelector('#ready-orders').innerHTML = readyOrdersContent.innerHTML;
+        }
+
+        // Update completed orders tab
+        const completedOrdersContent = doc.querySelector('#completed-orders');
+        if (completedOrdersContent) {
+            document.querySelector('#completed-orders').innerHTML = completedOrdersContent.innerHTML;
+        }
+
+        // Update badge counts
+        const newOrdersTab = doc.querySelector('#new-orders-tab');
+        const readyOrdersTab = doc.querySelector('#ready-orders-tab');
+        const completedOrdersTab = doc.querySelector('#completed-orders-tab');
+
+        if (newOrdersTab) {
+            document.querySelector('#new-orders-tab').innerHTML = newOrdersTab.innerHTML;
+        }
+        if (readyOrdersTab) {
+            document.querySelector('#ready-orders-tab').innerHTML = readyOrdersTab.innerHTML;
+        }
+        if (completedOrdersTab) {
+            document.querySelector('#completed-orders-tab').innerHTML = completedOrdersTab.innerHTML;
+        }
+
+        // Update CSRF token to prevent 419 errors
+        const newCsrfToken = doc.querySelector('meta[name="csrf-token"]');
+        if (newCsrfToken) {
+            const currentCsrfToken = document.querySelector('meta[name="csrf-token"]');
+            if (currentCsrfToken) {
+                currentCsrfToken.setAttribute('content', newCsrfToken.getAttribute('content'));
+                console.log('CSRF token updated from server');
+            }
+        }
+
+        // Update last refresh time
+        updateLastRefresh();
+
+        if (showLoader) {
+            const refreshIcon = document.getElementById('refreshIcon');
+            if (refreshIcon) {
+                refreshIcon.classList.remove('fa-spin');
+            }
+        }
+
+        console.log('Order lists updated successfully');
+    })
+    .catch(error => {
+        console.error('Error refreshing order lists:', error);
+        if (showLoader) {
+            const refreshIcon = document.getElementById('refreshIcon');
+            if (refreshIcon) {
+                refreshIcon.classList.remove('fa-spin');
+            }
+        }
+        // Fallback to page reload only on error
+        location.reload();
+    });
+}
+
+// Manual refresh function
+function manualRefresh() {
+    refreshOrderLists(true);
 }
 
 // Check for new orders every 10 seconds

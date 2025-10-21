@@ -337,8 +337,8 @@
                             <li><a class="dropdown-item" href="{{ route('profile.edit') }}">
                                 <i class="bi bi-person-gear me-2"></i>Profil
                             </a></li>
-                            <li><a class="dropdown-item" href="/admin/sms-templates">
-                                <i class="bi bi-chat-text me-2"></i>Rediger SMS mal
+                            <li><a class="dropdown-item" href="{{ route('admin.settings.index') }}#sms">
+                                <i class="bi bi-chat-text me-2"></i>SMS Innstillinger
                             </a></li>
                         </ul>
                     </div>

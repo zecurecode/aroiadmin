@@ -430,10 +430,17 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+                    // Show message about SMS status
+                    if (data.message) {
+                        alert(data.message);
+                    }
                     location.reload();
                 } else {
                     alert('Feil: ' + data.message);
                 }
+            })
+            .catch(error => {
+                alert('Feil ved oppdatering av ordre: ' + error);
             });
         }
     }
@@ -472,10 +479,17 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+                    // Show message about SMS status
+                    if (data.message) {
+                        alert(data.message);
+                    }
                     location.reload();
                 } else {
                     alert('Feil: ' + data.message);
                 }
+            })
+            .catch(error => {
+                alert('Feil ved oppdatering av ordre: ' + error);
             });
         }
     }

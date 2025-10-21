@@ -7,8 +7,7 @@ use App\Models\Order;
 use App\Models\Location;
 use App\Models\Setting;
 use App\Models\Mail;
-use App\Models\OpeningHours;
-use App\Models\Overstyr;
+use App\Models\ApningstidAlternative;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
@@ -80,36 +79,46 @@ class OrderController extends Controller
         $siteid = $user->siteid;
         $locationName = Location::getNameBySiteId($siteid);
 
-        // Get today's orders
+        // Get today's date
         $today = Carbon::today();
 
-        // New orders (status 0) - only show paid orders
+        // New orders (status 0) - show ALL paid orders (not just today)
         $newOrders = Order::where('site', $siteid)
             ->where('ordrestatus', 0)
             ->where('paid', 1)  // Only show paid orders
-            ->whereDate('datetime', $today)
             ->orderBy('datetime', 'desc')
             ->get();
 
-        // Ready orders (status 1) - only show paid orders
+        // Ready orders (status 1) - show ALL paid orders (not just today)
         $readyOrders = Order::where('site', $siteid)
             ->where('ordrestatus', 1)
             ->where('paid', 1)  // Only show paid orders
-            ->whereDate('datetime', $today)
             ->orderBy('datetime', 'desc')
             ->get();
 
-        // Completed orders (status 2) - only show paid orders
+        // Completed orders (status 2) - show ALL paid orders from today and recent days
+        // This allows testing with database-modified orders
         $completedOrders = Order::where('site', $siteid)
             ->where('ordrestatus', 2)
             ->where('paid', 1)  // Only show paid orders
-            ->whereDate('datetime', $today)
+            ->where('datetime', '>=', $today->copy()->subDays(7))  // Last 7 days
             ->orderBy('datetime', 'desc')
             ->get();
 
-        // Check if location is open
-        $overstyr = Overstyr::where('vognid', $user->id)->first();
-        $isOpen = $overstyr ? $overstyr->status == 1 : false;
+        // Check if location is open from _apningstid table
+        $apningstidAlt = ApningstidAlternative::where('AvdID', $siteid)->first();
+        $isOpen = false;
+
+        if ($apningstidAlt) {
+            $todayDay = Carbon::now()->format('l'); // e.g., "Monday"
+            $todayDayLower = strtolower($todayDay);
+            $hoursToday = $apningstidAlt->getHoursForDay($todayDayLower);
+
+            if ($hoursToday) {
+                $isClosed = $hoursToday['closed']; // 0 = open, 1 = closed
+                $isOpen = ($isClosed == 0); // true if open, false if closed
+            }
+        }
 
         return view('admin.orders.user-dashboard', compact(
             'newOrders',
@@ -271,16 +280,24 @@ class OrderController extends Controller
         $message = $mail ? $mail->melding : "Hei! Din ordre er klar for henting. Mvh {$locationName}";
         $message = str_replace('{order_id}', $order->ordreid, $message);
 
+        // Normalize phone number to include country code
+        $phoneNumber = $this->normalizePhoneNumber($order->telefon);
+
         // Get SMS credentials from settings
         $username = Setting::get('sms_api_username', 'b3166vr0f0l');
         $password = Setting::get('sms_api_password', '2tm2bxuIo2AixNELhXhwCdP8');
         $apiUrl = Setting::get('sms_api_url', 'https://api1.teletopiasms.no/gateway/v3/plain');
         $sender = Setting::get('sms_sender', 'AroiAsia');
 
+        \Log::info("Sending SMS for order {$order->ordreid}", [
+            'phone_original' => $order->telefon,
+            'phone_normalized' => $phoneNumber
+        ]);
+
         $smsUrl = $apiUrl . "?" . http_build_query([
             'username' => $username,
             'password' => $password,
-            'to' => $order->telefon,
+            'recipient' => $phoneNumber,  // Teletopia uses 'recipient' not 'to'
             'text' => $message,
             'from' => $sender
         ]);
@@ -331,13 +348,27 @@ class OrderController extends Controller
         ]);
 
         // Only send SMS if order is paid and status has changed
+        $smsSuccess = true;
+        $smsMessage = '';
         if ($order->paid == 1 && $previousStatus != $newStatus) {
-            $this->sendStatusChangeSMS($order, $newStatus);
+            $smsResult = $this->sendStatusChangeSMS($order, $newStatus);
+            $smsSuccess = $smsResult['success'];
+            $smsMessage = $smsResult['message'];
+        }
+
+        $message = 'Status oppdatert';
+        if ($order->paid == 1 && $previousStatus != $newStatus) {
+            if ($smsSuccess) {
+                $message .= ' og SMS sendt!';
+            } else {
+                $message .= '. OBS: SMS kunne ikke sendes - ' . $smsMessage;
+            }
         }
 
         return response()->json([
             'success' => true,
-            'message' => 'Status oppdatert' . ($order->paid == 1 ? ' og SMS sendt' : '')
+            'message' => $message,
+            'sms_sent' => $smsSuccess
         ]);
     }
 
@@ -441,6 +472,38 @@ class OrderController extends Controller
     }
 
     /**
+     * Normalize Norwegian phone number to include country code.
+     */
+    private function normalizePhoneNumber($phone)
+    {
+        // Remove all spaces, dashes, and parentheses
+        $phone = preg_replace('/[\s\-\(\)]/', '', $phone);
+
+        // If already has +47, return as is
+        if (substr($phone, 0, 3) === '+47') {
+            return $phone;
+        }
+
+        // If starts with 0047, replace with +47
+        if (substr($phone, 0, 4) === '0047') {
+            return '+47' . substr($phone, 4);
+        }
+
+        // If starts with 47 (without +), add the +
+        if (substr($phone, 0, 2) === '47' && strlen($phone) >= 10) {
+            return '+' . $phone;
+        }
+
+        // If 8 digits (Norwegian mobile without country code), add +47
+        if (strlen($phone) === 8 && ctype_digit($phone)) {
+            return '+47' . $phone;
+        }
+
+        // Otherwise return as is (might be international number)
+        return $phone;
+    }
+
+    /**
      * Send SMS notification for status changes.
      */
     private function sendStatusChangeSMS(Order $order, $status)
@@ -448,7 +511,7 @@ class OrderController extends Controller
         // Don't send SMS if order is not paid
         if ($order->paid == 0) {
             \Log::info("Skipping SMS for unpaid order {$order->ordreid}");
-            return false;
+            return ['success' => false, 'message' => 'Ordre er ikke betalt'];
         }
 
         $locationName = Location::getNameBySiteId($order->site);
@@ -468,8 +531,11 @@ class OrderController extends Controller
                 $message = "Din ordre #{$order->ordreid} har blitt avbrutt. Ta kontakt med oss hvis du har spørsmål. Mvh {$locationName}";
                 break;
             default:
-                return false;
+                return ['success' => false, 'message' => 'Ugyldig status'];
         }
+
+        // Normalize phone number to include country code
+        $phoneNumber = $this->normalizePhoneNumber($order->telefon);
 
         // Get SMS credentials from settings
         $username = Setting::get('sms_api_username', 'b3166vr0f0l');
@@ -480,9 +546,18 @@ class OrderController extends Controller
         $smsUrl = $apiUrl . "?" . http_build_query([
             'username' => $username,
             'password' => $password,
-            'to' => $order->telefon,
+            'recipient' => $phoneNumber,  // Teletopia uses 'recipient' not 'to'
             'text' => $message,
             'from' => $sender
+        ]);
+
+        \Log::info("Sending SMS for order {$order->ordreid}", [
+            'status' => $status,
+            'phone_original' => $order->telefon,
+            'phone_normalized' => $phoneNumber,
+            'api_url' => $apiUrl,
+            'sender' => $sender,
+            'message' => $message
         ]);
 
         try {
@@ -492,20 +567,28 @@ class OrderController extends Controller
             curl_setopt($ch, CURLOPT_TIMEOUT, 10);
             $output = curl_exec($ch);
             $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlError = curl_error($ch);
             curl_close($ch);
 
             $success = $httpcode == 200;
 
             if ($success) {
-                \Log::info("SMS sent for order {$order->ordreid} status change to {$status}");
+                \Log::info("SMS sent successfully for order {$order->ordreid}", [
+                    'http_code' => $httpcode,
+                    'response' => $output
+                ]);
+                return ['success' => true, 'message' => 'SMS sendt'];
             } else {
-                \Log::error("Failed to send SMS for order {$order->ordreid}: HTTP {$httpcode}");
+                \Log::error("Failed to send SMS for order {$order->ordreid}", [
+                    'http_code' => $httpcode,
+                    'response' => $output,
+                    'curl_error' => $curlError
+                ]);
+                return ['success' => false, 'message' => "HTTP feil {$httpcode}"];
             }
-
-            return $success;
         } catch (\Exception $e) {
             \Log::error("Exception sending SMS for order {$order->ordreid}: " . $e->getMessage());
-            return false;
+            return ['success' => false, 'message' => 'Teknisk feil: ' . $e->getMessage()];
         }
     }
 

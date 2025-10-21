@@ -5,7 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Location;
-use App\Models\OpeningHours;
+use App\Models\ApningstidAlternative;
+use App\Models\AvdelingAlternative;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
@@ -66,7 +67,7 @@ class DashboardController extends Controller
                 ->get();
         }
 
-        // Get today's opening hours (only for non-admin users)
+        // Get today's opening hours from _apningstid table (only for non-admin users)
         $locationName = null;
         $isOpen = false;
         $openTime = null;
@@ -74,22 +75,44 @@ class DashboardController extends Controller
         $status = 0;
 
         if (!$user->isAdmin() && $userSiteId > 0) {
-            $locationName = Location::getNameBySiteId($userSiteId);
-            $todayDay = Carbon::now()->format('l'); // Monday, Tuesday, etc.
-            $openingHours = OpeningHours::where('day', $todayDay)->first();
+            // Find opening hours in _apningstid table
+            $apningstidAlt = ApningstidAlternative::where('AvdID', $userSiteId)->first();
 
-            if ($openingHours) {
-                $openTime = $openingHours->getOpenTime($locationName);
-                $closeTime = $openingHours->getCloseTime($locationName);
-                $status = $openingHours->getStatus($locationName);
+            if ($apningstidAlt) {
+                $locationName = $apningstidAlt->Navn;
+                $todayDay = Carbon::now()->format('l'); // Monday, Tuesday, etc.
+                $todayDayLower = strtolower($todayDay);
 
-                // Only parse times if they're not empty
-                if ($openTime && $closeTime) {
-                    $now = Carbon::now();
-                    $openDateTime = Carbon::createFromFormat('H:i:s', $openTime);
-                    $closeDateTime = Carbon::createFromFormat('H:i:s', $closeTime);
+                // Get hours for today
+                $hoursToday = $apningstidAlt->getHoursForDay($todayDayLower);
 
-                    $isOpen = $now->between($openDateTime, $closeDateTime) && $status == 1;
+                if ($hoursToday) {
+                    $openTime = $hoursToday['start'];
+                    $closeTime = $hoursToday['stop'];
+                    $isClosed = $hoursToday['closed']; // 0 = open, 1 = closed
+
+                    // Status for UI (1 = open, 0 = closed)
+                    $status = ($isClosed == 0) ? 1 : 0;
+
+                    // Only parse times if they're not empty and location is not closed
+                    if ($openTime && $closeTime && !$isClosed) {
+                        $now = Carbon::now();
+
+                        // Handle different time formats
+                        try {
+                            $openDateTime = Carbon::createFromFormat('H:i:s', $openTime);
+                        } catch (\Exception $e) {
+                            $openDateTime = Carbon::createFromFormat('H:i', $openTime);
+                        }
+
+                        try {
+                            $closeDateTime = Carbon::createFromFormat('H:i:s', $closeTime);
+                        } catch (\Exception $e) {
+                            $closeDateTime = Carbon::createFromFormat('H:i', $closeTime);
+                        }
+
+                        $isOpen = $now->between($openDateTime, $closeDateTime) && !$isClosed;
+                    }
                 }
             }
         }
@@ -121,6 +144,8 @@ class DashboardController extends Controller
 
     /**
      * Toggle location status.
+     *
+     * Updates _apningstid table only (used by root page, dashboard, and public display).
      */
     public function toggleStatus(Request $request)
     {
@@ -134,26 +159,73 @@ class DashboardController extends Controller
             ], 400);
         }
 
-        $locationName = Location::getNameBySiteId($user->siteid);
-        $todayDay = Carbon::now()->format('l');
+        // Find the location's opening hours in _apningstid table
+        $apningstidAlt = ApningstidAlternative::where('AvdID', $user->siteid)->first();
 
-        $openingHours = OpeningHours::where('day', $todayDay)->first();
-
-        if ($openingHours) {
-            $currentStatus = $openingHours->getStatus($locationName);
-            $newStatus = $currentStatus ? 0 : 1;
-            $openingHours->setStatus($locationName, $newStatus);
+        if (!$apningstidAlt) {
+            Log::warning('Location not found in _apningstid table', [
+                'user_id' => $user->id,
+                'username' => $user->username,
+                'siteid' => $user->siteid
+            ]);
 
             return response()->json([
-                'success' => true,
-                'status' => $newStatus,
-                'message' => $newStatus ? 'Location opened' : 'Location closed'
-            ]);
+                'success' => false,
+                'message' => 'This location does not support status toggle. Please contact administrator.'
+            ], 400);
         }
 
+        $todayDay = Carbon::now()->format('l'); // e.g., "Monday"
+        $todayDayLower = strtolower($todayDay); // e.g., "monday"
+
+        // Day field mapping for _apningstid table
+        $dayMapping = [
+            'monday' => 'Man',
+            'tuesday' => 'Tir',
+            'wednesday' => 'Ons',
+            'thursday' => 'Tor',
+            'friday' => 'Fre',
+            'saturday' => 'Lor',
+            'sunday' => 'Son'
+        ];
+
+        if (!isset($dayMapping[$todayDayLower])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid day'
+            ], 400);
+        }
+
+        $dayPrefix = $dayMapping[$todayDayLower];
+        $stengtField = $dayPrefix . 'Stengt'; // e.g., "ManStengt"
+
+        // Get current status from _apningstid
+        // In _apningstid: 0 = open, 1 = closed (stengt)
+        $currentStengtValue = $apningstidAlt->$stengtField ?? 0;
+        $newStengtValue = ($currentStengtValue == 1) ? 0 : 1; // Toggle: closed->open, open->closed
+
+        // Update _apningstid table
+        $apningstidAlt->update([$stengtField => $newStengtValue]);
+
+        $locationName = $apningstidAlt->Navn ?? 'Unknown';
+        $isNowOpen = ($newStengtValue == 0); // 0 = open, 1 = closed
+
+        Log::info('Location status toggled', [
+            'user_id' => $user->id,
+            'location' => $locationName,
+            'siteid' => $user->siteid,
+            'avdid' => $apningstidAlt->AvdID,
+            'day' => $todayDay,
+            'stengt_field' => $stengtField,
+            'old_value' => $currentStengtValue,
+            'new_value' => $newStengtValue,
+            'is_now_open' => $isNowOpen
+        ]);
+
         return response()->json([
-            'success' => false,
-            'message' => 'Could not update status'
-        ], 400);
+            'success' => true,
+            'status' => $isNowOpen ? 1 : 0, // Return 1 for open, 0 for closed (for UI consistency)
+            'message' => $isNowOpen ? 'Location opened' : 'Location closed'
+        ]);
     }
 }

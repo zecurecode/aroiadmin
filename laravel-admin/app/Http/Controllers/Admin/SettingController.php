@@ -71,6 +71,38 @@ class SettingController extends Controller
     }
 
     /**
+     * Normalize Norwegian phone number to include country code.
+     */
+    private function normalizePhoneNumber($phone)
+    {
+        // Remove all spaces, dashes, and parentheses
+        $phone = preg_replace('/[\s\-\(\)]/', '', $phone);
+
+        // If already has +47, return as is
+        if (substr($phone, 0, 3) === '+47') {
+            return $phone;
+        }
+
+        // If starts with 0047, replace with +47
+        if (substr($phone, 0, 4) === '0047') {
+            return '+47' . substr($phone, 4);
+        }
+
+        // If starts with 47 (without +), add the +
+        if (substr($phone, 0, 2) === '47' && strlen($phone) >= 10) {
+            return '+' . $phone;
+        }
+
+        // If 8 digits (Norwegian mobile without country code), add +47
+        if (strlen($phone) === 8 && ctype_digit($phone)) {
+            return '+47' . $phone;
+        }
+
+        // Otherwise return as is (might be international number)
+        return $phone;
+    }
+
+    /**
      * Test SMS configuration.
      */
     public function testSms(Request $request)
@@ -78,6 +110,9 @@ class SettingController extends Controller
         $validated = $request->validate([
             'phone' => 'required|string|max:20',
         ]);
+
+        // Normalize phone number
+        $phoneNumber = $this->normalizePhoneNumber($validated['phone']);
 
         $username = Setting::get('sms_api_username');
         $password = Setting::get('sms_api_password');
@@ -95,23 +130,39 @@ class SettingController extends Controller
         $smsUrl = $apiUrl . '?' . http_build_query([
             'username' => $username,
             'password' => $password,
-            'to' => $validated['phone'],
+            'recipient' => $phoneNumber,  // Teletopia uses 'recipient' not 'to'
             'text' => $message,
             'from' => $sender,
+        ]);
+
+        \Log::info('Sending test SMS', [
+            'phone_original' => $validated['phone'],
+            'phone_normalized' => $phoneNumber,
+            'api_url' => $apiUrl
         ]);
 
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $smsUrl);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
         $output = curl_exec($ch);
         $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
         curl_close($ch);
 
         $success = $httpcode == 200;
 
+        \Log::info('Test SMS result', [
+            'success' => $success,
+            'http_code' => $httpcode,
+            'response' => $output,
+            'curl_error' => $curlError
+        ]);
+
         return response()->json([
             'success' => $success,
-            'message' => $success ? 'Test SMS sendt!' : 'Kunne ikke sende test SMS.',
+            'message' => $success ? 'Test SMS sendt!' : "Kunne ikke sende test SMS. HTTP {$httpcode}",
+            'phone_used' => $phoneNumber,
             'response' => $output,
             'http_code' => $httpcode
         ]);

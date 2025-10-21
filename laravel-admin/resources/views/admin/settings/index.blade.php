@@ -29,7 +29,7 @@
         </div>
     @endif
 
-    <form action="{{ route('admin.settings.update') }}" method="POST" id="settingsForm">
+    <form action="{{ route('admin.settings.update') }}" method="POST" id="settingsForm" onsubmit="return refreshCsrfToken()">
         @csrf
 
         @foreach($settings as $category => $categorySettings)
@@ -200,7 +200,7 @@
                 <h5 class="modal-title">Add New Setting</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form action="{{ route('admin.settings.store') }}" method="POST">
+            <form action="{{ route('admin.settings.store') }}" method="POST" onsubmit="return refreshAddSettingCsrfToken()">
                 @csrf
                 <div class="modal-body">
                     <div class="mb-3">
@@ -287,15 +287,14 @@ function testSMS() {
 
 function sendTestSMS() {
     const phone = document.getElementById('testPhone').value;
-    const resultDiv = document.getElementById('smsTestResult');
 
     if (!phone) {
-        showSMSResult('Please enter a phone number.', 'danger');
+        showSMSResult('Vennligst skriv inn telefonnummer.', 'danger');
         return;
     }
 
     // Show loading
-    showSMSResult('Sending test SMS...', 'info');
+    showSMSResult('Sender test SMS...', 'info');
 
     fetch('{{ route("admin.settings.test-sms") }}', {
         method: 'POST',
@@ -308,22 +307,61 @@ function sendTestSMS() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showSMSResult(data.message, 'success');
+            let msg = data.message;
+            if (data.phone_used) {
+                msg += ` (Sendt til: ${data.phone_used})`;
+            }
+            showSMSResult(msg, 'success');
         } else {
-            showSMSResult(`Error: ${data.message}`, 'danger');
+            showSMSResult(`Feil: ${data.message}`, 'danger');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        showSMSResult('Failed to send test SMS.', 'danger');
+        showSMSResult('Kunne ikke sende test SMS: ' + error.message, 'danger');
     });
 }
 
 function showSMSResult(message, type) {
-    const resultDiv = document.getElementById('smsTestResult');
-    resultDiv.className = `alert alert-${type}`;
-    resultDiv.textContent = message;
-    resultDiv.style.display = 'block';
+    console.log('showSMSResult called with:', message, type);
+
+    // Debug: check if modal exists
+    const modal = document.getElementById('smsTestModal');
+    console.log('Modal element:', modal);
+
+    // Wait a bit for modal to be fully rendered
+    setTimeout(() => {
+        // Try multiple methods to find the element
+        let resultDiv = document.getElementById('smsTestResult');
+        console.log('Method 1 (getElementById):', resultDiv);
+
+        if (!resultDiv) {
+            resultDiv = document.querySelector('#smsTestResult');
+            console.log('Method 2 (querySelector):', resultDiv);
+        }
+
+        if (!resultDiv) {
+            resultDiv = document.querySelector('.modal.show #smsTestResult');
+            console.log('Method 3 (modal.show selector):', resultDiv);
+        }
+
+        if (!resultDiv) {
+            resultDiv = document.querySelector('#smsTestModal #smsTestResult');
+            console.log('Method 4 (modal ID selector):', resultDiv);
+        }
+
+        if (!resultDiv) {
+            console.error('SMS test result div not found after all attempts');
+            console.log('All divs in modal:', modal ? modal.querySelectorAll('div') : 'modal not found');
+            alert(message);
+            return;
+        }
+
+        resultDiv.className = `alert alert-${type}`;
+        resultDiv.textContent = message;
+        resultDiv.style.display = 'block';
+        console.log('Result displayed successfully');
+    }, 100);
 }
 
 function deleteSetting(settingId, settingKey) {
@@ -354,6 +392,43 @@ function clearCache() {
         // This would need a route to handle cache clearing
         alert('Cache clearing feature needs to be implemented.');
     }
+}
+
+// Refresh CSRF token before form submission to prevent 419 errors
+function refreshCsrfToken() {
+    const form = document.getElementById('settingsForm');
+    const csrfInput = form.querySelector('input[name="_token"]');
+
+    if (csrfInput) {
+        // Get fresh CSRF token from meta tag
+        const metaToken = document.querySelector('meta[name="csrf-token"]');
+        if (metaToken) {
+            const freshToken = metaToken.getAttribute('content');
+            csrfInput.value = freshToken;
+            console.log('CSRF token refreshed before settings form submission');
+        }
+    }
+
+    // Allow form submission to continue
+    return true;
+}
+
+// Refresh CSRF token for Add New Setting form
+function refreshAddSettingCsrfToken() {
+    const modal = document.getElementById('addSettingModal');
+    const form = modal.querySelector('form');
+    const csrfInput = form.querySelector('input[name="_token"]');
+
+    if (csrfInput) {
+        const metaToken = document.querySelector('meta[name="csrf-token"]');
+        if (metaToken) {
+            const freshToken = metaToken.getAttribute('content');
+            csrfInput.value = freshToken;
+            console.log('CSRF token refreshed before add setting form submission');
+        }
+    }
+
+    return true;
 }
 </script>
 @endsection

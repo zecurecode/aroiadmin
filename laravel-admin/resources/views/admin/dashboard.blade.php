@@ -139,13 +139,13 @@
             <div class="col-12">
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="card-title mb-0">{{ $locationName }} - Location Status</h5>
+                        <h5 class="card-title mb-0">{{ $locationName }} - Status</h5>
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" id="locationStatus"
                                    {{ $status ? 'checked' : '' }} onchange="toggleLocationStatus()">
                             <label class="form-check-label" for="locationStatus">
                                 <span class="badge {{ $isOpen ? 'bg-success' : 'bg-danger' }}">
-                                    {{ $isOpen ? 'Open' : 'Closed' }}
+                                    {{ $isOpen ? 'Åpent' : 'Stengt' }}
                                 </span>
                             </label>
                         </div>
@@ -154,7 +154,7 @@
                         @if($openTime && $closeTime)
                             <p class="mb-0">
                                 <i class="fas fa-clock me-2"></i>
-                                Opening Hours: {{ $openTime }} - {{ $closeTime }}
+                                Åpningstider: {{ substr($openTime, 0, 5) }} - {{ substr($closeTime, 0, 5) }}
                             </p>
                         @endif
                     </div>
