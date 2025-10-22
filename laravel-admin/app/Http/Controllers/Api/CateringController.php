@@ -197,7 +197,8 @@ class CateringController extends Controller
                 'special_requirements' => $request->special_requirements,
                 'catering_notes' => $request->catering_notes,
                 'catering_status' => 'pending',
-                'catering_email' => $settings->catering_email
+                'catering_email' => $settings->catering_email,
+                'total_amount' => $request->total_amount
             ]);
 
             $this->sendCateringNotifications($order, $settings);

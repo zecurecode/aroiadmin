@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\User;
+use App\Services\WooCommerceService;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 
@@ -226,7 +227,16 @@ class ApiController extends Controller
             'ordreid' => 'required|integer',
             'epost' => 'required|email|max:255',
             'site' => 'required|integer',
+            'total_amount' => 'nullable|numeric|min:0',
         ]);
+
+        // Fetch total_amount from WooCommerce if not provided
+        $totalAmount = $validated['total_amount'] ?? null;
+        if ($totalAmount === null) {
+            // Initialize WooCommerce service with site-specific credentials
+            $wooCommerce = new WooCommerceService($validated['site']);
+            $totalAmount = $wooCommerce->getOrderTotal($validated['ordreid']);
+        }
 
         $order = Order::create([
             'fornavn' => $validated['fornavn'],
@@ -240,12 +250,14 @@ class ApiController extends Controller
             'paid' => false,
             'sms' => false,
             'datetime' => Carbon::now(),
+            'total_amount' => $totalAmount,
         ]);
 
         return response()->json([
             'success' => true,
             'message' => 'Order created successfully',
-            'order_id' => $order->id
+            'order_id' => $order->id,
+            'total_amount' => $totalAmount
         ]);
     }
 

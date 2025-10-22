@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\Location;
 use App\Models\ApningstidAlternative;
 use App\Models\AvdelingAlternative;
+use App\Services\WooCommerceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
@@ -40,31 +41,119 @@ class DashboardController extends Controller
 
         $userSiteId = $user->siteid;
 
-        // Get statistics for user's location (or all locations for admin)
-        if ($user->isAdmin()) {
-            // Admin sees all orders
-            $todayOrders = Order::whereDate('datetime', Carbon::today())->count();
-            $pendingOrders = Order::where('ordrestatus', 0)->count();
-            $unpaidOrders = Order::where('paid', 0)->count();
-            $recentOrders = Order::orderBy('datetime', 'desc')->limit(10)->get();
-        } else {
-            // Regular users see only their location's orders
-            $todayOrders = Order::where('site', $userSiteId)
-                ->whereDate('datetime', Carbon::today())
-                ->count();
+        // Initialize WooCommerce service with site-specific credentials
+        $wooCommerce = new WooCommerceService($userSiteId);
 
-            $pendingOrders = Order::where('site', $userSiteId)
-                ->where('ordrestatus', 0)
-                ->count();
+        // Define date ranges
+        $today = Carbon::today()->format('Y-m-d');
+        $startOfWeek = Carbon::now()->startOfWeek()->format('Y-m-d');
+        $startOfMonth = Carbon::now()->startOfMonth()->format('Y-m-d');
+        $startOfYear = Carbon::now()->startOfYear()->format('Y-m-d');
+        $startOfPreviousMonth = Carbon::now()->subMonth()->startOfMonth()->format('Y-m-d');
+        $endOfPreviousMonth = Carbon::now()->subMonth()->endOfMonth()->format('Y-m-d');
 
-            $unpaidOrders = Order::where('site', $userSiteId)
-                ->where('paid', 0)
-                ->count();
+        // === FETCH DATA FROM WOOCOMMERCE ===
 
-            $recentOrders = Order::where('site', $userSiteId)
-                ->orderBy('datetime', 'desc')
-                ->limit(10)
-                ->get();
+        // TODAY'S STATS
+        $todayStats = $wooCommerce->getCompletedOrdersStats($userSiteId, $today);
+        $todayOrders = $todayStats['count'];
+        $todayRevenue = $todayStats['revenue'];
+
+        // THIS WEEK'S STATS
+        $weekStats = $wooCommerce->getCompletedOrdersStats($userSiteId, $startOfWeek);
+        $weekOrders = $weekStats['count'];
+        $weekRevenue = $weekStats['revenue'];
+
+        // THIS MONTH'S STATS
+        $monthStats = $wooCommerce->getCompletedOrdersStats($userSiteId, $startOfMonth);
+        $monthOrders = $monthStats['count'];
+        $monthRevenue = $monthStats['revenue'];
+
+        // PREVIOUS MONTH'S STATS
+        $previousMonthStats = $wooCommerce->getCompletedOrdersStats($userSiteId, $startOfPreviousMonth, $endOfPreviousMonth);
+        $previousMonthOrders = $previousMonthStats['count'];
+        $previousMonthRevenue = $previousMonthStats['revenue'];
+
+        // YEAR-TO-DATE STATS
+        $yearStats = $wooCommerce->getCompletedOrdersStats($userSiteId, $startOfYear);
+        $yearOrders = $yearStats['count'];
+        $yearRevenue = $yearStats['revenue'];
+
+        // COMPARISON WITH PREVIOUS MONTH
+        $ordersChange = $previousMonthOrders > 0
+            ? (($monthOrders - $previousMonthOrders) / $previousMonthOrders) * 100
+            : 0;
+
+        $revenueChange = $previousMonthRevenue > 0
+            ? (($monthRevenue - $previousMonthRevenue) / $previousMonthRevenue) * 100
+            : 0;
+
+        // PENDING ORDERS (WARNING)
+        $pendingOrdersWC = $wooCommerce->getOrdersByStatus('pending', $userSiteId);
+        $pendingOrders = $pendingOrdersWC ? count($pendingOrdersWC) : 0;
+
+        // UNPAID ORDERS (use local database)
+        $unpaidOrders = Order::where('site', $userSiteId)->where('paid', 0)->count();
+
+        // RECENT ORDERS (last 10 completed from WooCommerce)
+        $recentOrdersWC = $wooCommerce->getOrdersByStatus('completed', $userSiteId, [
+            'per_page' => 10,
+            'orderby' => 'date',
+            'order' => 'desc'
+        ]);
+
+        // Convert WC orders to simplified format for display
+        $recentOrders = [];
+        if ($recentOrdersWC) {
+            foreach ($recentOrdersWC as $wcOrder) {
+                $recentOrders[] = (object) [
+                    'ordreid' => $wcOrder['id'],
+                    'fornavn' => $wcOrder['billing']['first_name'] ?? '',
+                    'etternavn' => $wcOrder['billing']['last_name'] ?? '',
+                    'telefon' => $wcOrder['billing']['phone'] ?? '',
+                    'datetime' => Carbon::parse($wcOrder['date_created']),
+                    'total_amount' => (float) $wcOrder['total'],
+                    'ordrestatus' => 2 // Completed
+                ];
+            }
+        }
+
+        // MONTHLY TREND DATA (Last 12 months)
+        $monthlyTrend = [];
+        for ($i = 11; $i >= 0; $i--) {
+            $monthStart = Carbon::now()->subMonths($i)->startOfMonth();
+            $monthEnd = Carbon::now()->subMonths($i)->endOfMonth();
+
+            $stats = $wooCommerce->getCompletedOrdersStats(
+                $userSiteId,
+                $monthStart->format('Y-m-d'),
+                $monthEnd->format('Y-m-d')
+            );
+
+            $monthlyTrend[] = [
+                'month' => $monthStart->format('M'),
+                'year' => $monthStart->format('Y'),
+                'orders' => $stats['count'],
+                'revenue' => $stats['revenue']
+            ];
+        }
+
+        // DAILY TREND DATA (Last 30 days)
+        $dailyTrend = [];
+        for ($i = 29; $i >= 0; $i--) {
+            $day = Carbon::today()->subDays($i);
+
+            $stats = $wooCommerce->getCompletedOrdersStats(
+                $userSiteId,
+                $day->format('Y-m-d'),
+                $day->format('Y-m-d')
+            );
+
+            $dailyTrend[] = [
+                'date' => $day->format('d.m'),
+                'orders' => $stats['count'],
+                'revenue' => $stats['revenue']
+            ];
         }
 
         // Get today's opening hours from _apningstid table (only for non-admin users)
@@ -129,15 +218,28 @@ class DashboardController extends Controller
         }
 
         return view('admin.dashboard', compact(
-            'todayOrders',
-            'pendingOrders',
-            'unpaidOrders',
-            'recentOrders',
             'locationName',
             'isOpen',
             'openTime',
             'closeTime',
             'status',
+            'todayOrders',
+            'todayRevenue',
+            'weekOrders',
+            'weekRevenue',
+            'monthOrders',
+            'monthRevenue',
+            'previousMonthOrders',
+            'previousMonthRevenue',
+            'yearOrders',
+            'yearRevenue',
+            'ordersChange',
+            'revenueChange',
+            'recentOrders',
+            'pendingOrders',
+            'unpaidOrders',
+            'monthlyTrend',
+            'dailyTrend',
             'adminStats'
         ));
     }

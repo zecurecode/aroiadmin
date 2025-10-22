@@ -39,6 +39,7 @@ class Order extends Model
         'catering_notes',
         'catering_status',
         'catering_email',
+        'total_amount',
         'pck_export_status',
         'pck_exported_at',
         'pck_last_error'
@@ -57,6 +58,7 @@ class Order extends Model
         'delivery_date' => 'date',
         'delivery_time' => 'string',
         'number_of_guests' => 'integer',
+        'total_amount' => 'decimal:2',
         'pck_exported_at' => 'datetime',
     ];
 
