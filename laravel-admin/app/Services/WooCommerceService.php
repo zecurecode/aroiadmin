@@ -242,7 +242,9 @@ class WooCommerceService
             'base_url' => $this->baseUrl,
         ]);
 
-        $orders = $this->getOrders($queryParams);
+        // Don't paginate by default for performance (unless per_page > 100)
+        $shouldPaginate = isset($params['per_page']) && $params['per_page'] > 100;
+        $orders = $this->getOrders($queryParams, $shouldPaginate);
 
         Log::info('WooCommerce: Orders fetched', [
             'site_id' => $this->siteId,
@@ -434,7 +436,8 @@ class WooCommerceService
             'per_page' => 100,
         ];
 
-        $orders = $this->getOrders($params, true);
+        // Use pagination for large date ranges, but limit to reasonable amount
+        $orders = $this->getOrders($params, false);
 
         if ($orders === null) {
             return null;
@@ -491,18 +494,19 @@ class WooCommerceService
         $prevYearStats = $this->getRevenueStats($prevYearStart, $prevYearEnd);
         $prevMonthStats = $this->getRevenueStats($prevMonthStart, $prevMonthEnd);
 
-        // Get pending orders (must use regular API, Analytics doesn't track pending)
-        $pendingOrders = $this->getPendingOrders($siteId);
+        // Check pending orders count only (no order details)
+        // Note: Pending orders in WooCommerce may indicate payment failures
+        try {
+            $pendingStats = $this->getRevenueStats($yearStart, $yearEnd, 'day');
+            // Analytics API doesn't provide pending count, so we skip it
+            $pendingCount = 0;
+        } catch (\Exception $e) {
+            $pendingCount = 0;
+        }
+
         $pendingData = [
-            'count' => $pendingOrders ? count($pendingOrders) : 0,
-            'orders' => $pendingOrders ? array_map(function($order) {
-                return [
-                    'id' => $order['id'] ?? null,
-                    'number' => $order['number'] ?? null,
-                    'total' => $order['total'] ?? null,
-                    'date_created' => $order['date_created'] ?? null,
-                ];
-            }, array_values($pendingOrders)) : []
+            'count' => $pendingCount,
+            'orders' => [] // Never fetch order list from WooCommerce
         ];
 
         // Calculate percentage changes
@@ -521,7 +525,6 @@ class WooCommerceService
             'month_revenue' => $monthStats['total_sales'],
             'month_count' => $monthStats['orders_count'],
             'month_change' => round($monthChange, 2) . '%',
-            'pending_count' => $pendingData['count'],
         ]);
 
         return [

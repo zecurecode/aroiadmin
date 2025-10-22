@@ -24,32 +24,7 @@
         </button>
     </div>
 
-    <!-- Warning for Pending Orders -->
-    @if($statistics['pending']['count'] > 0)
-    <div class="pending-alert animate-pulse">
-        <div class="pending-alert-icon">
-            <i class="bi bi-exclamation-triangle-fill"></i>
-        </div>
-        <div class="pending-alert-content">
-            <h5 class="pending-alert-title">Advarsel: {{ $statistics['pending']['count'] }} ventende ordre funnet!</h5>
-            <p class="pending-alert-text">
-                Det finnes ordre med status "pending" i WooCommerce. Dette kan tyde på en feil i betalingsprosessen.
-            </p>
-            <div class="pending-orders-list">
-                @foreach($statistics['pending']['orders'] as $pendingOrder)
-                <div class="pending-order-item">
-                    <span class="pending-order-badge">#{{ $pendingOrder['number'] ?? $pendingOrder['id'] }}</span>
-                    <span class="pending-order-amount">{{ number_format($pendingOrder['total'], 2, ',', ' ') }} kr</span>
-                    <span class="pending-order-date">{{ \Carbon\Carbon::parse($pendingOrder['date_created'])->format('d.m.Y H:i') }}</span>
-                </div>
-                @endforeach
-            </div>
-        </div>
-        <button type="button" class="pending-alert-close" data-bs-dismiss="alert">
-            <i class="bi bi-x-lg"></i>
-        </button>
-    </div>
-    @endif
+    <!-- Pending orders warning removed - we don't fetch orders from WooCommerce, only statistics -->
 
     <!-- Main Statistics Grid -->
     <div class="stats-grid">

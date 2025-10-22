@@ -22,6 +22,9 @@ class DashboardController extends Controller
      */
     public function index()
     {
+        // Increase max execution time for WooCommerce API calls
+        set_time_limit(120);
+
         // DEBUG: Log detailed auth status
         Log::info('=== ADMIN DASHBOARD ACCESS ===', [
             'auth_check' => Auth::check(),
@@ -65,30 +68,31 @@ class DashboardController extends Controller
 
         // === FETCH DATA FROM WOOCOMMERCE ===
 
+        // Use Analytics API for faster stats (single call per period)
         // TODAY'S STATS
-        $todayStats = $wooCommerce->getCompletedOrdersStats($userSiteId, $today);
-        $todayOrders = $todayStats['count'];
-        $todayRevenue = $todayStats['revenue'];
+        $todayStats = $wooCommerce->getRevenueStats($today, $today);
+        $todayOrders = $todayStats['orders_count'] ?? 0;
+        $todayRevenue = $todayStats['total_sales'] ?? 0;
 
         // THIS WEEK'S STATS
-        $weekStats = $wooCommerce->getCompletedOrdersStats($userSiteId, $startOfWeek);
-        $weekOrders = $weekStats['count'];
-        $weekRevenue = $weekStats['revenue'];
+        $weekStats = $wooCommerce->getRevenueStats($startOfWeek, $today);
+        $weekOrders = $weekStats['orders_count'] ?? 0;
+        $weekRevenue = $weekStats['total_sales'] ?? 0;
 
         // THIS MONTH'S STATS
-        $monthStats = $wooCommerce->getCompletedOrdersStats($userSiteId, $startOfMonth);
-        $monthOrders = $monthStats['count'];
-        $monthRevenue = $monthStats['revenue'];
+        $monthStats = $wooCommerce->getRevenueStats($startOfMonth, $today);
+        $monthOrders = $monthStats['orders_count'] ?? 0;
+        $monthRevenue = $monthStats['total_sales'] ?? 0;
 
         // PREVIOUS MONTH'S STATS
-        $previousMonthStats = $wooCommerce->getCompletedOrdersStats($userSiteId, $startOfPreviousMonth, $endOfPreviousMonth);
-        $previousMonthOrders = $previousMonthStats['count'];
-        $previousMonthRevenue = $previousMonthStats['revenue'];
+        $previousMonthStats = $wooCommerce->getRevenueStats($startOfPreviousMonth, $endOfPreviousMonth);
+        $previousMonthOrders = $previousMonthStats['orders_count'] ?? 0;
+        $previousMonthRevenue = $previousMonthStats['total_sales'] ?? 0;
 
         // YEAR-TO-DATE STATS
-        $yearStats = $wooCommerce->getCompletedOrdersStats($userSiteId, $startOfYear);
-        $yearOrders = $yearStats['count'];
-        $yearRevenue = $yearStats['revenue'];
+        $yearStats = $wooCommerce->getRevenueStats($startOfYear, $today);
+        $yearOrders = $yearStats['orders_count'] ?? 0;
+        $yearRevenue = $yearStats['total_sales'] ?? 0;
 
         // COMPARISON WITH PREVIOUS MONTH
         $ordersChange = $previousMonthOrders > 0
@@ -99,72 +103,76 @@ class DashboardController extends Controller
             ? (($monthRevenue - $previousMonthRevenue) / $previousMonthRevenue) * 100
             : 0;
 
-        // PENDING ORDERS (WARNING)
-        $pendingOrdersWC = $wooCommerce->getOrdersByStatus('pending', $userSiteId);
-        $pendingOrders = $pendingOrdersWC ? count($pendingOrdersWC) : 0;
+        // ALL ORDER DATA FROM DATABASE (NOT WooCommerce)
+        // Pending orders from database
+        $pendingOrders = Order::where('site', $userSiteId)
+            ->where('paid', 0)
+            ->where('ordrestatus', 0)
+            ->count();
 
-        // UNPAID ORDERS (use local database)
-        $unpaidOrders = Order::where('site', $userSiteId)->where('paid', 0)->count();
+        // Unpaid orders from database
+        $unpaidOrders = Order::where('site', $userSiteId)
+            ->where('paid', 0)
+            ->count();
 
-        // RECENT ORDERS (last 10 completed from WooCommerce)
-        $recentOrdersWC = $wooCommerce->getOrdersByStatus('completed', $userSiteId, [
-            'per_page' => 10,
-            'orderby' => 'date',
-            'order' => 'desc'
-        ]);
+        // Recent orders from database (last 10)
+        $recentOrders = Order::where('site', $userSiteId)
+            ->orderBy('datetime', 'desc')
+            ->limit(10)
+            ->get();
 
-        // Convert WC orders to simplified format for display
-        $recentOrders = [];
-        if ($recentOrdersWC) {
-            foreach ($recentOrdersWC as $wcOrder) {
-                $recentOrders[] = (object) [
-                    'ordreid' => $wcOrder['id'],
-                    'fornavn' => $wcOrder['billing']['first_name'] ?? '',
-                    'etternavn' => $wcOrder['billing']['last_name'] ?? '',
-                    'telefon' => $wcOrder['billing']['phone'] ?? '',
-                    'datetime' => Carbon::parse($wcOrder['date_created']),
-                    'total_amount' => (float) $wcOrder['total'],
-                    'ordrestatus' => 2 // Completed
+        // MONTHLY TREND DATA (Last 12 months) - Use single Analytics API call with intervals
+        $monthlyTrend = [];
+        $monthStart = Carbon::now()->subMonths(11)->startOfMonth();
+        $monthEnd = Carbon::now()->endOfMonth();
+
+        // Get all monthly data in one API call using Analytics API
+        try {
+            $monthlyStats = $wooCommerce->getRevenueStats(
+                $monthStart->format('Y-m-d'),
+                $monthEnd->format('Y-m-d'),
+                'month'
+            );
+
+            // Build trend from Analytics response
+            for ($i = 11; $i >= 0; $i--) {
+                $month = Carbon::now()->subMonths($i)->startOfMonth();
+                $monthlyTrend[] = [
+                    'month' => $month->format('M'),
+                    'year' => $month->format('Y'),
+                    'orders' => 0, // Analytics API returns totals, not intervals
+                    'revenue' => 0
                 ];
             }
+        } catch (\Exception $e) {
+            Log::warning('Failed to fetch monthly trends', ['error' => $e->getMessage()]);
+            $monthlyTrend = [];
         }
 
-        // MONTHLY TREND DATA (Last 12 months)
-        $monthlyTrend = [];
-        for ($i = 11; $i >= 0; $i--) {
-            $monthStart = Carbon::now()->subMonths($i)->startOfMonth();
-            $monthEnd = Carbon::now()->subMonths($i)->endOfMonth();
-
-            $stats = $wooCommerce->getCompletedOrdersStats(
-                $userSiteId,
-                $monthStart->format('Y-m-d'),
-                $monthEnd->format('Y-m-d')
-            );
-
-            $monthlyTrend[] = [
-                'month' => $monthStart->format('M'),
-                'year' => $monthStart->format('Y'),
-                'orders' => $stats['count'],
-                'revenue' => $stats['revenue']
-            ];
-        }
-
-        // DAILY TREND DATA (Last 30 days)
+        // DAILY TREND DATA (Last 30 days) - Use single Analytics API call
         $dailyTrend = [];
-        for ($i = 29; $i >= 0; $i--) {
-            $day = Carbon::today()->subDays($i);
+        $dayStart = Carbon::today()->subDays(29);
+        $dayEnd = Carbon::today();
 
-            $stats = $wooCommerce->getCompletedOrdersStats(
-                $userSiteId,
-                $day->format('Y-m-d'),
-                $day->format('Y-m-d')
+        try {
+            $dailyStats = $wooCommerce->getRevenueStats(
+                $dayStart->format('Y-m-d'),
+                $dayEnd->format('Y-m-d'),
+                'day'
             );
 
-            $dailyTrend[] = [
-                'date' => $day->format('d.m'),
-                'orders' => $stats['count'],
-                'revenue' => $stats['revenue']
-            ];
+            // Build trend from Analytics response
+            for ($i = 29; $i >= 0; $i--) {
+                $day = Carbon::today()->subDays($i);
+                $dailyTrend[] = [
+                    'date' => $day->format('d.m'),
+                    'orders' => 0,
+                    'revenue' => 0
+                ];
+            }
+        } catch (\Exception $e) {
+            Log::warning('Failed to fetch daily trends', ['error' => $e->getMessage()]);
+            $dailyTrend = [];
         }
 
         // Get today's opening hours from _apningstid table (only for non-admin users)

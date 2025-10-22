@@ -200,11 +200,15 @@ class AuthenticatedSessionController extends Controller
     {
         Log::info('AuthenticatedSessionController::destroy - logging out user', [
             'username' => session()->get('username'),
-            'user_id' => session()->get('id')
+            'user_id' => session()->get('id'),
+            'was_impersonating' => session()->has('impersonate.original_id')
         ]);
 
         // Clear our custom session data
         session()->forget(['loggedin', 'id', 'username', 'siteid', 'is_admin', 'auth_method']);
+
+        // IMPORTANT: Clear impersonate sessions too (prevents impersonate persisting after logout)
+        session()->forget(['impersonate.original_id', 'impersonate.original_username']);
 
         // Clear Laravel auth
         Auth::logout();
