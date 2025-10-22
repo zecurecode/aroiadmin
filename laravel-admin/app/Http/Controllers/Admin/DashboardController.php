@@ -41,6 +41,17 @@ class DashboardController extends Controller
 
         $userSiteId = $user->siteid;
 
+        // If admin user (siteid = 0), show admin-specific dashboard
+        if ($userSiteId == 0 || $userSiteId === null) {
+            Log::info('Admin user accessing dashboard - showing admin view', [
+                'user_id' => $user->id,
+                'username' => $user->username,
+            ]);
+
+            // Admin dashboard without WooCommerce stats
+            return $this->adminDashboard();
+        }
+
         // Initialize WooCommerce service with site-specific credentials
         $wooCommerce = new WooCommerceService($userSiteId);
 
@@ -329,5 +340,37 @@ class DashboardController extends Controller
             'status' => $isNowOpen ? 1 : 0, // Return 1 for open, 0 for closed (for UI consistency)
             'message' => $isNowOpen ? 'Location opened' : 'Location closed'
         ]);
+    }
+
+    /**
+     * Admin-specific dashboard (for users with siteid = 0)
+     * Shows system overview without WooCommerce stats
+     */
+    private function adminDashboard()
+    {
+        // Get all sites
+        $sites = Site::where('active', true)->orderBy('name')->get();
+
+        // Get all users count
+        $totalUsers = User::count();
+        $activeUsers = User::where('siteid', '!=', 0)->count();
+
+        // Get orders from database (not WooCommerce)
+        $totalOrders = Order::count();
+        $paidOrders = Order::where('paid', 1)->count();
+        $unpaidOrders = Order::where('paid', 0)->count();
+
+        // Recent activity
+        $recentOrders = Order::orderBy('datetime', 'desc')->limit(10)->get();
+
+        return view('admin.dashboard-admin', compact(
+            'sites',
+            'totalUsers',
+            'activeUsers',
+            'totalOrders',
+            'paidOrders',
+            'unpaidOrders',
+            'recentOrders'
+        ));
     }
 }

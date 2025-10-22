@@ -104,6 +104,7 @@ Route::middleware(['custom.auth'])->group(function () {
 
     // Statistics page - WooCommerce statistics
     Route::get('/admin/statistics', [StatisticsController::class, 'index'])->name('admin.statistics.index');
+    Route::get('/admin/statistics/site/{siteId}', [StatisticsController::class, 'showSite'])->name('admin.statistics.site');
 
     // Stop impersonate route - needs to be outside admin middleware since impersonated users don't have admin rights
     Route::post('/admin/stop-impersonate', [UserController::class, 'stopImpersonate'])->name('admin.stop-impersonate');

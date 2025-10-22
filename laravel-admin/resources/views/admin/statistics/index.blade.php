@@ -5,6 +5,11 @@
     <!-- Header -->
     <div class="stats-header">
         <div class="d-flex align-items-center">
+            @if(auth()->user() && auth()->user()->siteid == 0)
+            <a href="{{ route('admin.statistics.index') }}" class="btn-back me-3" title="Tilbake til velger">
+                <i class="bi bi-arrow-left"></i>
+            </a>
+            @endif
             <div class="header-icon-wrapper">
                 <i class="bi bi-graph-up-arrow"></i>
             </div>
@@ -267,6 +272,29 @@
 
     .btn-refresh:hover i {
         transform: rotate(180deg);
+    }
+
+    .btn-back {
+        width: 48px;
+        height: 48px;
+        background: rgba(255, 255, 255, 0.2);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        color: white;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
+        text-decoration: none;
+        flex-shrink: 0;
+    }
+
+    .btn-back:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: translateX(-4px);
+        color: white;
     }
 
     /* Pending Alert */

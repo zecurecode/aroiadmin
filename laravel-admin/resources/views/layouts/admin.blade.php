@@ -325,10 +325,12 @@
                         <i class="bi bi-house me-1"></i><span class="d-none d-md-inline">Dashboard</span>
                     </a>
 
-                    <!-- Statistics button -->
+                    <!-- Statistics button (hidden for admin users) -->
+                    @if(auth()->user() && auth()->user()->siteid != 0)
                     <a class="btn btn-outline-light btn-sm me-2" href="{{ route('admin.statistics.index') }}">
                         <i class="bi bi-bar-chart-fill me-1"></i><span class="d-none d-md-inline">Statistikk</span>
                     </a>
+                    @endif
 
                     <!-- Settings dropdown -->
                     <div class="dropdown me-2">
