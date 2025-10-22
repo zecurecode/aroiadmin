@@ -341,23 +341,32 @@ class OrderController extends Controller
         // Store previous status for comparison
         $previousStatus = $order->ordrestatus;
         $newStatus = $request->status;
+        $silent = $request->input('silent', false); // Check if silent mode is enabled
+
+        // Prepare update data
+        $updateData = ['ordrestatus' => $newStatus];
+
+        // Set hentet_tid when order is marked as completed (status 2)
+        if ($newStatus == 2 && $previousStatus != 2) {
+            $updateData['hentet_tid'] = now();
+        }
 
         // Update order status
-        $order->update([
-            'ordrestatus' => $newStatus
-        ]);
+        $order->update($updateData);
 
-        // Only send SMS if order is paid and status has changed
+        // Only send SMS if order is paid, status has changed, and not in silent mode
         $smsSuccess = true;
         $smsMessage = '';
-        if ($order->paid == 1 && $previousStatus != $newStatus) {
+        if ($order->paid == 1 && $previousStatus != $newStatus && !$silent) {
             $smsResult = $this->sendStatusChangeSMS($order, $newStatus);
             $smsSuccess = $smsResult['success'];
             $smsMessage = $smsResult['message'];
         }
 
         $message = 'Status oppdatert';
-        if ($order->paid == 1 && $previousStatus != $newStatus) {
+        if ($silent) {
+            $message .= ' (uten SMS)';
+        } elseif ($order->paid == 1 && $previousStatus != $newStatus) {
             if ($smsSuccess) {
                 $message .= ' og SMS sendt!';
             } else {
@@ -368,7 +377,7 @@ class OrderController extends Controller
         return response()->json([
             'success' => true,
             'message' => $message,
-            'sms_sent' => $smsSuccess
+            'sms_sent' => !$silent && $smsSuccess
         ]);
     }
 

@@ -218,7 +218,7 @@
                             </div>
                         </div>
                         @endif
-                        <div class="col-md-6">
+                        <div class="col-md-6" id="specialTypeContainer">
                             <div class="mb-3">
                                 <label for="specialType" class="form-label">Type</label>
                                 <select id="specialType" name="type" class="form-select" required>
@@ -233,17 +233,18 @@
                     </div>
 
                     <div class="row">
-                        <div class="col-md-6">
+                        <div class="col-md-12">
                             <div class="mb-3">
-                                <label for="specialDate" class="form-label">Fra dato</label>
-                                <input type="date" id="specialDate" name="date" class="form-control" required>
+                                <label for="specialDate" class="form-label">Dato</label>
+                                <input type="date" id="specialDate" name="date" class="form-control" required lang="nb-NO">
+                                <div class="form-text" id="specialDateHelp"></div>
                             </div>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-12" id="specialEndDateContainer">
                             <div class="mb-3">
-                                <label for="specialEndDate" class="form-label">Til dato (valgfritt)</label>
+                                <label for="specialEndDate" class="form-label">Til dato (valgfritt for periode)</label>
                                 <input type="date" id="specialEndDate" name="end_date" class="form-control">
-                                <div class="form-text">Lar tom for enkeltdag, fyll ut for periode</div>
+                                <div class="form-text">La stå tom for enkeltdag, fyll ut for å lage en periode</div>
                             </div>
                         </div>
                     </div>
@@ -297,25 +298,27 @@
                         </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="specialReason" class="form-label">Grunn/beskrivelse</label>
-                        <input type="text" id="specialReason" name="reason" class="form-control"
-                               placeholder="F.eks. 'Julaften', 'Renovering', etc.">
-                    </div>
-
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="specialRecurring" name="recurring_yearly">
-                            <label class="form-check-label" for="specialRecurring">
-                                Gjenta hvert år (for helligdager)
-                            </label>
+                    <div id="specialAdvancedFields">
+                        <div class="mb-3">
+                            <label for="specialReason" class="form-label">Grunn/beskrivelse</label>
+                            <input type="text" id="specialReason" name="reason" class="form-control"
+                                   placeholder="F.eks. 'Julaften', 'Renovering', etc.">
                         </div>
-                    </div>
 
-                    <div class="mb-3">
-                        <label for="specialNotes" class="form-label">Notater (valgfritt)</label>
-                        <textarea id="specialNotes" name="notes" class="form-control" rows="3"
-                                  placeholder="Eventuelle tilleggsnotater..."></textarea>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="specialRecurring" name="recurring_yearly">
+                                <label class="form-check-label" for="specialRecurring">
+                                    Gjenta hvert år (for helligdager)
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="specialNotes" class="form-label">Notater (valgfritt)</label>
+                            <textarea id="specialNotes" name="notes" class="form-control" rows="3"
+                                      placeholder="Eventuelle tilleggsnotater..."></textarea>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -655,6 +658,8 @@ $(document).ready(function() {
     let currentMonth = $('#monthSelect').val();
     let calendarData = {};
     let locationData = {};
+    let lastAlertMessage = null;
+    let lastAlertTime = 0;
 
     // Ensure we have a valid location ID
     if (!currentLocationId) {
@@ -987,10 +992,121 @@ $(document).ready(function() {
         }
     });
 
+    // Handle modal opened directly (not via calendar click)
+    $('#addSpecialHoursModal').on('show.bs.modal', function (e) {
+        // If modal is opened via button (not via addSpecialHoursForDate function)
+        // the date field will be empty, so we reset the title and show all fields
+        setTimeout(function() {
+            if (!$('#specialDate').val()) {
+                $('#addSpecialHoursModal .modal-title').html(`
+                    <i class="fas fa-plus me-2"></i>
+                    Legg til spesielle åpningstider
+                `);
+                $('#specialDateHelp').html('').removeClass('text-info text-muted');
+                $('#specialEndDateContainer').show(); // Show end date for manual entry
+                $('#specialTypeContainer').show(); // Show type selector
+                $('#specialAdvancedFields').show(); // Show advanced fields
+                $('#specialDate').prop('readonly', false); // Allow date editing
+            }
+        }, 10);
+    });
+
     // Helper functions
     function addSpecialHoursForDate(date) {
+        // Reset form first
+        $('#addSpecialHoursForm')[0].reset();
+
+        // Set location and date
         $('#specialLocationId').val(currentLocationId);
-        $('#specialDate').val(date);
+        $('#specialDate').val(date).prop('readonly', true); // Make date readonly
+
+        // Clear and HIDE end date field for single-day editing
+        $('#specialEndDate').val('');
+        $('#specialEndDateContainer').hide();
+
+        // Hide type selector and set to 'special' - simpler UI
+        $('#specialTypeContainer').hide();
+        $('#specialType').val('special');
+
+        // Hide advanced fields for simpler UI
+        $('#specialAdvancedFields').hide();
+
+        // Find the day of week for this date
+        const dateObj = new Date(date + 'T12:00:00'); // Add time to avoid timezone issues
+        const dayOfWeek = dateObj.toLocaleDateString('en', {weekday: 'long'}).toLowerCase();
+
+        // Get regular hours for this day of week
+        const regularHours = locationData.regularHours[dayOfWeek];
+
+        if (regularHours) {
+            // Check if normally closed
+            if (regularHours.closed == 1 || !regularHours.start || !regularHours.stop) {
+                // Day is normally closed - leave form empty and unchecked
+                $('#specialIsClosed').prop('checked', false);
+                $('#specialOpenHour').val('');
+                $('#specialOpenMin').val('00');
+                $('#specialCloseHour').val('');
+                $('#specialCloseMin').val('00');
+                $('#specialOpenTime').val('');
+                $('#specialCloseTime').val('');
+                $('#specialTimeFields').show();
+            } else {
+                // Day is normally open - pre-fill with regular hours
+                $('#specialIsClosed').prop('checked', false);
+
+                // Parse and set opening time
+                if (regularHours.start) {
+                    const startParts = regularHours.start.split(':');
+                    const startHour = startParts[0] || '';
+                    const startMin = startParts[1] || '00';
+                    $('#specialOpenHour').val(startHour);
+                    $('#specialOpenMin').val(startMin);
+                    // IMPORTANT: Update hidden input
+                    $('#specialOpenTime').val(`${startHour}:${startMin}`);
+                }
+
+                // Parse and set closing time
+                if (regularHours.stop) {
+                    const stopParts = regularHours.stop.split(':');
+                    const stopHour = stopParts[0] || '';
+                    const stopMin = stopParts[1] || '00';
+                    $('#specialCloseHour').val(stopHour);
+                    $('#specialCloseMin').val(stopMin);
+                    // IMPORTANT: Update hidden input
+                    $('#specialCloseTime').val(`${stopHour}:${stopMin}`);
+                }
+
+                $('#specialTimeFields').show();
+            }
+        }
+
+        // Update modal title to show it's for a specific date
+        const formattedDate = dateObj.toLocaleDateString('nb-NO', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+        $('#addSpecialHoursModal .modal-title').html(`
+            <i class="fas fa-calendar-day me-2"></i>
+            Endre åpningstid for ${formattedDate}
+        `);
+
+        // Update help text
+        const dayName = dateObj.toLocaleDateString('nb-NO', {weekday: 'long'});
+        const capitalizedDayName = dayName.charAt(0).toUpperCase() + dayName.slice(1);
+        if (regularHours && regularHours.start && regularHours.stop && regularHours.closed != 1) {
+            $('#specialDateHelp').html(`
+                <i class="fas fa-info-circle me-1"></i>
+                Ordinær åpningstid: ${regularHours.start} - ${regularHours.stop}
+            `).addClass('text-info');
+        } else {
+            $('#specialDateHelp').html(`
+                <i class="fas fa-info-circle me-1"></i>
+                ${capitalizedDayName} er ordinært stengt
+            `).addClass('text-muted');
+        }
+
         $('#addSpecialHoursModal').modal('show');
     }
 
@@ -1267,7 +1383,24 @@ $(document).ready(function() {
     }
 
     function saveSpecialHours() {
+        // Prevent double submission
+        const submitBtn = $('#addSpecialHoursForm button[type="submit"]');
+        if (submitBtn.prop('disabled')) {
+            console.log('Already submitting, skipping...');
+            return;
+        }
+        submitBtn.prop('disabled', true);
+
         const formData = new FormData($('#addSpecialHoursForm')[0]);
+
+        // Debug logging
+        console.log('=== Saving Special Hours ===');
+        console.log('Location ID:', formData.get('location_id'));
+        console.log('Date:', formData.get('date'));
+        console.log('Open Time:', formData.get('open_time'));
+        console.log('Close Time:', formData.get('close_time'));
+        console.log('Is Closed:', formData.get('is_closed'));
+        console.log('Type:', formData.get('type'));
 
         $.ajax({
             url: '/admin/opening-hours/special',
@@ -1277,14 +1410,19 @@ $(document).ready(function() {
             contentType: false
         })
         .done(function(response) {
+            console.log('Success response:', response);
             showAlert(response.message, 'success');
             $('#addSpecialHoursModal').modal('hide');
             $('#addSpecialHoursForm')[0].reset();
             loadCalendarData();
         })
         .fail(function(xhr) {
+            console.error('Error response:', xhr);
             const response = xhr.responseJSON;
             showAlert(response?.message || 'Feil ved lagring', 'danger');
+        })
+        .always(function() {
+            submitBtn.prop('disabled', false);
         });
     }
 
@@ -1396,6 +1534,15 @@ $(document).ready(function() {
     }
 
     function showAlert(message, type) {
+        // Prevent duplicate alerts within 500ms
+        const now = Date.now();
+        if (message === lastAlertMessage && (now - lastAlertTime) < 500) {
+            console.log('Skipping duplicate alert:', message);
+            return;
+        }
+        lastAlertMessage = message;
+        lastAlertTime = now;
+
         const alertHtml = `
             <div class="alert alert-${type} alert-dismissible fade show" role="alert">
                 ${message}
@@ -1406,8 +1553,8 @@ $(document).ready(function() {
         // Remove existing alerts
         $('.alert').remove();
 
-        // Add new alert at top of container
-        $('.container-fluid').prepend(alertHtml);
+        // Add new alert at top of the FIRST container only
+        $('.container-fluid').first().prepend(alertHtml);
 
         // Auto-dismiss after 5 seconds
         setTimeout(() => {

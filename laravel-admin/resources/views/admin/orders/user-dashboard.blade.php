@@ -95,6 +95,9 @@
                                         <button class="btn btn-outline-primary btn-sm" onclick="showOrderDetails({{ $order->id }})">
                                             <i class="fas fa-eye me-1"></i>Se detaljer
                                         </button>
+                                        <button class="btn btn-danger btn-sm" onclick="markOrderReadySilent({{ $order->id }})">
+                                            <i class="fas fa-check-circle me-1"></i>Klar (uten SMS)
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -149,6 +152,9 @@
                                         <button class="btn btn-outline-primary btn-sm" onclick="showOrderDetails({{ $order->id }})">
                                             <i class="fas fa-eye me-1"></i>Se detaljer
                                         </button>
+                                        <button class="btn btn-danger btn-sm" onclick="markOrderCompletedSilent({{ $order->id }})">
+                                            <i class="fas fa-check-double me-1"></i>Hentet (uten SMS)
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -188,7 +194,7 @@
                                     <td>{{ $order->telefon }}</td>
                                     <td>
                                         <span class="badge bg-success">
-                                            <i class="fas fa-check me-1"></i>{{ $order->updated_at ? $order->updated_at->format('H:i') : 'N/A' }}
+                                            <i class="fas fa-check me-1"></i>{{ $order->hentet_tid ? $order->hentet_tid->format('H:i') : 'N/A' }}
                                         </span>
                                     </td>
                                     <td>
@@ -279,6 +285,7 @@ function toggleLocationStatus() {
 
     fetch('{{ route('admin.dashboard.toggle-status') }}', {
         method: 'POST',
+        credentials: 'same-origin',  // CRITICAL: Send cookies with request
         headers: {
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': getCsrfToken()
@@ -315,103 +322,158 @@ function getCsrfToken() {
 
 // Mark order as ready
 function markOrderReady(orderId) {
-    if (confirm('Marker ordre som klar for henting?')) {
-        fetch(`/admin/orders/${orderId}/status`, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': getCsrfToken()
-            },
-            body: JSON.stringify({
-                status: 1
-            })
+    fetch(`/admin/orders/${orderId}/status`, {
+        method: 'PATCH',
+        credentials: 'same-origin',  // CRITICAL: Send cookies with request
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': getCsrfToken()
+        },
+        body: JSON.stringify({
+            status: 1
         })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            return response.json();
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Refresh order lists dynamically instead of full reload
+            refreshOrderLists(true);
+        } else {
+            console.error('Feil ved oppdatering:', data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error marking order ready:', error);
+    });
+}
+
+// Mark order as ready (silent mode - no SMS)
+function markOrderReadySilent(orderId) {
+    fetch(`/admin/orders/${orderId}/status`, {
+        method: 'PATCH',
+        credentials: 'same-origin',  // CRITICAL: Send cookies with request
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': getCsrfToken()
+        },
+        body: JSON.stringify({
+            status: 1,
+            silent: true
         })
-        .then(data => {
-            if (data.success) {
-                // Show success message
-                alert(data.message || 'Status oppdatert!');
-                // Refresh order lists dynamically instead of full reload
-                refreshOrderLists(true);
-            } else {
-                alert('Feil: ' + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error marking order ready:', error);
-            alert('Kunne ikke oppdatere ordre: ' + error.message);
-        });
-    }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Refresh order lists dynamically instead of full reload
+            refreshOrderLists(true);
+        } else {
+            console.error('Feil ved oppdatering:', data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error marking order ready (silent):', error);
+    });
 }
 
 // Send ready SMS
 function sendReadySMS(orderId) {
-    if (confirm('Send SMS til kunden om at ordren er klar?')) {
-        fetch(`/admin/orders/${orderId}/send-sms`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': getCsrfToken()
-            }
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                alert('SMS sendt!');
-                refreshOrderLists(true);
-            } else {
-                alert('Feil: ' + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error sending SMS:', error);
-            alert('Kunne ikke sende SMS: ' + error.message);
-        });
-    }
+    fetch(`/admin/orders/${orderId}/send-sms`, {
+        method: 'POST',
+        credentials: 'same-origin',  // CRITICAL: Send cookies with request
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': getCsrfToken()
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            refreshOrderLists(true);
+        } else {
+            console.error('Feil ved sending av SMS:', data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error sending SMS:', error);
+    });
 }
 
 // Mark order as completed
 function markOrderCompleted(orderId) {
-    if (confirm('Marker ordre som hentet?')) {
-        fetch(`/admin/orders/${orderId}/status`, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': getCsrfToken()
-            },
-            body: JSON.stringify({
-                status: 2
-            })
+    fetch(`/admin/orders/${orderId}/status`, {
+        method: 'PATCH',
+        credentials: 'same-origin',  // CRITICAL: Send cookies with request
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': getCsrfToken()
+        },
+        body: JSON.stringify({
+            status: 2
         })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            return response.json();
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            refreshOrderLists(true);
+        } else {
+            console.error('Feil ved oppdatering:', data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error marking order completed:', error);
+    });
+}
+
+// Mark order as completed (silent mode - no SMS)
+function markOrderCompletedSilent(orderId) {
+    fetch(`/admin/orders/${orderId}/status`, {
+        method: 'PATCH',
+        credentials: 'same-origin',  // CRITICAL: Send cookies with request
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': getCsrfToken()
+        },
+        body: JSON.stringify({
+            status: 2,
+            silent: true
         })
-        .then(data => {
-            if (data.success) {
-                alert(data.message || 'Ordre hentet!');
-                refreshOrderLists(true);
-            } else {
-                alert('Feil: ' + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error marking order completed:', error);
-            alert('Kunne ikke oppdatere ordre: ' + error.message);
-        });
-    }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            refreshOrderLists(true);
+        } else {
+            console.error('Feil ved oppdatering:', data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error marking order completed (silent):', error);
+    });
 }
 
 // Show order details
@@ -471,8 +533,17 @@ function showOrderDetails(orderId) {
 let lastOrderCount = {{ $newOrders->count() }};
 let lastReadyCount = {{ $readyOrders->count() }};
 let lastCompletedCount = {{ $completedOrders->count() }};
+let isCheckingOrders = false;  // Prevent overlapping requests
 
 function checkNewOrders() {
+    // Prevent race conditions from overlapping requests
+    if (isCheckingOrders) {
+        console.log('Skipping order check - previous request still in progress');
+        return;
+    }
+
+    isCheckingOrders = true;
+
     authenticatedFetch('/api/orders/count', {
         headers: {
             'Accept': 'application/json'
@@ -523,11 +594,24 @@ function checkNewOrders() {
         .catch(error => {
             console.error('Error checking new orders:', error);
             // Don't show error to user, just log it
+        })
+        .finally(() => {
+            isCheckingOrders = false;  // Always reset flag to allow next request
         });
 }
 
 // Refresh order lists dynamically without page reload
+let isRefreshing = false;  // Prevent overlapping refresh requests
+
 function refreshOrderLists(showLoader = false) {
+    // Prevent race conditions from overlapping refresh requests
+    if (isRefreshing) {
+        console.log('Skipping refresh - previous refresh still in progress');
+        return;
+    }
+
+    isRefreshing = true;
+
     if (showLoader) {
         const refreshIcon = document.getElementById('refreshIcon');
         if (refreshIcon) {
@@ -536,6 +620,7 @@ function refreshOrderLists(showLoader = false) {
     }
 
     fetch(window.location.href, {
+        credentials: 'same-origin',  // CRITICAL: Send cookies with request
         headers: {
             'Accept': 'text/html',
             'X-Requested-With': 'XMLHttpRequest'
@@ -603,14 +688,17 @@ function refreshOrderLists(showLoader = false) {
     })
     .catch(error => {
         console.error('Error refreshing order lists:', error);
+        // Fallback to page reload only on error
+        location.reload();
+    })
+    .finally(() => {
+        isRefreshing = false;  // Always reset flag to allow next refresh
         if (showLoader) {
             const refreshIcon = document.getElementById('refreshIcon');
             if (refreshIcon) {
                 refreshIcon.classList.remove('fa-spin');
             }
         }
-        // Fallback to page reload only on error
-        location.reload();
     });
 }
 

@@ -19,11 +19,6 @@ class CustomAuthMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Ensure session is started
-        if (!session()->isStarted()) {
-            session()->start();
-        }
-
         $sessionData = [
             'loggedin' => session()->get('loggedin'),
             'id' => session()->get('id'),
@@ -70,7 +65,7 @@ class CustomAuthMiddleware
             return redirect()->route('login');
         }
 
-        // If custom session is valid but Laravel auth is not, set up Laravel auth
+        // If custom session is valid but Laravel auth is not, set up Laravel auth WITHOUT regenerating session
         if ($customSessionValid && !$laravelAuthValid) {
             $username = session()->get('username');
             $customUserId = session()->get('id');
@@ -88,8 +83,9 @@ class CustomAuthMiddleware
                 $user = User::createFromOldPhpAuth($username);
             }
 
-            // Log the user into Laravel's Auth system with remember token
-            Auth::login($user, true);
+            // CRITICAL FIX: Use setUser() instead of login() to avoid session regeneration
+            // This prevents the session ID from changing on every request
+            Auth::guard('web')->setUser($user);
 
             Log::info('CustomAuthMiddleware: Laravel auth established', [
                 'laravel_user_id' => $user->id,
@@ -106,8 +102,8 @@ class CustomAuthMiddleware
             'laravel_auth_now_valid' => auth()->check()
         ]);
 
-        // Save session to ensure persistence
-        session()->save();
+        // CRITICAL FIX: Remove manual session()->save() - Laravel handles this automatically
+        // Manual save can interfere with Laravel's session lifecycle and cause race conditions
 
         return $next($request);
     }

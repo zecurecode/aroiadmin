@@ -80,8 +80,11 @@ Route::get('/create-users', function () {
 Route::get('/', [App\Http\Controllers\PublicController::class, 'locations'])->name('public.locations');
 
 // Main dashboard routes - use custom auth middleware
-// Redirect to orders page for consistency
+// Redirect based on user role
 Route::get('/dashboard', function() {
+    if (session('is_admin')) {
+        return redirect('/admin/dashboard');
+    }
     return redirect('/admin/orders');
 })->middleware(['custom.auth'])->name('dashboard');
 

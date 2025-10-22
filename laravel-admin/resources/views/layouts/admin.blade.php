@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>{{ config('app.name', 'Aroi Admin') }}</title>
+    <title>Aroi Asia Admin</title>
 
     <!-- Favicon -->
     <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('images/logo.png') }}">
@@ -337,16 +337,8 @@
                             <li><a class="dropdown-item" href="{{ route('profile.edit') }}">
                                 <i class="bi bi-person-gear me-2"></i>Profil
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ route('admin.settings.index') }}#sms">
-                                <i class="bi bi-chat-text me-2"></i>SMS Innstillinger
-                            </a></li>
                         </ul>
                     </div>
-
-                    <!-- Marketing module button -->
-                    <a class="btn btn-outline-warning btn-sm me-2" href="/admin/marketing">
-                        <i class="bi bi-megaphone me-1"></i><span class="d-none d-lg-inline">Markedsføring</span>
-                    </a>
 
                     @if(auth()->user() && auth()->user()->isAdmin())
                         <!-- Admin dropdown -->

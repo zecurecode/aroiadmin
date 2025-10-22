@@ -27,8 +27,8 @@ class SpecialHours extends Model
     protected $casts = [
         'date' => 'date',
         'end_date' => 'date',
-        'open_time' => 'datetime',
-        'close_time' => 'datetime',
+        // open_time and close_time are TIME type in database, not DATETIME
+        // Don't cast them - leave as strings in H:i:s format
         'is_closed' => 'boolean',
         'recurring_yearly' => 'boolean',
         'location_id' => 'integer',
@@ -97,8 +97,11 @@ class SpecialHours extends Model
             return 'Stengt';
         }
 
-        return Carbon::parse($this->open_time)->format('H:i') . ' - ' .
-               Carbon::parse($this->close_time)->format('H:i');
+        // Times are stored as TIME strings (HH:MM:SS), just extract HH:MM
+        $openTime = substr($this->open_time, 0, 5);
+        $closeTime = substr($this->close_time, 0, 5);
+
+        return $openTime . ' - ' . $closeTime;
     }
 
     /**

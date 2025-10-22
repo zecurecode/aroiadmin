@@ -143,7 +143,12 @@ class OpeningHoursController extends Controller
             $specialHours = SpecialHours::forLocation($locationId)
                 ->inDateRange($startDate, $endDate)
                 ->get()
-                ->keyBy('date');
+                ->keyBy(function ($item) {
+                    // Use formatted date string as key (YYYY-MM-DD)
+                    return $item->date instanceof \Carbon\Carbon
+                        ? $item->date->format('Y-m-d')
+                        : $item->date;
+                });
 
             // Generate calendar data
             $calendarData = [];
@@ -357,7 +362,7 @@ class OpeningHoursController extends Controller
 
         $request->validate([
             'location_id' => 'required|integer',
-            'date' => 'required|date|after_or_equal:today',
+            'date' => 'required|date',
             'end_date' => 'nullable|date|after_or_equal:date',
             'open_time' => 'nullable|date_format:H:i',
             'close_time' => 'nullable|date_format:H:i|after:open_time',
@@ -373,24 +378,38 @@ class OpeningHoursController extends Controller
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
+        // Prepare data
+        $data = $request->all();
+
         // If closed, clear times
         if ($request->is_closed) {
-            $request->merge([
-                'open_time' => null,
-                'close_time' => null
-            ]);
+            $data['open_time'] = null;
+            $data['close_time'] = null;
         }
 
-        $specialHours = SpecialHours::create(array_merge(
-            $request->all(),
-            ['created_by' => $user->id]
-        ));
+        // Add created_by for new records
+        $data['created_by'] = $user->id;
 
-        Log::info('Special hours created', [
+        // Use updateOrCreate to avoid duplicate entry errors
+        // If a special hours entry already exists for this location and date, update it
+        // Otherwise, create a new one
+        $specialHours = SpecialHours::updateOrCreate(
+            [
+                'location_id' => $request->location_id,
+                'date' => $request->date
+            ],
+            $data
+        );
+
+        Log::info('Special hours saved', [
             'special_hours_id' => $specialHours->id,
             'location_id' => $request->location_id,
             'date' => $request->date,
-            'created_by' => $user->id
+            'open_time' => $data['open_time'] ?? null,
+            'close_time' => $data['close_time'] ?? null,
+            'is_closed' => $data['is_closed'] ?? false,
+            'was_updated' => $specialHours->wasRecentlyCreated ? 'no' : 'yes',
+            'user_id' => $user->id
         ]);
 
         return response()->json([
@@ -425,18 +444,24 @@ class OpeningHoursController extends Controller
             'notes' => 'nullable|string'
         ]);
 
+        // Prepare data
+        $data = $request->all();
+
         // If closed, clear times
         if ($request->is_closed) {
-            $request->merge([
-                'open_time' => null,
-                'close_time' => null
-            ]);
+            $data['open_time'] = null;
+            $data['close_time'] = null;
         }
 
-        $specialHours->update($request->all());
+        $specialHours->update($data);
 
         Log::info('Special hours updated', [
             'special_hours_id' => $specialHours->id,
+            'location_id' => $specialHours->location_id,
+            'date' => $specialHours->date,
+            'open_time' => $data['open_time'] ?? null,
+            'close_time' => $data['close_time'] ?? null,
+            'is_closed' => $data['is_closed'] ?? false,
             'updated_by' => $user->id
         ]);
 
