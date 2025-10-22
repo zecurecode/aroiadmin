@@ -125,35 +125,94 @@ class WooCommerceService
 
     /**
      * Fetch orders from WooCommerce by criteria
+     * Automatically handles pagination to fetch all orders
      *
      * @param array $params Query parameters (status, per_page, after, before, etc.)
+     * @param bool $paginate Whether to automatically paginate and fetch all results (default: true)
      * @return array|null List of orders
      */
-    public function getOrders($params = [])
+    public function getOrders($params = [], $paginate = true)
     {
         try {
             $url = "{$this->baseUrl}/wp-json/wc/v3/orders";
+            $allOrders = [];
+            $page = 1;
+            $perPage = $params['per_page'] ?? 100;
 
-            $response = Http::withBasicAuth($this->consumerKey, $this->consumerSecret)
-                ->timeout(30)
-                ->get($url, $params);
-
-            if ($response->successful()) {
-                return $response->json();
-            }
-
-            Log::warning('WooCommerce API orders request failed', [
+            Log::info('WooCommerce: Starting order fetch', [
+                'url' => $url,
                 'params' => $params,
-                'status' => $response->status(),
-                'body' => $response->body()
+                'paginate' => $paginate,
             ]);
 
-            return null;
+            do {
+                $queryParams = array_merge($params, [
+                    'per_page' => $perPage,
+                    'page' => $page,
+                ]);
+
+                $response = Http::withBasicAuth($this->consumerKey, $this->consumerSecret)
+                    ->timeout(30)
+                    ->get($url, $queryParams);
+
+                if (!$response->successful()) {
+                    Log::warning('WooCommerce API orders request failed', [
+                        'params' => $queryParams,
+                        'status' => $response->status(),
+                        'body' => $response->body(),
+                        'url' => $url,
+                    ]);
+
+                    // Return what we have so far, or null if first page
+                    return $page === 1 ? null : $allOrders;
+                }
+
+                $orders = $response->json();
+
+                if (empty($orders)) {
+                    break;
+                }
+
+                $allOrders = array_merge($allOrders, $orders);
+
+                Log::info('WooCommerce: Page fetched', [
+                    'page' => $page,
+                    'count_this_page' => count($orders),
+                    'total_so_far' => count($allOrders),
+                ]);
+
+                // If not paginating, just return first page
+                if (!$paginate) {
+                    break;
+                }
+
+                // If we got fewer results than per_page, we're done
+                if (count($orders) < $perPage) {
+                    break;
+                }
+
+                $page++;
+
+                // Safety limit to prevent infinite loops
+                if ($page > 50) {
+                    Log::warning('WooCommerce: Reached maximum page limit (50)');
+                    break;
+                }
+
+            } while ($paginate);
+
+            Log::info('WooCommerce: Order fetch complete', [
+                'total_orders' => count($allOrders),
+                'pages_fetched' => $page,
+            ]);
+
+            return $allOrders;
 
         } catch (\Exception $e) {
             Log::error('WooCommerce API orders exception', [
                 'params' => $params,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return null;
@@ -166,19 +225,37 @@ class WooCommerceService
      * @param string $status Order status (pending, processing, completed, etc.)
      * @param int|null $siteId Site ID to filter by (searches in order meta)
      * @param array $params Additional params (after, before, per_page, etc.)
+     * @param bool $filterBySiteId Whether to filter by site_id in meta_data (default: false)
      * @return array|null
      */
-    public function getOrdersByStatus($status, $siteId = null, $params = [])
+    public function getOrdersByStatus($status, $siteId = null, $params = [], $filterBySiteId = false)
     {
         $queryParams = array_merge([
             'status' => $status,
             'per_page' => 100,
         ], $params);
 
+        Log::info('WooCommerce: Fetching orders', [
+            'site_id' => $this->siteId,
+            'status' => $status,
+            'params' => $queryParams,
+            'base_url' => $this->baseUrl,
+        ]);
+
         $orders = $this->getOrders($queryParams);
 
-        // If site ID is provided, filter by meta data
-        if ($siteId !== null && $orders !== null) {
+        Log::info('WooCommerce: Orders fetched', [
+            'site_id' => $this->siteId,
+            'status' => $status,
+            'count_before_filter' => $orders ? count($orders) : 0,
+            'filter_by_site_id' => $filterBySiteId,
+        ]);
+
+        // If site ID is provided AND filterBySiteId is true, filter by meta data
+        // NOTE: In WordPress multisite, each site has its own WooCommerce instance
+        // so filtering by site_id in meta_data is usually NOT needed
+        if ($filterBySiteId && $siteId !== null && $orders !== null) {
+            $originalCount = count($orders);
             $orders = array_filter($orders, function($order) use ($siteId) {
                 foreach ($order['meta_data'] ?? [] as $meta) {
                     if ($meta['key'] === 'site_id' && $meta['value'] == $siteId) {
@@ -187,6 +264,12 @@ class WooCommerceService
                 }
                 return false;
             });
+
+            Log::info('WooCommerce: Orders filtered by site_id', [
+                'site_id' => $siteId,
+                'count_before' => $originalCount,
+                'count_after' => count($orders),
+            ]);
         }
 
         return $orders;
@@ -237,6 +320,233 @@ class WooCommerceService
             'count' => $orders ? count($orders) : 0,
             'revenue' => $this->calculateRevenue($orders),
             'orders' => $orders
+        ];
+    }
+
+    /**
+     * Get pending orders for a site
+     * Note: In WordPress multisite, each site has its own WooCommerce instance
+     * so we don't need to filter by site_id in metadata
+     *
+     * @param int $siteId
+     * @return array|null
+     */
+    public function getPendingOrders($siteId)
+    {
+        // Don't filter by site_id metadata - each site URL is already site-specific
+        $params = [
+            'status' => 'pending',
+            'per_page' => 100,
+        ];
+
+        Log::info('WooCommerce: Fetching pending orders', [
+            'site_id' => $siteId,
+            'params' => $params,
+        ]);
+
+        $orders = $this->getOrders($params, false); // Don't paginate for pending (should be few)
+
+        Log::info('WooCommerce: Pending orders fetched', [
+            'site_id' => $siteId,
+            'count' => $orders ? count($orders) : 0,
+        ]);
+
+        return $orders;
+    }
+
+    /**
+     * Get revenue statistics from WooCommerce Analytics API
+     * Uses the fast wc-analytics/reports/revenue/stats endpoint
+     *
+     * @param string $after Start date (Y-m-d format)
+     * @param string $before End date (Y-m-d format)
+     * @param string $interval Interval (day, week, month, year)
+     * @return array|null ['total_sales' => float, 'orders_count' => int]
+     */
+    public function getRevenueStats($after, $before, $interval = 'day')
+    {
+        try {
+            $url = "{$this->baseUrl}/wp-json/wc-analytics/reports/revenue/stats";
+
+            $params = [
+                'after' => $after . 'T00:00:00',
+                'before' => $before . 'T23:59:59',
+                'interval' => $interval,
+            ];
+
+            Log::info('WooCommerce Analytics: Fetching revenue stats', [
+                'url' => $url,
+                'params' => $params,
+            ]);
+
+            $response = Http::withBasicAuth($this->consumerKey, $this->consumerSecret)
+                ->timeout(15)
+                ->get($url, $params);
+
+            if ($response->successful()) {
+                $data = $response->json();
+                $totals = $data['totals'] ?? [];
+
+                Log::info('WooCommerce Analytics: Revenue stats fetched', [
+                    'total_sales' => $totals['total_sales'] ?? 0,
+                    'orders_count' => $totals['orders_count'] ?? 0,
+                ]);
+
+                return [
+                    'total_sales' => floatval($totals['total_sales'] ?? 0),
+                    'orders_count' => intval($totals['orders_count'] ?? 0),
+                    'net_revenue' => floatval($totals['net_revenue'] ?? 0),
+                ];
+            }
+
+            Log::warning('WooCommerce Analytics API failed, will use fallback', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+
+            // Fallback to manual calculation
+            return $this->getRevenueStatsFallback($after, $before);
+
+        } catch (\Exception $e) {
+            Log::error('WooCommerce Analytics exception, using fallback', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return $this->getRevenueStatsFallback($after, $before);
+        }
+    }
+
+    /**
+     * Fallback method: Calculate revenue stats manually from orders
+     *
+     * @param string $after Start date (Y-m-d format)
+     * @param string $before End date (Y-m-d format)
+     * @return array|null
+     */
+    private function getRevenueStatsFallback($after, $before)
+    {
+        Log::info('WooCommerce: Using fallback method for revenue stats');
+
+        $params = [
+            'status' => 'completed',
+            'after' => $after . 'T00:00:00',
+            'before' => $before . 'T23:59:59',
+            'per_page' => 100,
+        ];
+
+        $orders = $this->getOrders($params, true);
+
+        if ($orders === null) {
+            return null;
+        }
+
+        $totalSales = 0;
+        foreach ($orders as $order) {
+            $totalSales += floatval($order['total'] ?? 0);
+        }
+
+        return [
+            'total_sales' => $totalSales,
+            'orders_count' => count($orders),
+            'net_revenue' => $totalSales,
+        ];
+    }
+
+    /**
+     * Get comprehensive statistics for a site
+     * Uses WooCommerce Analytics API for fast performance
+     *
+     * @param int $siteId
+     * @return array
+     */
+    public function getSiteStatistics($siteId)
+    {
+        $now = now();
+
+        // Current year
+        $yearStart = $now->copy()->startOfYear()->format('Y-m-d');
+        $yearEnd = $now->format('Y-m-d');
+
+        // Current month
+        $monthStart = $now->copy()->startOfMonth()->format('Y-m-d');
+        $monthEnd = $now->format('Y-m-d');
+
+        // Previous year (same period)
+        $prevYearStart = $now->copy()->subYear()->startOfYear()->format('Y-m-d');
+        $prevYearEnd = $now->copy()->subYear()->format('Y-m-d');
+
+        // Previous month (full month)
+        $prevMonthStart = $now->copy()->subMonth()->startOfMonth()->format('Y-m-d');
+        $prevMonthEnd = $now->copy()->subMonth()->endOfMonth()->format('Y-m-d');
+
+        Log::info('WooCommerce: Fetching site statistics', [
+            'site_id' => $siteId,
+            'year_period' => [$yearStart, $yearEnd],
+            'month_period' => [$monthStart, $monthEnd],
+        ]);
+
+        // Fetch all statistics using Analytics API
+        $yearStats = $this->getRevenueStats($yearStart, $yearEnd);
+        $monthStats = $this->getRevenueStats($monthStart, $monthEnd);
+        $prevYearStats = $this->getRevenueStats($prevYearStart, $prevYearEnd);
+        $prevMonthStats = $this->getRevenueStats($prevMonthStart, $prevMonthEnd);
+
+        // Get pending orders (must use regular API, Analytics doesn't track pending)
+        $pendingOrders = $this->getPendingOrders($siteId);
+        $pendingData = [
+            'count' => $pendingOrders ? count($pendingOrders) : 0,
+            'orders' => $pendingOrders ? array_map(function($order) {
+                return [
+                    'id' => $order['id'] ?? null,
+                    'number' => $order['number'] ?? null,
+                    'total' => $order['total'] ?? null,
+                    'date_created' => $order['date_created'] ?? null,
+                ];
+            }, array_values($pendingOrders)) : []
+        ];
+
+        // Calculate percentage changes
+        $yearChange = $prevYearStats['total_sales'] > 0
+            ? (($yearStats['total_sales'] - $prevYearStats['total_sales']) / $prevYearStats['total_sales']) * 100
+            : ($yearStats['total_sales'] > 0 ? 100 : 0);
+
+        $monthChange = $prevMonthStats['total_sales'] > 0
+            ? (($monthStats['total_sales'] - $prevMonthStats['total_sales']) / $prevMonthStats['total_sales']) * 100
+            : ($monthStats['total_sales'] > 0 ? 100 : 0);
+
+        Log::info('WooCommerce: Statistics calculated', [
+            'year_revenue' => $yearStats['total_sales'],
+            'year_count' => $yearStats['orders_count'],
+            'year_change' => round($yearChange, 2) . '%',
+            'month_revenue' => $monthStats['total_sales'],
+            'month_count' => $monthStats['orders_count'],
+            'month_change' => round($monthChange, 2) . '%',
+            'pending_count' => $pendingData['count'],
+        ]);
+
+        return [
+            'year' => [
+                'count' => $yearStats['orders_count'],
+                'revenue' => $yearStats['total_sales'],
+                'change_percent' => round($yearChange, 2),
+                'change_direction' => $yearChange >= 0 ? 'up' : 'down',
+            ],
+            'month' => [
+                'count' => $monthStats['orders_count'],
+                'revenue' => $monthStats['total_sales'],
+                'change_percent' => round($monthChange, 2),
+                'change_direction' => $monthChange >= 0 ? 'up' : 'down',
+            ],
+            'previous_year' => [
+                'count' => $prevYearStats['orders_count'],
+                'revenue' => $prevYearStats['total_sales'],
+            ],
+            'previous_month' => [
+                'count' => $prevMonthStats['orders_count'],
+                'revenue' => $prevMonthStats['total_sales'],
+            ],
+            'pending' => $pendingData,
+            'fetched_at' => $now->toDateTimeString(),
         ];
     }
 }

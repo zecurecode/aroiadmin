@@ -325,6 +325,11 @@
                         <i class="bi bi-house me-1"></i><span class="d-none d-md-inline">Dashboard</span>
                     </a>
 
+                    <!-- Statistics button -->
+                    <a class="btn btn-outline-light btn-sm me-2" href="{{ route('admin.statistics.index') }}">
+                        <i class="bi bi-bar-chart-fill me-1"></i><span class="d-none d-md-inline">Statistikk</span>
+                    </a>
+
                     <!-- Settings dropdown -->
                     <div class="dropdown me-2">
                         <button class="btn btn-outline-light btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
