@@ -104,10 +104,17 @@ class PublicController extends Controller
 
             // Check for special hours for today
             $specialHours = SpecialHours::where('location_id', $avdeling->Id)
-                ->where('date', '<=', $todayDate)
                 ->where(function($query) use ($todayDate) {
-                    $query->whereNull('end_date')
-                          ->orWhere('end_date', '>=', $todayDate);
+                    // Single day: date must be exactly today AND end_date is NULL
+                    $query->where(function($q) use ($todayDate) {
+                        $q->where('date', $todayDate)
+                          ->whereNull('end_date');
+                    })
+                    // OR period: today is between date and end_date
+                    ->orWhere(function($q) use ($todayDate) {
+                        $q->where('date', '<=', $todayDate)
+                          ->where('end_date', '>=', $todayDate);
+                    });
                 })
                 ->first();
 
@@ -212,10 +219,18 @@ class PublicController extends Controller
                 }
 
                 $daySpecialHours = SpecialHours::where('location_id', $avdeling->Id)
-                    ->where('date', '<=', $dayDate->format('Y-m-d'))
                     ->where(function($query) use ($dayDate) {
-                        $query->whereNull('end_date')
-                              ->orWhere('end_date', '>=', $dayDate->format('Y-m-d'));
+                        $dayDateStr = $dayDate->format('Y-m-d');
+                        // Single day: date must be exactly this day AND end_date is NULL
+                        $query->where(function($q) use ($dayDateStr) {
+                            $q->where('date', $dayDateStr)
+                              ->whereNull('end_date');
+                        })
+                        // OR period: this day is between date and end_date
+                        ->orWhere(function($q) use ($dayDateStr) {
+                            $q->where('date', '<=', $dayDateStr)
+                              ->where('end_date', '>=', $dayDateStr);
+                        });
                     })
                     ->first();
 
