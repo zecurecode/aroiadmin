@@ -1,0 +1,32 @@
+/**
+ * Admin Styling
+ *
+ * @package Multiside_Aroi_Integration
+ */
+
+/* Order meta display */
+.aroi-order-meta {
+    padding: 12px;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-top: 16px;
+}
+
+.aroi-order-meta h3 {
+    margin-top: 0;
+    font-size: 16px;
+    color: #333;
+}
+
+.aroi-order-meta p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.8;
+}
+
+.aroi-order-meta strong {
+    color: #555;
+    display: inline-block;
+    min-width: 120px;
+}

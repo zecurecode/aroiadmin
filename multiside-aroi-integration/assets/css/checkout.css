@@ -1,0 +1,106 @@
+/**
+ * Checkout Page Styling
+ *
+ * @package Multiside_Aroi_Integration
+ */
+
+/* Opening status notice */
+.aroi-checkout-notice {
+    margin-bottom: 20px;
+}
+
+.aroi-checkout-notice p {
+    padding: 16px 20px;
+    border-radius: 4px;
+    margin: 0;
+}
+
+.aroi-checkout-notice.closed p {
+    background-color: #ffebee;
+    border-left: 4px solid #f44336;
+    color: #c62828;
+}
+
+.aroi-checkout-notice.open p {
+    background-color: #e8f5e9;
+    border-left: 4px solid #4caf50;
+    color: #2e7d32;
+}
+
+/* Pickup time selector */
+.aroi-pickup-time-field {
+    margin-bottom: 20px;
+    padding: 16px;
+    background-color: #f9f9f9;
+    border-radius: 4px;
+}
+
+.aroi-pickup-time-field label {
+    font-weight: 600;
+    color: #333;
+}
+
+.aroi-pickup-time-field select {
+    width: 100%;
+    padding: 10px;
+    font-size: 16px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.delivery-time-info {
+    margin-top: 8px;
+    font-size: 14px;
+    color: #666;
+}
+
+.delivery-time-info strong {
+    color: #2196f3;
+}
+
+/* Opening hours shortcode */
+.aroi-opening-hours {
+    padding: 16px;
+    border-radius: 4px;
+    text-align: center;
+    margin: 20px 0;
+}
+
+.aroi-opening-hours.open {
+    background-color: #e8f5e9;
+    border: 1px solid #4caf50;
+}
+
+.aroi-opening-hours.closed {
+    background-color: #ffebee;
+    border: 1px solid #f44336;
+}
+
+.hours-display {
+    font-size: 18px;
+    margin-bottom: 8px;
+}
+
+.hours-display strong {
+    font-weight: 700;
+    color: #333;
+}
+
+.status-message {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.aroi-opening-hours.open .status-message {
+    color: #2e7d32;
+}
+
+.aroi-opening-hours.closed .status-message {
+    color: #c62828;
+}
+
+/* Delivery time display */
+.aroi-delivery-time {
+    font-weight: 700;
+    color: #2196f3;
+}

@@ -1,0 +1,14 @@
+div {
+  width: 100%;
+  height: 200px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: black;
+}
+
+text {
+font-family: Arial;
+	color: white;
+	font-size:40px;
+}

@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+  <link rel="stylesheet" href="style.css">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+ <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+<link rel="stylesheet" type="text/css" href="css/bootstrap-material-design.min.css">
+<link rel="stylesheet" type="text/css" href="css/ripples.min.css">
+</head>
+
+<body>
+
+ <div>
+   <text>Hungry Eyes AS</text>
+</div>
+ <div class="m-4 pb-5 bg-success">
+              <h2> LEVERINGSTID   </h2>
+            </div>
+<div class="p-5 bg-success">
+		
+
+		<form method="post" action="insert.php">
+			<table class= "table table-bordered table-sm">
+								
+           <thead>
+				<tr class="table-danger">
+				
+					<th scope='col'>RETT SKU</th>
+					<th scope='col'>RETT NAVN</th>
+					<th scope='col'>LEVERINGSTID</th>
+				
+				
+				</tr>
+			  </thead>
+  <tbody>
+				<tr>
+					
+					<td><input type="text" name="rettid" /></td>
+					<td><input type="text" name="rettnavn" /></td>
+					<td><input type="text" name="leveringstid" /></td>
+							<td><button type="submit" class="btn btn-success"name="regTid">Lagre</button></td>
+			
+				</tr>
+	   </tbody>
+		</table>
+
+			</form>
+			</div>
+			 <div class="m-4 pb-5 bg-danger">
+      
+			  
+				 <input type="button" class="btn btn-danger btn-lg" value="Vis ordre" onclick=" relocate_home()">
+
+<script>
+function relocate_home()
+{
+     location.href = "/ordre.php";
+} 
+</script>
+				 </div>
+
+
+</body>
+</html>
