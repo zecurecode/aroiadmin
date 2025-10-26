@@ -64,10 +64,16 @@ class Multiside_Aroi_Integration {
      * Load required files
      */
     private function load_dependencies() {
+        // Core classes (order matters - database first, then config)
         require_once MULTISIDE_AROI_PLUGIN_DIR . 'includes/class-database.php';
+        require_once MULTISIDE_AROI_PLUGIN_DIR . 'includes/class-site-config.php';  // DYNAMIC configuration from database
+
+        // Service classes (depends on site-config)
         require_once MULTISIDE_AROI_PLUGIN_DIR . 'includes/class-sms-service.php';
         require_once MULTISIDE_AROI_PLUGIN_DIR . 'includes/class-pckasse-service.php';
         require_once MULTISIDE_AROI_PLUGIN_DIR . 'includes/class-opening-hours.php';
+
+        // Handler classes
         require_once MULTISIDE_AROI_PLUGIN_DIR . 'includes/class-order-handler.php';
         require_once MULTISIDE_AROI_PLUGIN_DIR . 'includes/class-department-cards.php';
         require_once MULTISIDE_AROI_PLUGIN_DIR . 'includes/class-checkout-manager.php';
@@ -86,8 +92,14 @@ class Multiside_Aroi_Integration {
         // Check for WooCommerce
         add_action('admin_notices', array($this, 'check_woocommerce'));
 
+        // Check dynamic configuration
+        add_action('admin_notices', array($this, 'check_configuration'));
+
         // Register shortcodes
         add_action('init', array($this, 'register_shortcodes'));
+
+        // Admin menu for configuration validator
+        add_action('admin_menu', array($this, 'add_admin_menu'));
 
         // Initialize order handler
         Multiside_Aroi_Order_Handler::get_instance();
@@ -142,6 +154,178 @@ class Multiside_Aroi_Integration {
         if (!class_exists('WooCommerce')) {
             echo '<div class="error"><p><strong>MultiSide Aroi Integration</strong> requires WooCommerce to be installed and active.</p></div>';
         }
+    }
+
+    /**
+     * Check dynamic configuration
+     */
+    public function check_configuration() {
+        // Only show on relevant admin pages
+        $screen = get_current_screen();
+        if (!$screen || !in_array($screen->base, array('dashboard', 'plugins', 'toplevel_page_multiside-aroi-config'))) {
+            return;
+        }
+
+        $validation = Multiside_Aroi_Site_Config::validate_config();
+
+        // Show errors
+        if (!empty($validation['errors'])) {
+            echo '<div class="error"><p><strong>MultiSide Aroi Integration - Configuration Errors:</strong></p><ul>';
+            foreach ($validation['errors'] as $error) {
+                echo '<li>' . esc_html($error) . '</li>';
+            }
+            echo '</ul></div>';
+        }
+
+        // Show warnings
+        if (!empty($validation['warnings'])) {
+            echo '<div class="notice notice-warning"><p><strong>MultiSide Aroi Integration - Warnings:</strong></p><ul>';
+            foreach ($validation['warnings'] as $warning) {
+                echo '<li>' . esc_html($warning) . '</li>';
+            }
+            echo '</ul></div>';
+        }
+
+        // Show success if valid
+        if ($validation['valid'] && empty($validation['warnings'])) {
+            $config = $validation['config'];
+            echo '<div class="notice notice-success is-dismissible"><p>';
+            echo '<strong>MultiSide Aroi Integration:</strong> ';
+            echo sprintf(
+                'Konfigurert for %s (Site ID: %d, License: %s)',
+                esc_html($config['location_name']),
+                $config['site_id'],
+                $config['pckasse_license'] ? $config['pckasse_license'] : 'N/A'
+            );
+            echo '</p></div>';
+        }
+    }
+
+    /**
+     * Add admin menu
+     */
+    public function add_admin_menu() {
+        add_menu_page(
+            'Aroi Configuration',
+            'Aroi Config',
+            'manage_options',
+            'multiside-aroi-config',
+            array($this, 'render_config_page'),
+            'dashicons-admin-settings',
+            80
+        );
+    }
+
+    /**
+     * Render configuration page
+     */
+    public function render_config_page() {
+        $validation = Multiside_Aroi_Site_Config::validate_config();
+        $config = $validation['config'];
+
+        ?>
+        <div class="wrap">
+            <h1>MultiSide Aroi Integration - Configuration</h1>
+
+            <div class="card" style="max-width: 800px;">
+                <h2>Dynamic Configuration Status</h2>
+
+                <?php if ($validation['valid']): ?>
+                    <div class="notice notice-success inline"><p><strong>✅ Configuration is valid!</strong></p></div>
+                <?php else: ?>
+                    <div class="notice notice-error inline"><p><strong>❌ Configuration has errors</strong></p></div>
+                <?php endif; ?>
+
+                <table class="form-table">
+                    <tr>
+                        <th>Site ID</th>
+                        <td><strong><?php echo esc_html($config['site_id'] ? $config['site_id'] : 'NOT DETECTED'); ?></strong></td>
+                    </tr>
+                    <tr>
+                        <th>Location Name</th>
+                        <td><?php echo esc_html($config['location_name']); ?></td>
+                    </tr>
+                    <tr>
+                        <th>PCKasse License</th>
+                        <td><strong><?php echo esc_html($config['pckasse_license'] ? $config['pckasse_license'] : 'NOT CONFIGURED'); ?></strong></td>
+                    </tr>
+                    <tr>
+                        <th>Delivery Time</th>
+                        <td><?php echo esc_html($config['delivery_time']); ?> minutes</td>
+                    </tr>
+                    <tr>
+                        <th>SMS Sender</th>
+                        <td><?php echo esc_html($config['sms_sender']); ?></td>
+                    </tr>
+                    <tr>
+                        <th>SMS Username</th>
+                        <td><?php echo esc_html($config['sms_credentials']['username'] ? '✓ Configured' : '❌ Missing'); ?></td>
+                    </tr>
+                    <tr>
+                        <th>SMS API URL</th>
+                        <td><?php echo esc_html($config['sms_credentials']['url']); ?></td>
+                    </tr>
+                </table>
+
+                <?php if (!empty($validation['errors'])): ?>
+                    <h3>Errors</h3>
+                    <ul style="color: red;">
+                        <?php foreach ($validation['errors'] as $error): ?>
+                            <li><?php echo esc_html($error); ?></li>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php endif; ?>
+
+                <?php if (!empty($validation['warnings'])): ?>
+                    <h3>Warnings</h3>
+                    <ul style="color: orange;">
+                        <?php foreach ($validation['warnings'] as $warning): ?>
+                            <li><?php echo esc_html($warning); ?></li>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php endif; ?>
+
+                <h3>Detection Method</h3>
+                <p>
+                    <?php if (is_multisite()): ?>
+                        <strong>WordPress Multisite:</strong> Site ID detected automatically from Blog ID (<?php echo get_current_blog_id(); ?>)
+                    <?php else: ?>
+                        <strong>Single Site:</strong> Site ID detected from database or URL matching
+                    <?php endif; ?>
+                </p>
+
+                <h3>All Sites in Database</h3>
+                <?php
+                $all_sites = Multiside_Aroi_Site_Config::get_all_site_ids();
+                if (!empty($all_sites)): ?>
+                    <table class="wp-list-table widefat fixed striped">
+                        <thead>
+                            <tr>
+                                <th>Site ID</th>
+                                <th>Location Name</th>
+                                <th>PCKasse License</th>
+                                <th>Delivery Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($all_sites as $sid): ?>
+                                <tr>
+                                    <td><?php echo esc_html($sid); ?></td>
+                                    <td><?php echo esc_html(Multiside_Aroi_Site_Config::get_location_name($sid)); ?></td>
+                                    <td><?php echo esc_html(Multiside_Aroi_Site_Config::get_pckasse_license($sid) ?: 'N/A'); ?></td>
+                                    <td><?php echo esc_html(Multiside_Aroi_Site_Config::get_delivery_time($sid)); ?> min</td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                <?php endif; ?>
+
+                <p style="margin-top: 20px;">
+                    <em>All configuration is loaded dynamically from the admin_aroi database. No hardcoded values!</em>
+                </p>
+            </div>
+        </div>
+        <?php
     }
 
     /**

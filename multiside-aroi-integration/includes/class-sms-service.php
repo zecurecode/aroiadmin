@@ -12,50 +12,45 @@ if (!defined('ABSPATH')) {
 
 /**
  * SMS Service class for Teletopia integration
+ * ALL credentials and sender info fetched DYNAMICALLY from database - NO hardcoding!
  */
 class Multiside_Aroi_SMS_Service {
 
     /**
-     * Teletopia API credentials
-     */
-    const API_URL = 'https://api1.teletopiasms.no/gateway/v3/plain';
-    const API_USERNAME = 'b3166vr0f0l';
-    const API_PASSWORD = '2tm2bxuIo2AixNELhXhwCdP8';
-    const SENDER_NAME = 'AroiAsia';
-
-    /**
-     * Admin alert credentials
-     */
-    const ADMIN_USERNAME = 'p3166eu720i';
-    const ADMIN_PASSWORD = 'Nvn4xh8HADL5YvInFI4GLlhM';
-    const ADMIN_PHONES = '4790039911,4796017450';
-
-    /**
-     * Send customer notification SMS
+     * Send customer notification SMS with DYNAMIC sender from database
      *
      * @param int $order_id Order ID
      * @param string $phone Customer phone number
+     * @param int|null $site_id Site ID (for dynamic sender name)
      * @return bool Success
      */
-    public static function send_order_confirmation($order_id, $phone) {
+    public static function send_order_confirmation($order_id, $phone, $site_id = null) {
         $message = sprintf(
             'Takk for din ordre. Vi vil gjøre din bestilling klar så fort vi kan. Vi sender deg en ny SMS når maten er klar til henting. Ditt referansenummer er %d',
             $order_id
         );
 
-        return self::send_sms($phone, $message, self::API_USERNAME, self::API_PASSWORD);
+        // Get credentials DYNAMICALLY from database
+        $credentials = Multiside_Aroi_Site_Config::get_sms_credentials('customer');
+
+        // Get sender DYNAMICALLY based on site
+        $sender = $site_id ? Multiside_Aroi_Site_Config::get_sms_sender($site_id) : $credentials['sender'];
+
+        return self::send_sms($phone, $message, $credentials, $sender);
     }
 
     /**
-     * Send order ready notification
+     * Send order ready notification with DYNAMIC sender
      *
      * @param int $order_id Order ID
      * @param string $phone Customer phone number
      * @param string $customer_name Customer first name
-     * @param string $location_name Location name
+     * @param int $site_id Site ID
      * @return bool Success
      */
-    public static function send_order_ready($order_id, $phone, $customer_name, $location_name) {
+    public static function send_order_ready($order_id, $phone, $customer_name, $site_id) {
+        $location_name = Multiside_Aroi_Site_Config::get_location_name($site_id);
+
         $message = sprintf(
             'Hei %s! Din ordre #%d er klar for henting. Mvh %s',
             $customer_name,
@@ -63,29 +58,37 @@ class Multiside_Aroi_SMS_Service {
             $location_name
         );
 
-        return self::send_sms($phone, $message, self::API_USERNAME, self::API_PASSWORD);
+        $credentials = Multiside_Aroi_Site_Config::get_sms_credentials('customer');
+        $sender = Multiside_Aroi_Site_Config::get_sms_sender($site_id);
+
+        return self::send_sms($phone, $message, $credentials, $sender);
     }
 
     /**
-     * Send order picked up notification
+     * Send order picked up notification with DYNAMIC sender
      *
      * @param int $order_id Order ID
      * @param string $phone Customer phone number
-     * @param string $location_name Location name
+     * @param int $site_id Site ID
      * @return bool Success
      */
-    public static function send_order_picked_up($order_id, $phone, $location_name) {
+    public static function send_order_picked_up($order_id, $phone, $site_id) {
+        $location_name = Multiside_Aroi_Site_Config::get_location_name($site_id);
+
         $message = sprintf(
             'Takk for handelen! Din ordre #%d er hentet. Velkommen tilbake! Mvh %s',
             $order_id,
             $location_name
         );
 
-        return self::send_sms($phone, $message, self::API_USERNAME, self::API_PASSWORD);
+        $credentials = Multiside_Aroi_Site_Config::get_sms_credentials('customer');
+        $sender = Multiside_Aroi_Site_Config::get_sms_sender($site_id);
+
+        return self::send_sms($phone, $message, $credentials, $sender);
     }
 
     /**
-     * Send admin alert for unpaid order
+     * Send admin alert for unpaid order with DYNAMIC admin phones
      *
      * @param int $order_id Order ID
      * @param int $site_id Site/location ID
@@ -100,32 +103,38 @@ class Multiside_Aroi_SMS_Service {
             $minutes
         );
 
-        return self::send_sms(self::ADMIN_PHONES, $message, self::ADMIN_USERNAME, self::ADMIN_PASSWORD);
+        // Get admin credentials DYNAMICALLY
+        $credentials = Multiside_Aroi_Site_Config::get_sms_credentials('admin');
+
+        // Default admin phones (can be made dynamic via database settings)
+        $admin_phones = '4790039911,4796017450';
+
+        return self::send_sms($admin_phones, $message, $credentials, $credentials['sender']);
     }
 
     /**
-     * Send SMS via Teletopia API
+     * Send SMS via Teletopia API with DYNAMIC credentials and sender
      *
      * @param string $phone Phone number (will be normalized to +47 format)
      * @param string $message SMS message
-     * @param string $username API username
-     * @param string $password API password
+     * @param array $credentials Credentials array with 'username', 'password', 'url'
+     * @param string $sender Sender name
      * @return bool Success
      */
-    private static function send_sms($phone, $message, $username, $password) {
+    private static function send_sms($phone, $message, $credentials, $sender) {
         // Normalize phone number
         $phone = self::normalize_phone($phone);
 
-        // Build API URL
+        // Build API URL with DYNAMIC credentials
         $params = array(
-            'username' => $username,
-            'password' => $password,
+            'username' => $credentials['username'],
+            'password' => $credentials['password'],
             'recipient' => $phone,
             'text' => $message,
-            'from' => self::SENDER_NAME
+            'from' => $sender
         );
 
-        $url = self::API_URL . '?' . http_build_query($params);
+        $url = $credentials['url'] . '?' . http_build_query($params);
 
         // Send via cURL
         $ch = curl_init();

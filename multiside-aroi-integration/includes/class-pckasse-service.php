@@ -12,6 +12,7 @@ if (!defined('ABSPATH')) {
 
 /**
  * PCKasse service class for POS integration
+ * ALL configuration is fetched DYNAMICALLY from database - NO hardcoding!
  */
 class Multiside_Aroi_PCKasse_Service {
 
@@ -21,29 +22,15 @@ class Multiside_Aroi_PCKasse_Service {
     const API_BASE_URL = 'https://min.pckasse.no/QueueGetOrders.aspx';
 
     /**
-     * License mapping by site ID
-     */
-    private static $license_map = array(
-        7  => 6714,   // Namsos
-        4  => 12381,  // Lade
-        6  => 5203,   // Moan
-        5  => 6715,   // Gramyra
-        10 => 14780,  // Frosta
-        11 => null,   // Hell (no license)
-        12 => 30221,  // Steinkjer
-        13 => 30221,  // Steinkjer (legacy ID)
-        15 => 14946,  // Malvik
-    );
-
-    /**
      * Send order to PCKasse POS system
+     * License is fetched DYNAMICALLY from database based on site_id
      *
      * @param int $site_id Site/location ID
      * @return array Response with 'success' and 'http_code'
      */
     public static function send_order($site_id) {
-        // Get license for site
-        $license = self::get_license($site_id);
+        // Get license DYNAMICALLY from database
+        $license = Multiside_Aroi_Site_Config::get_pckasse_license($site_id);
 
         if (!$license) {
             error_log(sprintf(
@@ -100,50 +87,23 @@ class Multiside_Aroi_PCKasse_Service {
     }
 
     /**
-     * Get PCKasse license for site
+     * Get PCKasse license for site (DYNAMIC - delegates to Site_Config)
      *
      * @param int $site_id Site/location ID
      * @return int|null License number or null
      */
     public static function get_license($site_id) {
-        if (isset(self::$license_map[$site_id])) {
-            return self::$license_map[$site_id];
-        }
-
-        // Try to get from database (users table)
-        $sql = sprintf(
-            "SELECT license FROM users WHERE siteid = %d LIMIT 1",
-            intval($site_id)
-        );
-
-        $result = Multiside_Aroi_Database::query($sql);
-        if ($result && $row = mysqli_fetch_assoc($result)) {
-            return intval($row['license']);
-        }
-
-        return null;
+        return Multiside_Aroi_Site_Config::get_pckasse_license($site_id);
     }
 
     /**
-     * Get location name by site ID
+     * Get location name by site ID (DYNAMIC - delegates to Site_Config)
      *
      * @param int $site_id Site/location ID
      * @return string Location name
      */
     public static function get_location_name($site_id) {
-        $names = array(
-            7  => 'Namsos',
-            4  => 'Lade',
-            6  => 'Moan',
-            5  => 'Gramyra',
-            10 => 'Frosta',
-            11 => 'Hell',
-            12 => 'Steinkjer',
-            13 => 'Steinkjer',
-            15 => 'Malvik',
-        );
-
-        return isset($names[$site_id]) ? $names[$site_id] : 'Unknown';
+        return Multiside_Aroi_Site_Config::get_location_name($site_id);
     }
 
     /**

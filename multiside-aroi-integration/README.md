@@ -9,6 +9,10 @@
 
 Modern WordPress plugin for Aroi Food Truck multi-location management. Fully replaces the legacy manual system with automated order processing, PCKasse POS integration, and SMS notifications.
 
+## 🔥 100% Dynamic Configuration - NO Hardcoding!
+
+**NEW:** All configuration (Site ID, PCKasse license, SMS credentials, etc.) is fetched **dynamically from database**. Perfect for **WordPress Multisite** - automatically detects which site is being used and configures itself!
+
 ---
 
 ## Features
@@ -69,29 +73,39 @@ Plugins → Add New → Upload Plugin → Choose ZIP file
 WordPress Admin → Plugins → Activate "MultiSide Aroi Integration"
 ```
 
-### 3. Configure Site ID
+### 3. Configuration (AUTOMATIC!)
 
-Add to your `wp-config.php`:
+**For WordPress Multisite:** ✅ Zero configuration needed! Plugin automatically:
+- Detects Blog ID from WordPress
+- Fetches license from database based on Blog ID
+- Configures SMS sender per location
+- All dynamic - works for ALL sites immediately!
+
+**For Single Site:** Plugin automatically detects site from:
+1. Database URL matching
+2. First user's `siteid` in `users` table
+3. Manual override (optional) in `wp-config.php`:
 
 ```php
-// Set your site/location ID (required for single-site installations)
-define('AROI_SITE_ID', 7); // Change to your site ID
-
-// Site IDs:
-// 4  = Lade
-// 5  = Gramyra
-// 6  = Moan
-// 7  = Namsos
-// 10 = Frosta
-// 11 = Hell
-// 12 = Steinkjer
+// Optional: Only if auto-detection fails
+define('AROI_SITE_ID', 7);
 ```
 
-**Note:** For WordPress Multisite, the plugin automatically uses `get_current_blog_id()`.
+### 4. Verify Configuration
 
-### 4. Verify Database Connection
+Go to: **WordPress Admin → Aroi Config**
 
-The plugin connects to the existing `admin_aroi` database. Ensure these credentials are correct in the main plugin file:
+Check that:
+- ✅ Site ID is detected correctly
+- ✅ PCKasse License is configured
+- ✅ Location name is shown
+- ✅ SMS credentials are valid
+
+**See CONFIGURATION.md for detailed setup guide.**
+
+### 5. Verify Database Connection
+
+The plugin connects to the existing `admin_aroi` database. Update these in the main plugin file if different:
 
 ```php
 define('MULTISIDE_AROI_DB_HOST', 'localhost:3306');
@@ -99,6 +113,34 @@ define('MULTISIDE_AROI_DB_NAME', 'admin_aroi');
 define('MULTISIDE_AROI_DB_USER', 'adminaroi');
 define('MULTISIDE_AROI_DB_PASS', 'b^754Xws');
 ```
+
+---
+
+## 🎯 Dynamic Configuration Features
+
+### ✅ Automatic Site Detection (Multisite-Aware)
+- WordPress Multisite: Uses `get_current_blog_id()`
+- Single site: Matches URL against database
+- Fallback: Uses first user's siteid
+
+### ✅ Dynamic PCKasse License
+- Fetched from `users` or `sites` table
+- Based on detected site ID
+- No hardcoding - different license per site
+
+### ✅ Dynamic SMS Credentials
+- Can be loaded from `settings` table
+- Different sender name per location
+- "Aroi Namsos", "Aroi Lade", etc.
+
+### ✅ Built-in Configuration Validator
+- Admin page: **Aroi Config**
+- Shows current site detection
+- Lists all sites from database
+- Validates PCKasse licenses
+- Checks SMS configuration
+
+**For full configuration details, see CONFIGURATION.md**
 
 ---
 

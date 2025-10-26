@@ -59,8 +59,13 @@ class Multiside_Aroi_Order_Handler {
             return;
         }
 
-        // Get site ID from current blog or meta
-        $site_id = $this->get_site_id();
+        // Get site ID DYNAMICALLY (multisite-aware)
+        $site_id = Multiside_Aroi_Site_Config::get_current_site_id();
+
+        if (!$site_id) {
+            error_log('MultiSide Aroi: ERROR - Cannot create order, site ID not detected');
+            return;
+        }
 
         // Extract order data
         $data = array(
@@ -125,8 +130,15 @@ class Multiside_Aroi_Order_Handler {
             $order_id
         ));
 
-        // Get site ID
-        $site_id = $this->get_site_id();
+        // Get site ID DYNAMICALLY (multisite-aware)
+        $site_id = Multiside_Aroi_Site_Config::get_current_site_id();
+
+        if (!$site_id) {
+            error_log('MultiSide Aroi: ERROR - Cannot process payment, site ID not detected');
+            return;
+        }
+
+        $location_name = Multiside_Aroi_Site_Config::get_location_name($site_id);
 
         // Update order as PAID in database
         $updated = Multiside_Aroi_Database::update(
@@ -176,13 +188,14 @@ class Multiside_Aroi_Order_Handler {
             // Don't return - still send SMS to customer
         }
 
-        // STEP 2: Send SMS to customer (REQUIRED!)
+        // STEP 2: Send SMS to customer (REQUIRED!) with DYNAMIC sender
         $order_data = $this->get_order_from_db($order_id, $site_id);
 
         if ($order_data && $order_data['telefon']) {
             $sms_sent = Multiside_Aroi_SMS_Service::send_order_confirmation(
                 $order_id,
-                $order_data['telefon']
+                $order_data['telefon'],
+                $site_id  // Pass site_id for dynamic sender
             );
 
             if ($sms_sent) {
@@ -242,25 +255,13 @@ class Multiside_Aroi_Order_Handler {
     }
 
     /**
-     * Get current site ID
+     * Get current site ID (DEPRECATED - use Multiside_Aroi_Site_Config::get_current_site_id())
      *
      * @return int Site ID
+     * @deprecated 2.0.0 Use Multiside_Aroi_Site_Config::get_current_site_id()
      */
     private function get_site_id() {
-        // For multisite, use blog ID
-        if (is_multisite()) {
-            return get_current_blog_id();
-        }
-
-        // For single site, try to determine from URL or settings
-        // You can set this via a constant in wp-config.php:
-        // define('AROI_SITE_ID', 7);
-        if (defined('AROI_SITE_ID')) {
-            return AROI_SITE_ID;
-        }
-
-        // Default to 7 (Namsos) if not specified
-        return 7;
+        return Multiside_Aroi_Site_Config::get_current_site_id();
     }
 
     /**
@@ -303,18 +304,23 @@ class Multiside_Aroi_Order_Handler {
      */
     public function display_order_meta($order) {
         $order_id = $order->get_id();
-        $site_id = $this->get_site_id();
+        $site_id = Multiside_Aroi_Site_Config::get_current_site_id();
         $order_data = $this->get_order_from_db($order_id, $site_id);
 
         if (!$order_data) {
             return;
         }
 
+        $location_name = Multiside_Aroi_Site_Config::get_location_name($site_id);
+        $pckasse_license = Multiside_Aroi_Site_Config::get_pckasse_license($site_id);
+
         ?>
         <div class="aroi-order-meta">
             <h3>Aroi Order Status</h3>
             <p>
-                <strong>Site:</strong> <?php echo esc_html(Multiside_Aroi_PCKasse_Service::get_location_name($site_id)); ?><br>
+                <strong>Site ID:</strong> <?php echo esc_html($site_id); ?><br>
+                <strong>Location:</strong> <?php echo esc_html($location_name); ?><br>
+                <strong>PCKasse License:</strong> <?php echo esc_html($pckasse_license ? $pckasse_license : 'Not configured'); ?><br>
                 <strong>Paid:</strong> <?php echo $order_data['paid'] ? 'Yes' : 'No'; ?><br>
                 <strong>PCKasse Status:</strong> <?php echo $order_data['curl'] ? 'Sent (' . $order_data['curl'] . ')' : 'Not sent'; ?><br>
                 <strong>SMS Sent:</strong> <?php echo $order_data['sms'] ? 'Yes' : 'No'; ?><br>
