@@ -37,6 +37,9 @@ class Multiside_Aroi_Order_Handler {
         // Hook into WooCommerce order creation
         add_action('woocommerce_new_order', array($this, 'on_order_created'), 1, 1);
 
+        // Hook into checkout meta update to capture pickup time (runs AFTER checkout fields are saved)
+        add_action('woocommerce_checkout_update_order_meta', array($this, 'update_pickup_time_in_db'), 20, 1);
+
         // Hook into payment completion - CRITICAL: This triggers PCKasse and SMS
         add_action('woocommerce_payment_complete', array($this, 'on_payment_complete'), 1, 1);
 
@@ -85,11 +88,54 @@ class Multiside_Aroi_Order_Handler {
             'total_amount' => $order->get_total(),
         );
 
-        // Get pickup time if set
+        // Get pickup time if set - with detailed debugging
         $pickup_time = $order->get_meta('hentes_kl');
+
+        // Also check all meta data to see what's available
+        $all_meta = $order->get_meta_data();
+        $meta_keys = array();
+        foreach ($all_meta as $meta) {
+            $meta_keys[] = $meta->key;
+        }
+
+        error_log(sprintf(
+            'MultiSide Aroi: Order %d meta keys available: %s',
+            $order_id,
+            implode(', ', $meta_keys)
+        ));
+
         if ($pickup_time) {
             $data['hentes'] = $pickup_time;
+            error_log(sprintf(
+                'MultiSide Aroi: Pickup time found for order %d: "%s" (will be saved to hentes column)',
+                $order_id,
+                $pickup_time
+            ));
+        } else {
+            error_log(sprintf(
+                'MultiSide Aroi: WARNING - No pickup time (hentes_kl) found for order %d - checking for _hentes_kl',
+                $order_id
+            ));
+
+            // Try with underscore prefix (WordPress sometimes stores with prefix)
+            $pickup_time_alt = $order->get_meta('_hentes_kl');
+            if ($pickup_time_alt) {
+                $data['hentes'] = $pickup_time_alt;
+                error_log(sprintf(
+                    'MultiSide Aroi: Found pickup time with underscore prefix: "%s"',
+                    $pickup_time_alt
+                ));
+            } else {
+                error_log('MultiSide Aroi: No pickup time found with or without underscore');
+            }
         }
+
+        // Log the data array before insert to verify hentes is included
+        error_log(sprintf(
+            'MultiSide Aroi: About to insert order %d with data: %s',
+            $order_id,
+            json_encode(array_intersect_key($data, array_flip(['ordreid', 'site', 'paid', 'hentes'])))
+        ));
 
         // Insert into orders table
         $insert_id = Multiside_Aroi_Database::insert('orders', $data);
@@ -107,6 +153,62 @@ class Multiside_Aroi_Order_Handler {
             error_log(sprintf(
                 'MultiSide Aroi: Failed to create order in database - WC Order: %d',
                 $order_id
+            ));
+        }
+    }
+
+    /**
+     * Update pickup time in database after checkout meta is saved
+     * This runs AFTER woocommerce_checkout_update_order_meta saves the hentes_kl field
+     *
+     * @param int $order_id WooCommerce order ID
+     */
+    public function update_pickup_time_in_db($order_id) {
+        if (!$order_id) {
+            return;
+        }
+
+        $order = wc_get_order($order_id);
+        if (!$order) {
+            return;
+        }
+
+        // Get site ID
+        $site_id = Multiside_Aroi_Site_Config::get_current_site_id();
+        if (!$site_id) {
+            return;
+        }
+
+        // Get pickup time from order meta (should be available now)
+        $pickup_time = $order->get_meta('hentes_kl');
+
+        if ($pickup_time) {
+            // Update the hentes field in the database
+            $updated = Multiside_Aroi_Database::update(
+                'orders',
+                array('hentes' => $pickup_time),
+                array('ordreid' => $order_id, 'site' => $site_id)
+            );
+
+            if ($updated) {
+                error_log(sprintf(
+                    'MultiSide Aroi: Pickup time updated in DB - Order: %d - Site: %d - Time: %s',
+                    $order_id,
+                    $site_id,
+                    $pickup_time
+                ));
+            } else {
+                error_log(sprintf(
+                    'MultiSide Aroi: Failed to update pickup time in DB - Order: %d - Site: %d',
+                    $order_id,
+                    $site_id
+                ));
+            }
+        } else {
+            error_log(sprintf(
+                'MultiSide Aroi: No pickup time found to update - Order: %d - Site: %d',
+                $order_id,
+                $site_id
             ));
         }
     }
@@ -188,18 +290,29 @@ class Multiside_Aroi_Order_Handler {
             // Don't return - still send SMS to customer
         }
 
-        // STEP 2: Send SMS to customer (REQUIRED!) with DYNAMIC sender
+        // STEP 2: Notify Laravel that order is paid so it can send "order received" SMS
+        $this->notify_laravel_payment_complete($order_id, $site_id);
+
+        error_log(sprintf(
+            'MultiSide Aroi: Laravel notified of payment completion - Order: %d',
+            $order_id
+        ));
+
+        // NOTE: The following SMS code is disabled. Laravel admin now sends:
+        // - "Order received" SMS when order arrives in system
+        // - "Order ready" SMS when status changes to ready for pickup
+
+        /* DISABLED - SMS now handled by Laravel
         $order_data = $this->get_order_from_db($order_id, $site_id);
 
         if ($order_data && $order_data['telefon']) {
             $sms_sent = Multiside_Aroi_SMS_Service::send_order_confirmation(
                 $order_id,
                 $order_data['telefon'],
-                $site_id  // Pass site_id for dynamic sender
+                $site_id
             );
 
             if ($sms_sent) {
-                // Mark SMS as sent
                 Multiside_Aroi_Database::update(
                     'orders',
                     array('sms' => 1),
@@ -224,11 +337,68 @@ class Multiside_Aroi_Order_Handler {
                 $order_id
             ));
         }
+        */
 
         error_log(sprintf(
             'MultiSide Aroi: Payment completion processing COMPLETE for order %d',
             $order_id
         ));
+    }
+
+    /**
+     * Notify Laravel admin that payment is complete
+     * This triggers the "order received" SMS to customer
+     *
+     * @param int $order_id WooCommerce order ID
+     * @param int $site_id Site ID
+     */
+    private function notify_laravel_payment_complete($order_id, $site_id) {
+        // Get Laravel admin URL from settings or use default
+        $laravel_url = defined('AROI_LARAVEL_URL') ? AROI_LARAVEL_URL : 'https://aroi.no';
+        $api_endpoint = $laravel_url . '/api/v1/orders/mark-paid';
+
+        $data = array(
+            'ordreid' => $order_id,
+            'site' => $site_id
+        );
+
+        $response = wp_remote_post($api_endpoint, array(
+            'method' => 'POST',
+            'timeout' => 10,
+            'headers' => array(
+                'Content-Type' => 'application/json',
+            ),
+            'body' => json_encode($data),
+        ));
+
+        if (is_wp_error($response)) {
+            error_log(sprintf(
+                'MultiSide Aroi: Failed to notify Laravel - Order: %d - Error: %s',
+                $order_id,
+                $response->get_error_message()
+            ));
+            return false;
+        }
+
+        $http_code = wp_remote_retrieve_response_code($response);
+        $body = wp_remote_retrieve_body($response);
+
+        if ($http_code === 200) {
+            error_log(sprintf(
+                'MultiSide Aroi: Laravel notified successfully - Order: %d - Response: %s',
+                $order_id,
+                $body
+            ));
+            return true;
+        } else {
+            error_log(sprintf(
+                'MultiSide Aroi: Laravel notification failed - Order: %d - HTTP: %d - Response: %s',
+                $order_id,
+                $http_code,
+                $body
+            ));
+            return false;
+        }
     }
 
     /**

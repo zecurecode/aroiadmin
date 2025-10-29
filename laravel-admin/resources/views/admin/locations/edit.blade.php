@@ -148,8 +148,26 @@
                         </div>
                     </div>
                     
+                    <div class="mb-3">
+                        <label for="delivery_time_minutes" class="form-label">
+                            Leveringstid (minutter): <strong id="delivery-time-display">{{ old('delivery_time_minutes', $location->delivery_time_minutes ?? 30) }}</strong>
+                        </label>
+                        <input type="range" class="form-range @error('delivery_time_minutes') is-invalid @enderror"
+                               id="delivery_time_minutes" name="delivery_time_minutes"
+                               min="10" max="90" step="5"
+                               value="{{ old('delivery_time_minutes', $location->delivery_time_minutes ?? 30) }}">
+                        <div class="d-flex justify-content-between">
+                            <small class="text-muted">10 min</small>
+                            <small class="text-muted">90 min</small>
+                        </div>
+                        <small class="text-muted">Hvor lang tid tar det før bestillingen er klar for henting?</small>
+                        @error('delivery_time_minutes')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+
                     <hr class="my-4">
-                    
+
                     <div class="d-flex justify-content-between">
                         <a href="{{ route('admin.locations.index') }}" class="btn btn-secondary">
                             <i class="fas fa-times me-1"></i>Avbryt
@@ -192,4 +210,13 @@
         </div>
     </div>
 </div>
+
+@push('scripts')
+<script>
+    // Update delivery time display when slider is moved
+    document.getElementById('delivery_time_minutes').addEventListener('input', function(e) {
+        document.getElementById('delivery-time-display').textContent = e.target.value;
+    });
+</script>
+@endpush
 @endsection

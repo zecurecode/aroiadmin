@@ -77,7 +77,11 @@ class OrderController extends Controller
     {
         $user = Auth::user();
         $siteid = $user->siteid;
-        $locationName = Location::getNameBySiteId($siteid);
+
+        // Get location data including delivery time
+        $location = Location::where('site_id', $siteid)->first();
+        $locationName = $location ? $location->name : Location::getNameBySiteId($siteid);
+        $deliveryTime = $location ? $location->delivery_time_minutes : 30;
 
         // Get today's date
         $today = Carbon::today();
@@ -125,7 +129,9 @@ class OrderController extends Controller
             'readyOrders',
             'completedOrders',
             'locationName',
-            'isOpen'
+            'isOpen',
+            'deliveryTime',
+            'location'
         ));
     }
 

@@ -31,6 +31,37 @@
         </div>
     </div>
 
+    <!-- Delivery Time Settings -->
+    <div class="row mb-2">
+        <div class="col-12">
+            <div class="card border-primary">
+                <div class="card-body py-2 px-3">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-clock text-primary me-2"></i>
+                            <span class="fw-bold me-2">Forberedelsestid:</span>
+                            <span class="badge bg-primary px-3 py-1">
+                                <span id="delivery-time-display">{{ $deliveryTime ?? 30 }}</span> min
+                            </span>
+                        </div>
+                        <div class="d-flex align-items-center" style="flex: 0 0 350px;">
+                            <small class="text-muted me-2">10</small>
+                            <input type="range"
+                                   class="form-range"
+                                   id="delivery-time-slider"
+                                   min="10"
+                                   max="90"
+                                   step="5"
+                                   value="{{ $deliveryTime ?? 30 }}"
+                                   style="flex: 1;">
+                            <small class="text-muted ms-2">90</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Order Status Tabs -->
     <ul class="nav nav-tabs mb-3" id="orderTabs" role="tablist">
         <li class="nav-item" role="presentation">
@@ -81,7 +112,9 @@
                                 <div class="card-body">
                                     <h6 class="card-title">{{ $order->fornavn }} {{ $order->etternavn }}</h6>
                                     <p class="mb-1"><i class="fas fa-phone me-1"></i>{{ $order->telefon }}</p>
-                                    <p class="mb-2"><i class="fas fa-clock me-1"></i>Henting: {{ $order->hentetid ?? 'Ikke spesifisert' }}</p>
+                                    @if($order->hentes)
+                                        <p class="mb-2"><i class="fas fa-clock me-1"></i>Henting: <strong>{{ $order->hentes }}</strong></p>
+                                    @endif
 
                                     <!-- Order items preview -->
                                     <div class="order-items mb-3">
@@ -138,14 +171,11 @@
                                 <div class="card-body">
                                     <h6 class="card-title">{{ $order->fornavn }} {{ $order->etternavn }}</h6>
                                     <p class="mb-1"><i class="fas fa-phone me-1"></i>{{ $order->telefon }}</p>
-                                    <p class="mb-2"><i class="fas fa-clock me-1"></i>Henting: {{ $order->hentetid ?? 'Ikke spesifisert' }}</p>
+                                    @if($order->hentes)
+                                        <p class="mb-2"><i class="fas fa-clock me-1"></i>Henting: <strong>{{ $order->hentes }}</strong></p>
+                                    @endif
 
                                     <div class="d-grid gap-2">
-                                        @if(!$order->sms)
-                                            <button class="btn btn-warning" onclick="sendReadySMS({{ $order->id }})">
-                                                <i class="fas fa-sms me-1"></i>SEND SMS
-                                            </button>
-                                        @endif
                                         <button class="btn btn-success" onclick="markOrderCompleted({{ $order->id }})">
                                             <i class="fas fa-check-double me-1"></i>HENTET
                                         </button>
@@ -382,34 +412,6 @@ function markOrderReadySilent(orderId) {
     })
     .catch(error => {
         console.error('Error marking order ready (silent):', error);
-    });
-}
-
-// Send ready SMS
-function sendReadySMS(orderId) {
-    fetch(`/admin/orders/${orderId}/send-sms`, {
-        method: 'POST',
-        credentials: 'same-origin',  // CRITICAL: Send cookies with request
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': getCsrfToken()
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            refreshOrderLists(true);
-        } else {
-            console.error('Feil ved sending av SMS:', data.message);
-        }
-    })
-    .catch(error => {
-        console.error('Error sending SMS:', error);
     });
 }
 
@@ -713,6 +715,62 @@ setInterval(checkNewOrders, 10000);
 // Request notification permission
 if (Notification.permission === "default") {
     Notification.requestPermission();
+}
+
+// Delivery Time Slider Functionality
+const deliveryTimeSlider = document.getElementById('delivery-time-slider');
+const deliveryTimeDisplay = document.getElementById('delivery-time-display');
+let deliveryTimeSaveTimeout;
+
+if (deliveryTimeSlider && deliveryTimeDisplay) {
+    // Update display when slider moves
+    deliveryTimeSlider.addEventListener('input', function(e) {
+        deliveryTimeDisplay.textContent = e.target.value;
+
+        // Clear existing timeout
+        if (deliveryTimeSaveTimeout) {
+            clearTimeout(deliveryTimeSaveTimeout);
+        }
+
+        // Save after 1 second of no movement
+        deliveryTimeSaveTimeout = setTimeout(() => {
+            saveDeliveryTime(e.target.value);
+        }, 1000);
+    });
+}
+
+function saveDeliveryTime(minutes) {
+    fetch('/admin/delivery-time/update', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            delivery_time: parseInt(minutes)
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log('Delivery time updated:', data.delivery_time, 'minutes');
+
+            // Show brief success indicator
+            const badge = deliveryTimeDisplay.parentElement;
+            badge.classList.remove('bg-primary');
+            badge.classList.add('bg-success');
+
+            setTimeout(() => {
+                badge.classList.remove('bg-success');
+                badge.classList.add('bg-primary');
+            }, 1000);
+        } else {
+            console.error('Failed to update delivery time:', data);
+        }
+    })
+    .catch(error => {
+        console.error('Error updating delivery time:', error);
+    });
 }
 </script>
 

@@ -125,6 +125,16 @@
                                 <td>{{ $wooOrder['payment_method_title'] ?? 'Ikke spesifisert' }}</td>
                             </tr>
                             @endif
+                            @if($order->hentes)
+                            <tr>
+                                <th>Hentetid:</th>
+                                <td>
+                                    <span class="badge bg-primary">
+                                        <i class="fas fa-clock me-1"></i>{{ $order->hentes }}
+                                    </span>
+                                </td>
+                            </tr>
+                            @endif
                             <tr>
                                 <th>SMS status:</th>
                                 <td>

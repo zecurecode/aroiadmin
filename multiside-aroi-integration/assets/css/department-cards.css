@@ -92,7 +92,15 @@
 .opening-hours {
     font-size: 14px;
     color: #666;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.opening-hours i {
+    color: #2196f3;
+    font-size: 16px;
 }
 
 .opening-hours strong {
@@ -107,6 +115,73 @@
 .closed-text {
     font-weight: 500;
     color: #f44336;
+}
+
+/* Phone info */
+.phone-info {
+    font-size: 16px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.phone-info i {
+    color: #2196f3;
+    font-size: 18px;
+}
+
+.phone-link {
+    color: #000;
+    font-weight: 600;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.phone-link:hover {
+    color: #2196f3;
+}
+
+/* Map container */
+.map-container {
+    margin-top: 16px;
+    margin-bottom: 16px;
+}
+
+.map-wrapper {
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.map-wrapper iframe {
+    display: block;
+}
+
+.btn-directions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background-color: #2196f3;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    transition: background-color 0.3s ease;
+    border: none;
+    cursor: pointer;
+}
+
+.btn-directions:hover {
+    background-color: #1976d2;
+    color: #fff;
+}
+
+.btn-directions i {
+    font-size: 16px;
 }
 
 /* Card footer */

@@ -20,20 +20,17 @@ class WordPressController extends Controller
     public function getDeliveryTime($siteId)
     {
         $location = Location::where('site_id', $siteId)->first();
-        
+
         if (!$location) {
             return response()->json(['error' => 'Location not found'], 404);
         }
 
-        // Get delivery time from leveringstid table
-        $userId = $this->getUserIdBySiteId($siteId);
-        $deliveryTime = DB::table('leveringstid')
-            ->where('id', $userId)
-            ->value('tid');
+        // Get delivery time from locations table (delivery_time_minutes column)
+        $deliveryTime = $location->delivery_time_minutes ?? 30;
 
         return response()->json([
             'site_id' => $siteId,
-            'delivery_time' => $deliveryTime ?? 30,
+            'delivery_time' => $deliveryTime,
             'location_name' => $location->name
         ]);
     }

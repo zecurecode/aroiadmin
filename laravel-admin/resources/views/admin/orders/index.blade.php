@@ -66,6 +66,7 @@
                                     <th>Telefon</th>
                                     <th>E-post</th>
                                     <th>Tidspunkt</th>
+                                    <th>Hentetid</th>
                                     <th>Status</th>
                                     <th>Handlinger</th>
                                 </tr>
@@ -78,6 +79,13 @@
                                     <td>{{ $order->telefon }}</td>
                                     <td>{{ $order->epost }}</td>
                                     <td>{{ $order->datetime->format('d.m.Y H:i') }}</td>
+                                    <td>
+                                        @if($order->hentes)
+                                            <strong>{{ $order->hentes }}</strong>
+                                        @else
+                                            <span class="text-muted">-</span>
+                                        @endif
+                                    </td>
                                     <td>
                                         <!-- Payment Status -->
                                         @if($order->paid)

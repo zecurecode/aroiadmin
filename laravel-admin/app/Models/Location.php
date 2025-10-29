@@ -20,6 +20,7 @@ class Location extends Model
         'order_url',
         'active',
         'display_order',
+        'delivery_time_minutes',
     ];
 
     protected $casts = [
@@ -27,6 +28,7 @@ class Location extends Model
         'license' => 'integer',
         'active' => 'boolean',
         'display_order' => 'integer',
+        'delivery_time_minutes' => 'integer',
     ];
 
     /**

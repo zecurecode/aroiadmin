@@ -40,6 +40,7 @@ class LocationController extends Controller
             'order_url' => 'nullable|url|max:500',
             'group_name' => 'nullable|string|max:100',
             'display_order' => 'nullable|integer|min:0',
+            'delivery_time_minutes' => 'nullable|integer|min:10|max:90',
             'active' => 'nullable|in:on,1,true,0,false'
         ]);
 
@@ -53,6 +54,7 @@ class LocationController extends Controller
             'order_url' => $request->order_url,
             'group_name' => $request->group_name,
             'display_order' => $request->display_order ?? 0,
+            'delivery_time_minutes' => $request->delivery_time_minutes ?? 30,
             'active' => $request->active == '1' || $request->active === true
         ]);
 
@@ -94,6 +96,7 @@ class LocationController extends Controller
             'order_url' => 'nullable|url|max:500',
             'group_name' => 'nullable|string|max:100',
             'display_order' => 'nullable|integer|min:0',
+            'delivery_time_minutes' => 'nullable|integer|min:10|max:90',
             'active' => 'nullable|in:on,1,true,0,false'
         ]);
 
@@ -106,6 +109,7 @@ class LocationController extends Controller
             'order_url' => $request->order_url,
             'group_name' => $request->group_name,
             'display_order' => $request->display_order ?? 0,
+            'delivery_time_minutes' => $request->delivery_time_minutes ?? 30,
             'active' => $request->active == '1' || $request->active === true
         ]);
 

@@ -92,12 +92,45 @@ class Multiside_Aroi_Checkout_Manager {
      */
     public function display_pickup_time_selector($checkout) {
         $site_id = $this->get_site_id();
+
+        if (!$site_id) {
+            error_log('MultiSide Aroi: Cannot display pickup time - site ID not detected');
+            echo '<p style="color: red;">Feil: Kunne ikke detektere lokasjon. Kontakt support.</p>';
+            return;
+        }
+
         $hours = Multiside_Aroi_Opening_Hours::get_hours($site_id);
         $delivery_time = Multiside_Aroi_Opening_Hours::get_delivery_time($site_id);
         $is_open = Multiside_Aroi_Opening_Hours::is_open_now($site_id);
 
+        // Debug logging with more detail
+        error_log(sprintf(
+            'MultiSide Aroi: Pickup time selector - Site: %d, Hours found: %s, Delivery time: %d minutes, Is open: %s, URL: %s',
+            $site_id,
+            $hours ? 'Yes' : 'No',
+            $delivery_time,
+            $is_open ? 'Yes' : 'No',
+            home_url()
+        ));
+
+        // Additional debug for delivery time source
+        error_log(sprintf(
+            'MultiSide Aroi: CHECKOUT DISPLAY - Site ID: %d should show %d minutes delivery time',
+            $site_id,
+            $delivery_time
+        ));
+
         // Generate time options
         $time_options = $this->generate_pickup_times($hours, $delivery_time, $is_open);
+
+        // Debug if no times generated
+        if (empty($time_options)) {
+            error_log(sprintf(
+                'MultiSide Aroi: WARNING - No pickup times generated for site %d. Hours: %s',
+                $site_id,
+                print_r($hours, true)
+            ));
+        }
 
         ?>
         <div class="aroi-pickup-time-field">
@@ -136,7 +169,20 @@ class Multiside_Aroi_Checkout_Manager {
         $times = array();
 
         if (!$hours) {
-            return $times;
+            error_log('MultiSide Aroi: Cannot generate pickup times - hours data is missing');
+            // Return at least some default times so form is usable
+            return array('10:00', '10:15', '10:30', '10:45', '11:00', '11:15', '11:30', '11:45', '12:00');
+        }
+
+        // Validate hours data
+        if (empty($hours['open_time']) || empty($hours['close_time'])) {
+            error_log(sprintf(
+                'MultiSide Aroi: Invalid hours data - Open: %s, Close: %s',
+                $hours['open_time'] ?? 'NULL',
+                $hours['close_time'] ?? 'NULL'
+            ));
+            // Return default times
+            return array('10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00');
         }
 
         // Parse opening and closing times
@@ -194,6 +240,13 @@ class Multiside_Aroi_Checkout_Manager {
     public function save_pickup_time($order_id) {
         if (isset($_POST['hentes_kl']) && !empty($_POST['hentes_kl'])) {
             $pickup_time = sanitize_text_field($_POST['hentes_kl']);
+
+            // Extract only the time portion (HH:MM format) by removing any text after the time
+            // This handles cases like "14:00 (i morgen)" or "14:00 (tomorrow)"
+            if (preg_match('/^(\d{2}:\d{2})/', $pickup_time, $matches)) {
+                $pickup_time = $matches[1];
+            }
+
             update_post_meta($order_id, 'hentes_kl', $pickup_time);
         }
     }

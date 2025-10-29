@@ -459,29 +459,54 @@ class DashboardController extends Controller
     }
 
     /**
-     * Update delivery time for the user's session.
+     * Update delivery time for the user's location in database.
      */
     public function updateDeliveryTime(Request $request)
     {
         $request->validate([
-            'delivery_time' => 'required|integer|min:15|max:90'
+            'delivery_time' => 'required|integer|min:10|max:90'
         ]);
 
         $deliveryTime = $request->input('delivery_time');
 
-        // Store in session for now - could be expanded to database later
-        session(['delivery_time' => $deliveryTime]);
+        // Get the authenticated user
+        $user = \Illuminate\Support\Facades\Auth::user();
 
-        Log::info('Delivery time updated', [
-            'user_id' => session('id'),
-            'username' => session('username'),
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bruker ikke autentisert'
+            ], 401);
+        }
+
+        // Find the location for this user's site
+        $location = Location::where('site_id', $user->siteid)->first();
+
+        if (!$location) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Finner ikke lokasjon'
+            ], 404);
+        }
+
+        // Update delivery time in database
+        $location->update([
+            'delivery_time_minutes' => $deliveryTime
+        ]);
+
+        Log::info('Delivery time updated in database', [
+            'user_id' => $user->id,
+            'username' => $user->username,
+            'site_id' => $user->siteid,
+            'location_id' => $location->id,
+            'location_name' => $location->name,
             'delivery_time' => $deliveryTime
         ]);
 
         return response()->json([
             'success' => true,
             'delivery_time' => $deliveryTime,
-            'message' => 'Leveringstid oppdatert'
+            'message' => 'Leveringstid oppdatert til ' . $deliveryTime . ' minutter'
         ]);
     }
 }

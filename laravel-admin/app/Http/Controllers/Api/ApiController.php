@@ -56,6 +56,7 @@ class ApiController extends Controller
         $order = Order::where('ordreid', $orderNum)->first();
 
         if (!$order || $order->sms) {
+            \Log::info("Skipping SMS for order {$orderNum} - already sent or not found");
             return; // SMS already sent or order not found
         }
 
@@ -65,25 +66,93 @@ class ApiController extends Controller
             return;
         }
 
-        $message = "Takk for din ordre. Vi vil gjøre din bestilling klar så fort vi kan. Vi sender deg en ny SMS når maten er klar til henting. Ditt referansenummer er {$orderNum}";
+        // Get location name
+        $locationName = \App\Models\Location::getNameBySiteId($order->site);
 
-        $smsUrl = "https://api1.teletopiasms.no/gateway/v3/plain?" . http_build_query([
-            'username' => 'b3166vr0f0l',
-            'password' => '2tm2bxuIo2AixNELhXhwCdP8',
-            'recipient' => $telefon,
-            'text' => $message
+        // Build "order received" message with order ID and location
+        $message = "Hei {$order->fornavn}! Vi har mottatt din ordre #{$order->ordreid}. "
+                 . "Vi vil gjøre bestillingen klar så fort vi kan. "
+                 . "Du får en ny melding når maten er klar til henting. "
+                 . "Mvh {$locationName}";
+
+        // Normalize phone number to +47 format
+        $phoneNormalized = $this->normalizePhoneNumber($telefon);
+
+        // Get SMS credentials from settings
+        $username = \App\Models\Setting::get('sms_api_username', 'b3166vr0f0l');
+        $password = \App\Models\Setting::get('sms_api_password', '2tm2bxuIo2AixNELhXhwCdP8');
+        $apiUrl = \App\Models\Setting::get('sms_api_url', 'https://api1.teletopiasms.no/gateway/v3/plain');
+        $sender = \App\Models\Setting::get('sms_sender', 'AroiAsia');
+
+        $smsUrl = $apiUrl . "?" . http_build_query([
+            'username' => $username,
+            'password' => $password,
+            'recipient' => $phoneNormalized,
+            'text' => $message,
+            'from' => $sender
+        ]);
+
+        \Log::info("Sending 'order received' SMS for order {$orderNum}", [
+            'phone_original' => $telefon,
+            'phone_normalized' => $phoneNormalized,
+            'location' => $locationName,
+            'message' => $message
         ]);
 
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $smsUrl);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
         $output = curl_exec($ch);
         $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
         curl_close($ch);
 
         if ($httpcode == 200) {
             $order->update(['sms' => true]);
+            \Log::info("SMS sent successfully for order {$orderNum}", [
+                'http_code' => $httpcode,
+                'response' => $output
+            ]);
+        } else {
+            \Log::error("Failed to send SMS for order {$orderNum}", [
+                'http_code' => $httpcode,
+                'response' => $output,
+                'curl_error' => $curlError
+            ]);
         }
+    }
+
+    /**
+     * Normalize phone number to +47 format
+     */
+    private function normalizePhoneNumber($phone)
+    {
+        // Remove spaces, dashes, parentheses
+        $phone = preg_replace('/[\s\-\(\)]/', '', $phone);
+
+        // If already starts with +47, return as-is
+        if (strpos($phone, '+47') === 0) {
+            return $phone;
+        }
+
+        // If starts with 0047, replace with +47
+        if (strpos($phone, '0047') === 0) {
+            return '+47' . substr($phone, 4);
+        }
+
+        // If starts with 47 (without +), add +
+        if (strpos($phone, '47') === 0 && strlen($phone) >= 10) {
+            return '+' . $phone;
+        }
+
+        // If 8 digits (Norwegian mobile), prepend +47
+        if (strlen($phone) == 8) {
+            return '+47' . $phone;
+        }
+
+        // Otherwise return as-is
+        return $phone;
     }
 
     /**
@@ -228,6 +297,7 @@ class ApiController extends Controller
             'epost' => 'required|email|max:255',
             'site' => 'required|integer',
             'total_amount' => 'nullable|numeric|min:0',
+            'hentes' => 'nullable|string|max:50',
         ]);
 
         // Fetch total_amount from WooCommerce if not provided
@@ -251,6 +321,7 @@ class ApiController extends Controller
             'sms' => false,
             'datetime' => Carbon::now(),
             'total_amount' => $totalAmount,
+            'hentes' => $validated['hentes'] ?? '',
         ]);
 
         return response()->json([

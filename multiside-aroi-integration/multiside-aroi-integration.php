@@ -3,7 +3,7 @@
  * Plugin Name: MultiSide Aroi Integration
  * Plugin URI: https://infodesk.no
  * Description: Modern WordPress plugin for Aroi Food Truck multi-location management. Integrates WooCommerce orders with Laravel API, PCKasse POS, and SMS notifications.
- * Version: 2.0.0
+ * Version: 2.2.0
  * Author: InfoDesk AS
  * Author URI: https://infodesk.no
  * License: GPL v2 or later
@@ -21,7 +21,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('MULTISIDE_AROI_VERSION', '2.0.0');
+define('MULTISIDE_AROI_VERSION', '2.2.0');
 define('MULTISIDE_AROI_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('MULTISIDE_AROI_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('MULTISIDE_AROI_PLUGIN_FILE', __FILE__);
@@ -31,6 +31,12 @@ define('MULTISIDE_AROI_DB_HOST', 'localhost:3306');
 define('MULTISIDE_AROI_DB_NAME', 'admin_aroi');
 define('MULTISIDE_AROI_DB_USER', 'adminaroi');
 define('MULTISIDE_AROI_DB_PASS', 'b^754Xws');
+
+// Laravel API configuration
+// Set this in wp-config.php to override: define('AROI_LARAVEL_URL', 'https://aroi.no');
+if (!defined('AROI_LARAVEL_URL')) {
+    define('AROI_LARAVEL_URL', 'https://aroi.no');
+}
 
 /**
  * Main Plugin Class

@@ -12,21 +12,9 @@ if (!defined('ABSPATH')) {
 
 /**
  * Opening hours class - Uses _apningstid table
+ * FULLY DYNAMIC - NO hardcoded site mappings!
  */
 class Multiside_Aroi_Opening_Hours {
-
-    /**
-     * Site ID to location mapping for _apningstid table
-     */
-    private static $site_to_avd_map = array(
-        7  => 1,  // Namsos
-        4  => 2,  // Lade
-        6  => 3,  // Moan
-        5  => 4,  // Gramyra
-        10 => 5,  // Frosta
-        11 => 6,  // Hell
-        12 => 7,  // Steinkjer
-    );
 
     /**
      * Day name mapping (Norwegian abbreviations to full names)
@@ -43,17 +31,20 @@ class Multiside_Aroi_Opening_Hours {
 
     /**
      * Get opening hours for a specific site/day from _apningstid table
+     * DYNAMIC - looks up directly in database using site_id = AvdID
      *
-     * @param int $site_id Site ID (4, 5, 6, 7, 10, 11, 12)
+     * @param int $site_id Site ID (matches AvdID in _apningstid)
      * @param string|null $day_abbr Day abbreviation (Man, Tir, etc.) - defaults to today
      * @return array|false Opening hours data or false
      */
     public static function get_hours($site_id, $day_abbr = null) {
-        if (!isset(self::$site_to_avd_map[$site_id])) {
+        if (!$site_id) {
+            error_log('MultiSide Aroi: get_hours called with empty site_id');
             return false;
         }
 
-        $avd_id = self::$site_to_avd_map[$site_id];
+        // Try to use site_id directly as AvdID (most common case)
+        $avd_id = $site_id;
 
         // Default to today if no day specified
         if ($day_abbr === null) {
@@ -65,8 +56,9 @@ class Multiside_Aroi_Opening_Hours {
         $stop_col = $day_abbr . 'Stopp';
         $closed_col = $day_abbr . 'Stengt';
 
+        // Try with site_id as AvdID
         $sql = sprintf(
-            "SELECT %s as open_time, %s as close_time, %s as is_closed, Navn as location_name
+            "SELECT %s as open_time, %s as close_time, %s as is_closed, Navn as location_name, AvdID
              FROM _apningstid
              WHERE AvdID = %d
              LIMIT 1",
@@ -78,11 +70,35 @@ class Multiside_Aroi_Opening_Hours {
 
         $result = Multiside_Aroi_Database::query($sql);
 
+        // If not found, try to find by matching in any way
         if (!$result || mysqli_num_rows($result) === 0) {
+            error_log(sprintf('MultiSide Aroi: No opening hours found for site_id %d (tried AvdID = %d)', $site_id, $avd_id));
+
+            // Try to find ANY entry and log what's available
+            $debug_sql = "SELECT AvdID, Navn FROM _apningstid";
+            $debug_result = Multiside_Aroi_Database::query($debug_sql);
+            if ($debug_result) {
+                $available = array();
+                while ($row = mysqli_fetch_assoc($debug_result)) {
+                    $available[] = sprintf('AvdID=%d (%s)', $row['AvdID'], $row['Navn']);
+                }
+                error_log('MultiSide Aroi: Available in _apningstid: ' . implode(', ', $available));
+            }
+
             return false;
         }
 
         $row = mysqli_fetch_assoc($result);
+
+        error_log(sprintf(
+            'MultiSide Aroi: Opening hours loaded - Site: %d, Location: %s, Day: %s, Open: %s-%s, Closed: %d',
+            $site_id,
+            $row['location_name'],
+            $day_abbr,
+            $row['open_time'],
+            $row['close_time'],
+            $row['is_closed']
+        ));
 
         return array(
             'site_id' => $site_id,
@@ -168,19 +184,43 @@ class Multiside_Aroi_Opening_Hours {
      * @return int Delivery time in minutes (default 30)
      */
     public static function get_delivery_time($site_id) {
-        // Try to get from leveringstid table
+        // Get delivery time from locations table (new system)
         $sql = sprintf(
-            "SELECT tid FROM leveringstid WHERE id = %d LIMIT 1",
+            "SELECT delivery_time_minutes FROM locations WHERE site_id = %d LIMIT 1",
             intval($site_id)
         );
 
         $result = Multiside_Aroi_Database::query($sql);
 
         if ($result && $row = mysqli_fetch_assoc($result)) {
-            return intval($row['tid']);
+            $delivery_time = intval($row['delivery_time_minutes']);
+            error_log(sprintf(
+                'MultiSide Aroi: Delivery time for site %d from locations table: %d minutes',
+                $site_id,
+                $delivery_time
+            ));
+            return $delivery_time > 0 ? $delivery_time : 30;
+        }
+
+        // Fallback: Try legacy leveringstid table
+        $sql_legacy = sprintf(
+            "SELECT tid FROM leveringstid WHERE id = %d LIMIT 1",
+            intval($site_id)
+        );
+
+        $result_legacy = Multiside_Aroi_Database::query($sql_legacy);
+
+        if ($result_legacy && $row_legacy = mysqli_fetch_assoc($result_legacy)) {
+            error_log(sprintf(
+                'MultiSide Aroi: Using legacy delivery time for site %d: %d minutes',
+                $site_id,
+                intval($row_legacy['tid'])
+            ));
+            return intval($row_legacy['tid']);
         }
 
         // Default to 30 minutes
+        error_log(sprintf('MultiSide Aroi: Using default delivery time for site %d: 30 minutes', $site_id));
         return 30;
     }
 
