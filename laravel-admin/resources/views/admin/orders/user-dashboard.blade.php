@@ -994,6 +994,190 @@ document.addEventListener('click', function(e) {
         });
     }
 });
+
+// Auto-polling for orders without kitchen print
+const AutoStatusPoller = {
+    pollingOrders: new Map(), // Map of orderId -> {attemptCount, timeoutId, createdAt}
+    maxAttempts: 5,
+    intervals: [10000, 30000, 60000, 120000, 240000], // 10s, 30s, 1m, 2m, 4m
+
+    init: function() {
+        console.log('[AutoPoller] Initializing auto-polling system');
+        this.identifyOrdersNeedingPolling();
+        this.startPolling();
+    },
+
+    identifyOrdersNeedingPolling: function() {
+        // Find all order cards that are missing kitchen print
+        const orderCards = document.querySelectorAll('.card');
+        const now = Date.now();
+        const maxAge = 15 * 60 * 1000; // 15 minutes
+
+        orderCards.forEach(card => {
+            const missingPrintIndicator = card.querySelector('.alert-danger.alert-sm');
+            if (!missingPrintIndicator) return;
+
+            const checkText = missingPrintIndicator.textContent;
+            if (!checkText.includes('Mangler kjøkkenprint')) return;
+
+            // Find order ID from buttons
+            const syncBtn = card.querySelector('.sync-status-btn');
+            if (!syncBtn) return;
+
+            const orderId = syncBtn.dataset.orderId;
+            if (!orderId) return;
+
+            // Check if order is recent enough (within 15 minutes)
+            // We'll extract the datetime from the card header
+            const timeElement = card.querySelector('.badge.bg-dark');
+            if (!timeElement) return;
+
+            // Add to polling list if not already there
+            if (!this.pollingOrders.has(orderId)) {
+                this.pollingOrders.set(orderId, {
+                    attemptCount: 0,
+                    timeoutId: null,
+                    startedAt: now
+                });
+                console.log(`[AutoPoller] Added order ${orderId} to polling queue`);
+            }
+        });
+
+        console.log(`[AutoPoller] Found ${this.pollingOrders.size} orders needing status checks`);
+    },
+
+    startPolling: function() {
+        if (this.pollingOrders.size === 0) {
+            console.log('[AutoPoller] No orders need polling');
+            return;
+        }
+
+        // Start polling for each order
+        this.pollingOrders.forEach((data, orderId) => {
+            this.scheduleCheck(orderId);
+        });
+    },
+
+    scheduleCheck: function(orderId) {
+        const data = this.pollingOrders.get(orderId);
+        if (!data) return;
+
+        // Check if we've exceeded max attempts
+        if (data.attemptCount >= this.maxAttempts) {
+            console.log(`[AutoPoller] Order ${orderId} reached max attempts (${this.maxAttempts}), stopping`);
+            this.pollingOrders.delete(orderId);
+            return;
+        }
+
+        // Get interval for this attempt
+        const interval = this.intervals[data.attemptCount] || this.intervals[this.intervals.length - 1];
+
+        console.log(`[AutoPoller] Scheduling check for order ${orderId} in ${interval/1000}s (attempt ${data.attemptCount + 1}/${this.maxAttempts})`);
+
+        // Schedule the check
+        data.timeoutId = setTimeout(() => {
+            this.performCheck(orderId);
+        }, interval);
+
+        // Increment attempt counter
+        data.attemptCount++;
+        this.pollingOrders.set(orderId, data);
+    },
+
+    performCheck: function(orderId) {
+        console.log(`[AutoPoller] Performing status check for order ${orderId}`);
+
+        // Call the batch check API
+        fetch('/api/v1/orders/batch-check-status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': getCsrfToken()
+            },
+            body: JSON.stringify({
+                order_ids: [parseInt(orderId)]
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.results && data.results.length > 0) {
+                const result = data.results[0];
+                console.log(`[AutoPoller] Order ${orderId} status:`, result);
+
+                if (result.pck_acknowledged) {
+                    // Kitchen print received! Stop polling and refresh
+                    console.log(`[AutoPoller] ✅ Order ${orderId} now has kitchen print! Stopping polling.`);
+                    this.pollingOrders.delete(orderId);
+                    this.showSuccessNotification(result.order_id);
+                    refreshOrderLists(true);
+                } else {
+                    // Still not completed, schedule next check
+                    console.log(`[AutoPoller] Order ${orderId} still missing print, scheduling next check...`);
+                    if (result.pck_triggered) {
+                        console.log(`[AutoPoller] PCKasse queue triggered for order ${orderId}`);
+                    }
+                    this.scheduleCheck(orderId);
+                }
+            } else {
+                console.error('[AutoPoller] Failed to check status:', data);
+                // Schedule retry anyway
+                this.scheduleCheck(orderId);
+            }
+        })
+        .catch(error => {
+            console.error('[AutoPoller] Error checking status:', error);
+            // Schedule retry
+            this.scheduleCheck(orderId);
+        });
+    },
+
+    showSuccessNotification: function(orderNumber) {
+        // Show a subtle notification that the kitchen print was received
+        const notification = document.createElement('div');
+        notification.className = 'alert alert-success position-fixed top-0 start-50 translate-middle-x mt-3';
+        notification.style.zIndex = '9999';
+        notification.innerHTML = `
+            <i class="bi bi-check-circle-fill me-2"></i>
+            <strong>Ordre #${orderNumber}</strong> - Kjøkkenprint mottatt!
+        `;
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.remove();
+        }, 5000);
+    },
+
+    stopAll: function() {
+        console.log('[AutoPoller] Stopping all polling');
+        this.pollingOrders.forEach((data, orderId) => {
+            if (data.timeoutId) {
+                clearTimeout(data.timeoutId);
+            }
+        });
+        this.pollingOrders.clear();
+    }
+};
+
+// Initialize auto-polling when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('[AutoPoller] DOM loaded, initializing...');
+    AutoStatusPoller.init();
+});
+
+// Re-initialize after manual refresh
+const originalRefreshOrderLists = refreshOrderLists;
+refreshOrderLists = function(force) {
+    // Stop current polling
+    AutoStatusPoller.stopAll();
+
+    // Call original refresh
+    originalRefreshOrderLists(force);
+
+    // Re-initialize polling after a short delay (to let new content load)
+    setTimeout(() => {
+        AutoStatusPoller.init();
+    }, 1000);
+};
 </script>
 
 <style>

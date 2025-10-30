@@ -20,6 +20,7 @@ Route::prefix('v1')->group(function () {
     // Order management endpoints
     Route::post('/orders', [ApiController::class, 'createOrder']);
     Route::post('/orders/mark-paid', [ApiController::class, 'markOrderPaid']);
+    Route::post('/orders/batch-check-status', [ApiController::class, 'batchCheckStatus']);
     Route::get('/orders', [ApiController::class, 'getOrders']);
 
     // Legacy compatibility endpoint

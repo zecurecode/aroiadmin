@@ -366,4 +366,91 @@ class ApiController extends Controller
             'message' => 'Order marked as paid and SMS sent'
         ]);
     }
+
+    /**
+     * Batch check WooCommerce status for multiple orders.
+     * Used for auto-polling to detect when PCKasse has processed orders.
+     */
+    public function batchCheckStatus(Request $request)
+    {
+        $validated = $request->validate([
+            'order_ids' => 'required|array|max:50',
+            'order_ids.*' => 'required|integer|exists:orders,id',
+        ]);
+
+        $orderIds = $validated['order_ids'];
+        $results = [];
+
+        foreach ($orderIds as $orderId) {
+            $order = Order::find($orderId);
+
+            if (!$order) {
+                $results[] = [
+                    'id' => $orderId,
+                    'success' => false,
+                    'message' => 'Order not found'
+                ];
+                continue;
+            }
+
+            // Initialize WooCommerce service for this site
+            $wooService = new WooCommerceService($order->site);
+
+            // Check current WooCommerce status
+            $wcStatus = $wooService->getOrderStatus($order->ordreid);
+
+            if ($wcStatus === null) {
+                $results[] = [
+                    'id' => $orderId,
+                    'order_id' => $order->ordreid,
+                    'success' => false,
+                    'message' => 'Could not fetch WC status',
+                    'wc_status' => null,
+                    'pck_acknowledged' => false
+                ];
+                continue;
+            }
+
+            // Update local WC status
+            $previousStatus = $order->wcstatus;
+            $order->update(['wcstatus' => $wcStatus]);
+
+            // Check if PCKasse has acknowledged (status = completed)
+            $pckAcknowledged = ($wcStatus === 'completed');
+
+            // If now completed and wasn't before, update curl tracking
+            if ($pckAcknowledged && $previousStatus !== 'completed' && $order->curl == 0) {
+                $order->update([
+                    'curl' => 200,
+                    'curltime' => Carbon::now(),
+                    'pck_export_status' => 'sent'
+                ]);
+            }
+
+            // If NOT completed and order is paid, trigger PCKasse queue
+            $triggered = false;
+            if (!$pckAcknowledged && $order->paid) {
+                // Use PCKasseService to trigger queue
+                $pckService = new \App\Services\PCKasseService();
+                $pckService->markOrderForRetry($order);
+                $triggerResult = $pckService->triggerQueue($order->site);
+                $triggered = $triggerResult['success'] ?? false;
+            }
+
+            $results[] = [
+                'id' => $orderId,
+                'order_id' => $order->ordreid,
+                'success' => true,
+                'wc_status' => $wcStatus,
+                'pck_acknowledged' => $pckAcknowledged,
+                'status_changed' => ($previousStatus !== $wcStatus),
+                'pck_triggered' => $triggered
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'results' => $results
+        ]);
+    }
 }
