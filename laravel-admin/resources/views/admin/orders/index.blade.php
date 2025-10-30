@@ -13,6 +13,45 @@
     </div>
 </div>
 
+<!-- Alert for orders missing kitchen print -->
+@php
+    $ordersWithoutPrint = $orders->filter(function($order) {
+        return $order->paid && $order->wcstatus != 'completed';
+    });
+@endphp
+
+@if($ordersWithoutPrint->count() > 0)
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <h5 class="alert-heading">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        ⚠️ {{ $ordersWithoutPrint->count() }} ordre(r) mangler kjøkkenprint!
+    </h5>
+    <p class="mb-2">
+        <strong>Kritisk:</strong> Følgende ordre(r) har ikke blitt mottatt av PCKasse.
+        Det automatiske kallet til PCKasse fra WooCommerce feilet, så kjøkkenet har IKKE fått ordre(ne).
+    </p>
+    <ul class="mb-2">
+        @foreach($ordersWithoutPrint as $order)
+            <li>
+                <strong>Ordre #{{ $order->ordreid }}</strong> - {{ $order->full_name }}
+                ({{ $order->datetime->diffForHumans() }})
+                <button class="btn btn-sm btn-danger ms-2 sync-status-btn"
+                        data-order-id="{{ $order->id }}"
+                        onclick="event.preventDefault();">
+                    <i class="bi bi-arrow-repeat me-1"></i>Prøv på nytt
+                </button>
+            </li>
+        @endforeach
+    </ul>
+    <hr>
+    <p class="mb-0">
+        <i class="bi bi-info-circle me-1"></i>
+        Systemet vil prøve å trigge PCKasse på nytt via QueueGetOrders.aspx og bekrefte at ordren mottas.
+    </p>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+@endif
+
 <!-- Filters -->
 <div class="row mb-4">
     <div class="col-12">
@@ -73,8 +112,15 @@
                             </thead>
                             <tbody>
                                 @foreach($orders as $order)
-                                <tr class="order-card">
-                                    <td><strong>#{{ $order->ordreid }}</strong></td>
+                                <tr class="order-card {{ $order->paid && $order->wcstatus != 'completed' ? 'table-danger' : '' }}">
+                                    <td>
+                                        <strong>#{{ $order->ordreid }}</strong>
+                                        @if($order->paid && $order->wcstatus != 'completed')
+                                            <span class="text-danger ms-1" title="MANGLER KJØKKENPRINT! PCKasse har ikke mottatt ordren.">
+                                                <i class="bi bi-exclamation-triangle-fill"></i>
+                                            </span>
+                                        @endif
+                                    </td>
                                     <td>{{ $order->full_name }}</td>
                                     <td>{{ $order->telefon }}</td>
                                     <td>{{ $order->epost }}</td>
@@ -105,9 +151,26 @@
                                             <span class="badge bg-secondary status-badge">Fullført</span>
                                         @endif
 
-                                        <!-- POS Status -->
-                                        @if($order->curl == 0)
-                                            <span class="badge bg-warning status-badge">Ikke sendt POS</span>
+                                        <!-- PCK Kitchen Print Status (WooCommerce = completed means PCK has printed) -->
+                                        @if($order->wcstatus == 'completed')
+                                            <span class="badge bg-success status-badge" title="PCKasse har mottatt og skrevet ut ordren i kjøkkenet">
+                                                ✅ Kjøkkenprint OK
+                                            </span>
+                                        @else
+                                            <span class="badge bg-danger status-badge" title="PCKasse har IKKE mottatt ordren - ingen kjøkkenprint!">
+                                                ⚠️ Mangler kjøkkenprint
+                                            </span>
+                                        @endif
+
+                                        <!-- WooCommerce Status Detail -->
+                                        @if($order->wcstatus)
+                                            @if($order->wcstatus == 'processing')
+                                                <span class="badge bg-info status-badge" title="WooCommerce status">WC: Behandles</span>
+                                            @elseif($order->wcstatus == 'pending')
+                                                <span class="badge bg-warning status-badge" title="WooCommerce status">WC: Ventende</span>
+                                            @elseif($order->wcstatus != 'completed')
+                                                <span class="badge bg-secondary status-badge" title="WooCommerce status">WC: {{ $order->wcstatus }}</span>
+                                            @endif
                                         @endif
 
                                         <!-- SMS Status -->
@@ -141,6 +204,34 @@
                                                         data-order-id="{{ $order->id }}" title="Send SMS">
                                                     <i class="bi bi-chat-text"></i>
                                                 </button>
+                                            @endif
+
+                                            <!-- Quick status check button -->
+                                            @if($order->paid)
+                                                <button type="button" class="btn btn-sm btn-outline-info check-wc-status-btn"
+                                                        data-order-id="{{ $order->id }}"
+                                                        title="Sjekk WooCommerce-status (uten retry)">
+                                                    <i class="bi bi-search"></i>
+                                                </button>
+                                            @endif
+
+                                            <!-- Sync button - highlight in red if no kitchen print -->
+                                            @if($order->paid)
+                                                @if($order->wcstatus != 'completed')
+                                                    <button type="button" class="btn btn-sm btn-danger sync-status-btn"
+                                                            data-order-id="{{ $order->id }}"
+                                                            data-wc-status="{{ $order->wcstatus }}"
+                                                            title="⚠️ INGEN KJØKKENPRINT! Klikk for å trigge PCKasse">
+                                                        <i class="bi bi-exclamation-triangle"></i>
+                                                    </button>
+                                                @else
+                                                    <button type="button" class="btn btn-sm btn-outline-success sync-status-btn"
+                                                            data-order-id="{{ $order->id }}"
+                                                            data-wc-status="{{ $order->wcstatus }}"
+                                                            title="Re-synkroniser med WooCommerce og PCK">
+                                                        <i class="bi bi-arrow-repeat"></i>
+                                                    </button>
+                                                @endif
                                             @endif
                                         </div>
                                     </td>
@@ -359,5 +450,129 @@ document.querySelectorAll('.send-sms-btn').forEach(button => {
         }
     });
 });
+
+// Quick check WooCommerce status (without retry)
+document.querySelectorAll('.check-wc-status-btn').forEach(button => {
+    button.addEventListener('click', function() {
+        const orderId = this.dataset.orderId;
+        const btn = this;
+        const originalHTML = btn.innerHTML;
+
+        // Show loading spinner
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+        btn.disabled = true;
+
+        fetch(`/admin/orders/${orderId}/check-wc-status`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                let statusEmoji = data.status === 'completed' ? '✅' : '⚠️';
+                let statusText = data.status === 'completed' ? 'FULLFØRT - Kjøkkenprint OK!' : 'IKKE FULLFØRT - Mangler kjøkkenprint!';
+                alert(`${statusEmoji} WooCommerce-status oppdatert\n\n${statusText}\n\nStatus: ${data.status}`);
+                location.reload();
+            } else {
+                alert('Feil: ' + data.message);
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('En feil oppstod ved sjekk av status');
+            btn.innerHTML = originalHTML;
+            btn.disabled = false;
+        });
+    });
+});
+
+// Sync order status with WooCommerce and PCKasse
+document.querySelectorAll('.sync-status-btn').forEach(button => {
+    button.addEventListener('click', function() {
+        const orderId = this.dataset.orderId;
+        const btn = this;
+        const originalHTML = btn.innerHTML;
+
+        // Show loading spinner
+        btn.innerHTML = '<i class="bi bi-arrow-repeat spin"></i>';
+        btn.disabled = true;
+
+        fetch(`/admin/orders/${orderId}/sync-status`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show success message with details
+                let message = '✅ Synkronisering fullført!\n\n';
+                if (data.actions && data.actions.length > 0) {
+                    message += 'Handlinger utført:\n' + data.actions.join('\n');
+                }
+                alert(message);
+                location.reload();
+            } else {
+                // Show issues
+                let message = '⚠️ Synkronisering fullført med problemer:\n\n';
+                if (data.issues && data.issues.length > 0) {
+                    message += 'Problemer:\n' + data.issues.join('\n');
+                }
+                if (data.actions && data.actions.length > 0) {
+                    message += '\n\nHandlinger utført:\n' + data.actions.join('\n');
+                }
+                alert(message);
+
+                // Reload anyway to show updated status
+                location.reload();
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('En feil oppstod under synkronisering');
+            btn.innerHTML = originalHTML;
+            btn.disabled = false;
+        });
+    });
+});
 </script>
+
+<style>
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.spin {
+    animation: spin 1s linear infinite;
+    display: inline-block;
+}
+
+/* Highlight orders missing kitchen print */
+.table-danger {
+    background-color: #f8d7da !important;
+}
+
+.table-danger:hover {
+    background-color: #f5c2c7 !important;
+}
+
+/* Pulsing animation for warning icon */
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.text-danger i {
+    animation: pulse 2s ease-in-out infinite;
+}
+</style>
+
 @endpush

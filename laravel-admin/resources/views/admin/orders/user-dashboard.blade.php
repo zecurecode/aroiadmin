@@ -62,6 +62,45 @@
         </div>
     </div>
 
+    <!-- Alert for orders missing kitchen print -->
+    @php
+        $ordersWithoutPrint = $newOrders->filter(function($order) {
+            return $order->wcstatus != 'completed';
+        });
+    @endphp
+
+    @if($ordersWithoutPrint->count() > 0)
+    <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
+        <h5 class="alert-heading">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            ⚠️ {{ $ordersWithoutPrint->count() }} ordre(r) mangler kjøkkenprint!
+        </h5>
+        <p class="mb-2">
+            <strong>Kritisk:</strong> Følgende ordre(r) har ikke blitt mottatt av PCKasse.
+            Det automatiske kallet til PCKasse fra WooCommerce feilet, så kjøkkenet har IKKE fått ordre(ne).
+        </p>
+        <ul class="mb-2">
+            @foreach($ordersWithoutPrint as $order)
+                <li>
+                    <strong>Ordre #{{ $order->ordreid }}</strong> - {{ $order->full_name }}
+                    ({{ $order->datetime->diffForHumans() }})
+                    <button class="btn btn-sm btn-danger ms-2 sync-status-btn"
+                            data-order-id="{{ $order->id }}"
+                            onclick="event.preventDefault();">
+                        <i class="bi bi-arrow-repeat me-1"></i>Prøv på nytt
+                    </button>
+                </li>
+            @endforeach
+        </ul>
+        <hr>
+        <p class="mb-0">
+            <i class="bi bi-info-circle me-1"></i>
+            Systemet vil prøve å trigge PCKasse på nytt via QueueGetOrders.aspx og bekrefte at ordren mottas.
+        </p>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    @endif
+
     <!-- Order Status Tabs -->
     <ul class="nav nav-tabs mb-3" id="orderTabs" role="tablist">
         <li class="nav-item" role="presentation">
@@ -99,15 +138,25 @@
                 <div class="row g-3">
                     @foreach($newOrders as $order)
                         <div class="col-md-6 col-lg-4">
-                            <div class="card border-warning h-100">
-                                <div class="card-header bg-warning text-dark">
+                            <div class="card border-warning h-100 {{ $order->wcstatus != 'completed' ? 'border-danger order-missing-print' : '' }}">
+                                <div class="card-header {{ $order->wcstatus != 'completed' ? 'bg-danger text-white' : 'bg-warning text-dark' }}">
                                     <div class="d-flex justify-content-between align-items-center">
-                                        <h5 class="mb-0">#{{ $order->ordreid }}</h5>
+                                        <h5 class="mb-0">
+                                            #{{ $order->ordreid }}
+                                            @if($order->wcstatus != 'completed')
+                                                <i class="bi bi-exclamation-triangle-fill pulsing-icon" title="MANGLER KJØKKENPRINT!"></i>
+                                            @endif
+                                        </h5>
                                         <div class="text-end">
                                             <div class="badge bg-dark">{{ $order->datetime ? $order->datetime->format('D d.m') : 'N/A' }}</div>
                                             <div class="badge bg-dark">{{ $order->datetime ? $order->datetime->format('H:i') : 'N/A' }}</div>
                                         </div>
                                     </div>
+                                    @if($order->wcstatus != 'completed')
+                                        <div class="mt-1">
+                                            <small class="fw-bold">⚠️ INGEN KJØKKENPRINT - PCK har ikke mottatt!</small>
+                                        </div>
+                                    @endif
                                 </div>
                                 <div class="card-body">
                                     <h6 class="card-title">{{ $order->fornavn }} {{ $order->etternavn }}</h6>
@@ -116,9 +165,52 @@
                                         <p class="mb-2"><i class="fas fa-clock me-1"></i>Henting: <strong>{{ $order->hentes }}</strong></p>
                                     @endif
 
+                                    <!-- PCK Status Badge -->
+                                    @if($order->wcstatus == 'completed')
+                                        <div class="alert alert-success alert-sm py-1 px-2 mb-2">
+                                            <small><i class="bi bi-check-circle-fill me-1"></i>Kjøkkenprint OK</small>
+                                        </div>
+                                    @else
+                                        <div class="alert alert-danger alert-sm py-1 px-2 mb-2">
+                                            <small><i class="bi bi-exclamation-triangle-fill me-1"></i>Mangler kjøkkenprint</small>
+                                        </div>
+                                    @endif
+
+                                    <!-- SMS Status Badge -->
+                                    @if($order->sms)
+                                        <div class="alert alert-info alert-sm py-1 px-2 mb-2">
+                                            <small><i class="bi bi-chat-dots-fill me-1"></i>SMS sendt til kunde</small>
+                                        </div>
+                                    @else
+                                        <div class="alert alert-warning alert-sm py-1 px-2 mb-2">
+                                            <small><i class="bi bi-chat-dots me-1"></i>SMS ikke sendt ennå</small>
+                                        </div>
+                                    @endif
+
                                     <!-- Order items preview -->
                                     <div class="order-items mb-3">
                                         <small class="text-muted">{{ $order->ekstrainfo }}</small>
+                                    </div>
+
+                                    <!-- Status Check Buttons -->
+                                    <div class="d-grid gap-1 mb-2">
+                                        @if($order->wcstatus != 'completed')
+                                            <button class="btn btn-sm btn-outline-info check-wc-status-btn"
+                                                    data-order-id="{{ $order->id }}">
+                                                <i class="bi bi-search me-1"></i>Sjekk status
+                                            </button>
+                                            <button class="btn btn-sm btn-danger sync-status-btn"
+                                                    data-order-id="{{ $order->id }}">
+                                                <i class="bi bi-arrow-repeat me-1"></i>Trigger PCKasse
+                                            </button>
+                                        @endif
+
+                                        @if(!$order->sms)
+                                            <button class="btn btn-sm btn-outline-warning send-sms-btn"
+                                                    data-order-id="{{ $order->id }}">
+                                                <i class="bi bi-chat-dots me-1"></i>Send SMS nå
+                                            </button>
+                                        @endif
                                     </div>
 
                                     <div class="d-grid gap-2">
@@ -128,7 +220,7 @@
                                         <button class="btn btn-outline-primary btn-sm" onclick="showOrderDetails({{ $order->id }})">
                                             <i class="fas fa-eye me-1"></i>Se detaljer
                                         </button>
-                                        <button class="btn btn-danger btn-sm" onclick="markOrderReadySilent({{ $order->id }})">
+                                        <button class="btn btn-outline-secondary btn-sm" onclick="markOrderReadySilent({{ $order->id }})">
                                             <i class="fas fa-check-circle me-1"></i>Klar (uten SMS)
                                         </button>
                                     </div>
@@ -772,6 +864,136 @@ function saveDeliveryTime(minutes) {
         console.error('Error updating delivery time:', error);
     });
 }
+
+// Quick check WooCommerce status (without retry)
+document.addEventListener('click', function(e) {
+    if (e.target.closest('.check-wc-status-btn')) {
+        const btn = e.target.closest('.check-wc-status-btn');
+        const orderId = btn.dataset.orderId;
+        const originalHTML = btn.innerHTML;
+
+        // Show loading spinner
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Sjekker...';
+        btn.disabled = true;
+
+        fetch(`/admin/orders/${orderId}/check-wc-status`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': getCsrfToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                let statusEmoji = data.status === 'completed' ? '✅' : '⚠️';
+                let statusText = data.status === 'completed' ? 'FULLFØRT - Kjøkkenprint OK!' : 'IKKE FULLFØRT - Mangler kjøkkenprint!';
+                alert(`${statusEmoji} WooCommerce-status oppdatert\n\n${statusText}\n\nStatus: ${data.status}`);
+                refreshOrderLists(true);
+            } else {
+                alert('Feil: ' + data.message);
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('En feil oppstod ved sjekk av status');
+            btn.innerHTML = originalHTML;
+            btn.disabled = false;
+        });
+    }
+});
+
+// Sync order status with WooCommerce and PCKasse
+document.addEventListener('click', function(e) {
+    if (e.target.closest('.sync-status-btn')) {
+        const btn = e.target.closest('.sync-status-btn');
+        const orderId = btn.dataset.orderId;
+        const originalHTML = btn.innerHTML;
+
+        // Show loading spinner
+        btn.innerHTML = '<i class="bi bi-arrow-repeat spin"></i> Trigger...';
+        btn.disabled = true;
+
+        fetch(`/admin/orders/${orderId}/sync-status`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': getCsrfToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show success message with details
+                let message = '✅ Synkronisering fullført!\n\n';
+                if (data.actions && data.actions.length > 0) {
+                    message += 'Handlinger utført:\n' + data.actions.join('\n');
+                }
+                alert(message);
+                refreshOrderLists(true);
+            } else {
+                // Show issues
+                let message = '⚠️ Synkronisering fullført med problemer:\n\n';
+                if (data.issues && data.issues.length > 0) {
+                    message += 'Problemer:\n' + data.issues.join('\n');
+                }
+                if (data.actions && data.actions.length > 0) {
+                    message += '\n\nHandlinger utført:\n' + data.actions.join('\n');
+                }
+                alert(message);
+
+                // Reload anyway to show updated status
+                refreshOrderLists(true);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('En feil oppstod under synkronisering');
+            btn.innerHTML = originalHTML;
+            btn.disabled = false;
+        });
+    }
+});
+
+// Send SMS manually
+document.addEventListener('click', function(e) {
+    if (e.target.closest('.send-sms-btn')) {
+        const btn = e.target.closest('.send-sms-btn');
+        const orderId = btn.dataset.orderId;
+        const originalHTML = btn.innerHTML;
+
+        // Show loading spinner
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Sender...';
+        btn.disabled = true;
+
+        fetch(`/admin/orders/${orderId}/send-sms`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': getCsrfToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('✅ SMS sendt til kunde!');
+                refreshOrderLists(true);
+            } else {
+                alert('❌ Feil: ' + data.message);
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('En feil oppstod ved sending av SMS');
+            btn.innerHTML = originalHTML;
+            btn.disabled = false;
+        });
+    }
+});
 </script>
 
 <style>
@@ -791,6 +1013,39 @@ function saveDeliveryTime(minutes) {
 
 .card:hover {
     transform: translateY(-2px);
+}
+
+/* Highlight orders missing kitchen print */
+.order-missing-print {
+    border-width: 3px !important;
+    box-shadow: 0 0 20px rgba(220, 53, 69, 0.5);
+}
+
+/* Pulsing animation for warning icon */
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.pulsing-icon {
+    animation: pulse 2s ease-in-out infinite;
+    font-size: 1.2em;
+}
+
+/* Spinning animation for sync button */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.spin {
+    animation: spin 1s linear infinite;
+    display: inline-block;
+}
+
+/* Alert styling */
+.alert-sm {
+    font-size: 0.875rem;
 }
 
 @media (max-width: 768px) {

@@ -552,4 +552,82 @@ class WooCommerceService
             'fetched_at' => $now->toDateTimeString(),
         ];
     }
+
+    /**
+     * Get order status from WooCommerce.
+     *
+     * @param int $orderId WooCommerce order ID
+     * @return string|null Order status (pending, processing, completed, etc.)
+     */
+    public function getOrderStatus($orderId)
+    {
+        $order = $this->getOrder($orderId);
+        return $order ? $order['status'] : null;
+    }
+
+    /**
+     * Check if order is completed in WooCommerce.
+     *
+     * @param int $orderId WooCommerce order ID
+     * @return bool
+     */
+    public function isOrderCompleted($orderId)
+    {
+        $status = $this->getOrderStatus($orderId);
+        return $status === 'completed';
+    }
+
+    /**
+     * Update order status in WooCommerce.
+     *
+     * @param int $orderId WooCommerce order ID
+     * @param string $status New status (pending, processing, completed, cancelled, etc.)
+     * @return bool Success status
+     */
+    public function updateOrderStatus($orderId, $status)
+    {
+        try {
+            $url = "{$this->baseUrl}/wp-json/wc/v3/orders/{$orderId}";
+
+            Log::info("WooCommerce: Updating order {$orderId} to status: {$status}");
+
+            $response = Http::withBasicAuth($this->consumerKey, $this->consumerSecret)
+                ->timeout(15)
+                ->put($url, ['status' => $status]);
+
+            if ($response->successful()) {
+                Log::info("WooCommerce: Successfully updated order {$orderId} to {$status}");
+                return true;
+            }
+
+            Log::warning('WooCommerce: Failed to update order status', [
+                'order_id' => $orderId,
+                'status' => $status,
+                'http_code' => $response->status(),
+                'response' => $response->body()
+            ]);
+
+            return false;
+
+        } catch (\Exception $e) {
+            Log::error('WooCommerce: Exception updating order status', [
+                'order_id' => $orderId,
+                'status' => $status,
+                'error' => $e->getMessage()
+            ]);
+
+            return false;
+        }
+    }
+
+    /**
+     * Mark order as completed in WooCommerce.
+     *
+     * @param int $orderId WooCommerce order ID
+     * @return bool Success status
+     */
+    public function markOrderCompleted($orderId)
+    {
+        return $this->updateOrderStatus($orderId, 'completed');
+    }
 }

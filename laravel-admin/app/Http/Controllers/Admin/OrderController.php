@@ -67,6 +67,27 @@ class OrderController extends Controller
         $orders = $query->orderBy('datetime', 'desc')->paginate(20);
         $locationName = Location::getNameBySiteId($user->siteid);
 
+        // Auto-populate wcstatus and send SMS for orders (background check for paid orders only)
+        $wooService = new \App\Services\WooCommerceService($user->siteid);
+        $smsService = new \App\Services\SmsService();
+
+        foreach ($orders as $order) {
+            if ($order->paid) {
+                // Check and update WooCommerce status
+                if (empty($order->wcstatus)) {
+                    $status = $wooService->getOrderStatus($order->ordreid);
+                    if ($status !== null) {
+                        $order->update(['wcstatus' => $status]);
+                    }
+                }
+
+                // Send "order received" SMS for new orders (status 0) if not sent yet
+                if ($order->ordrestatus == 0 && !$order->sms) {
+                    $smsService->sendOrderReceivedSms($order);
+                }
+            }
+        }
+
         return view('admin.orders.index', compact('orders', 'locationName'));
     }
 
@@ -108,6 +129,25 @@ class OrderController extends Controller
             ->where('datetime', '>=', $today->copy()->subDays(7))  // Last 7 days
             ->orderBy('datetime', 'desc')
             ->get();
+
+        // Auto-populate wcstatus and send SMS for new orders
+        $wooService = new \App\Services\WooCommerceService($siteid);
+        $smsService = new \App\Services\SmsService();
+
+        foreach ($newOrders as $order) {
+            // Check and update WooCommerce status
+            if (empty($order->wcstatus)) {
+                $status = $wooService->getOrderStatus($order->ordreid);
+                if ($status !== null) {
+                    $order->update(['wcstatus' => $status]);
+                }
+            }
+
+            // Send "order received" SMS if not sent yet
+            if (!$order->sms && $order->paid) {
+                $smsService->sendOrderReceivedSms($order);
+            }
+        }
 
         // Check if location is open from _apningstid table
         $apningstidAlt = ApningstidAlternative::where('AvdID', $siteid)->first();
@@ -622,5 +662,232 @@ class OrderController extends Controller
             'success' => true,
             'deleted' => $deleted
         ]);
+    }
+
+    /**
+     * Check WooCommerce status and sync it.
+     */
+    public function checkWooCommerceStatus(Order $order)
+    {
+        // Check if user can access this order
+        if ($order->site !== Auth::user()->siteid) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 403);
+        }
+
+        $wooService = new \App\Services\WooCommerceService($order->site);
+        $status = $wooService->getOrderStatus($order->ordreid);
+
+        if ($status === null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Kunne ikke hente status fra WooCommerce'
+            ]);
+        }
+
+        // Update local status
+        $order->update(['wcstatus' => $status]);
+
+        return response()->json([
+            'success' => true,
+            'status' => $status,
+            'message' => "WooCommerce status: {$status}"
+        ]);
+    }
+
+    /**
+     * Trigger PCKasse to fetch orders.
+     */
+    public function triggerPCKasse(Order $order)
+    {
+        // Check if user can access this order
+        if ($order->site !== Auth::user()->siteid) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 403);
+        }
+
+        $pckService = new \App\Services\PCKasseService();
+
+        // Mark order for retry first
+        $pckService->markOrderForRetry($order);
+
+        // Trigger the queue
+        $result = $pckService->triggerQueue($order->site);
+
+        if ($result['success']) {
+            // Parse response to check if orders were processed
+            $parsed = $pckService->parseQueueResponse($result['response']);
+
+            if ($parsed['success']) {
+                // Update order status if successful
+                $order->update([
+                    'curl' => $result['http_code'],
+                    'curltime' => Carbon::now(),
+                    'pck_export_status' => 'sent'
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $parsed['message'],
+                'details' => $parsed
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => $result['message']
+        ]);
+    }
+
+    /**
+     * Sync order status: Check WooCommerce and trigger PCK if needed.
+     *
+     * Logic:
+     * - When an order is created, WooCommerce automatically calls QueueGetOrders.aspx
+     * - PCKasse POS app fetches the order and prints it in the kitchen
+     * - When PCKasse successfully receives and prints the order, it marks it as "completed" in WooCommerce
+     * - If order is NOT "completed" in WooCommerce = the initial QueueGetOrders call failed
+     * - This means: NO kitchen print was generated, kitchen doesn't know about the order!
+     * - Solution: Manually trigger QueueGetOrders.aspx again to retry
+     */
+    public function syncOrderStatus(Order $order)
+    {
+        // Check if user can access this order
+        if ($order->site !== Auth::user()->siteid) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 403);
+        }
+
+        $wooService = new \App\Services\WooCommerceService($order->site);
+        $pckService = new \App\Services\PCKasseService();
+        $smsService = new \App\Services\SmsService();
+
+        $actions = [];
+        $issues = [];
+
+        // 1. Check WooCommerce status
+        $wcStatus = $wooService->getOrderStatus($order->ordreid);
+
+        if ($wcStatus === null) {
+            $issues[] = 'Kunne ikke hente WooCommerce status';
+            return response()->json([
+                'success' => false,
+                'actions' => $actions,
+                'issues' => $issues,
+                'wc_status' => null,
+                'order_status' => $order->ordrestatus,
+                'pck_acknowledged' => false
+            ]);
+        }
+
+        // Update local WC status
+        $order->update(['wcstatus' => $wcStatus]);
+        $actions[] = "WooCommerce status: {$wcStatus}";
+
+        // 1.5. Send "order received" SMS if this is a new order and SMS hasn't been sent
+        if ($order->ordrestatus == 0 && !$order->sms && $order->paid) {
+            $smsSent = $smsService->sendOrderReceivedSms($order);
+            if ($smsSent) {
+                $actions[] = '📱 SMS "Vi har mottatt din ordre" sendt til kunde';
+            }
+        }
+
+        // 2. Check if PCKasse has acknowledged the order (WC status = completed)
+        if ($wcStatus === 'completed') {
+            $actions[] = '✅ PCKasse har mottatt ordren (kjøkkenprint sendt)';
+
+            // Update local tracking if not already done
+            if ($order->curl == 0) {
+                $order->update([
+                    'curl' => 200,
+                    'curltime' => Carbon::now(),
+                    'pck_export_status' => 'sent'
+                ]);
+                $actions[] = 'Lokal status oppdatert';
+            }
+
+            return response()->json([
+                'success' => true,
+                'actions' => $actions,
+                'issues' => $issues,
+                'wc_status' => $wcStatus,
+                'order_status' => $order->ordrestatus,
+                'pck_acknowledged' => true
+            ]);
+        }
+
+        // 3. Order is NOT completed in WooCommerce = PCK has NOT received it
+        $issues[] = '⚠️ PCKasse har IKKE mottatt ordren (ingen kjøkkenprint)';
+        $actions[] = 'Prøver å trigge PCKasse til å hente ordren...';
+
+        // Mark order for retry (reset curl status)
+        $pckService->markOrderForRetry($order);
+
+        // Trigger PCKasse queue
+        $result = $pckService->triggerQueue($order->site);
+
+        if (!$result['success']) {
+            $issues[] = 'Kunne ikke trigge PCKasse: ' . $result['message'];
+            return response()->json([
+                'success' => false,
+                'actions' => $actions,
+                'issues' => $issues,
+                'wc_status' => $wcStatus,
+                'order_status' => $order->ordrestatus,
+                'pck_acknowledged' => false
+            ]);
+        }
+
+        // Parse PCK response
+        $parsed = $pckService->parseQueueResponse($result['response']);
+        $actions[] = 'PCKasse respons: ' . $parsed['message'];
+
+        if ($parsed['success']) {
+            $actions[] = '✅ PCKasse kø trigget vellykket';
+            $order->update([
+                'curl' => $result['http_code'],
+                'curltime' => Carbon::now(),
+                'pck_export_status' => 'sent'
+            ]);
+        } else {
+            $issues[] = 'PCKasse kunne ikke hente ordren: ' . $parsed['message'];
+        }
+
+        // 4. Check WooCommerce status AGAIN to verify if PCK acknowledged
+        sleep(2); // Give PCK a moment to process
+        $wcStatusAfter = $wooService->getOrderStatus($order->ordreid);
+
+        if ($wcStatusAfter === 'completed') {
+            $actions[] = '✅ BEKREFTET: PCKasse har nå mottatt ordren!';
+            $order->update(['wcstatus' => 'completed']);
+
+            return response()->json([
+                'success' => true,
+                'actions' => $actions,
+                'issues' => [],
+                'wc_status' => $wcStatusAfter,
+                'order_status' => $order->ordrestatus,
+                'pck_acknowledged' => true
+            ]);
+        } else {
+            $issues[] = '⚠️ Ordren er fortsatt ikke fullført i WooCommerce. PCKasse har kanskje ikke lest ordren ennå.';
+            $actions[] = 'Prøv å synkronisere igjen om noen sekunder.';
+
+            return response()->json([
+                'success' => false,
+                'actions' => $actions,
+                'issues' => $issues,
+                'wc_status' => $wcStatusAfter,
+                'order_status' => $order->ordrestatus,
+                'pck_acknowledged' => false
+            ]);
+        }
     }
 }

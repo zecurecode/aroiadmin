@@ -128,6 +128,9 @@ Route::middleware(['custom.auth'])->group(function () {
         Route::post('/{order}/send-pos', [OrderController::class, 'sendToPOS'])->name('send-pos');
         Route::post('/{order}/send-sms', [OrderController::class, 'sendSMS'])->name('send-sms');
         Route::patch('/{order}/status', [OrderController::class, 'updateStatus'])->name('update-status');
+        Route::post('/{order}/check-wc-status', [OrderController::class, 'checkWooCommerceStatus'])->name('check-wc-status');
+        Route::post('/{order}/trigger-pckasse', [OrderController::class, 'triggerPCKasse'])->name('trigger-pckasse');
+        Route::post('/{order}/sync-status', [OrderController::class, 'syncOrderStatus'])->name('sync-status');
         Route::delete('/{order}', [OrderController::class, 'destroy'])->name('destroy');
     });
 
