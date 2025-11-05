@@ -4,10 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ApningstidAlternative;
-use App\Models\SpecialHours;
 use App\Models\AvdelingAlternative;
-use Illuminate\Http\Request;
+use App\Models\SpecialHours;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
@@ -36,7 +36,7 @@ class OpeningHoursController extends Controller
 
         // Get current month or requested month
         $currentDate = $request->get('month', now()->format('Y-m'));
-        $viewDate = Carbon::parse($currentDate . '-01');
+        $viewDate = Carbon::parse($currentDate.'-01');
 
         // Get special hours for the current view period
         $startDate = $viewDate->copy()->startOfMonth()->subWeek();
@@ -44,7 +44,7 @@ class OpeningHoursController extends Controller
 
         $specialHours = SpecialHours::with(['location', 'creator'])
             ->inDateRange($startDate, $endDate)
-            ->when(!$user->is_admin, function ($query) use ($user) {
+            ->when(! $user->is_admin, function ($query) use ($user) {
                 return $query->forLocation($user->siteid);
             })
             ->when($user->is_admin && $selectedLocationId, function ($query) use ($selectedLocationId) {
@@ -78,16 +78,16 @@ class OpeningHoursController extends Controller
                 'user_siteid' => $user->siteid,
                 'requested_location_id' => $locationId,
                 'month' => $month,
-                'request_url' => $request->fullUrl()
+                'request_url' => $request->fullUrl(),
             ]);
 
             // Handle location selection based on user type
             if ($user->is_admin) {
                 // Admin can see all locations
-                if (!$locationId) {
+                if (! $locationId) {
                     // If no location specified, get the first available location
                     $firstLocation = AvdelingAlternative::with('openingHours')->first();
-                    if (!$firstLocation) {
+                    if (! $firstLocation) {
                         return response()->json(['error' => 'No locations found'], 404);
                     }
                     $locationId = $firstLocation->Id;
@@ -99,16 +99,17 @@ class OpeningHoursController extends Controller
             }
 
             // Validate location access for non-admin users
-            if (!$user->is_admin && $locationId != $user->siteid) {
+            if (! $user->is_admin && $locationId != $user->siteid) {
                 Log::warning('Unauthorized location access attempt', [
                     'user_id' => $user->id,
                     'user_siteid' => $user->siteid,
-                    'requested_location_id' => $locationId
+                    'requested_location_id' => $locationId,
                 ]);
+
                 return response()->json(['error' => 'Unauthorized'], 403);
             }
 
-            $viewDate = Carbon::parse($month . '-01');
+            $viewDate = Carbon::parse($month.'-01');
             $startDate = $viewDate->copy()->startOfMonth();
             $endDate = $viewDate->copy()->endOfMonth();
 
@@ -119,23 +120,25 @@ class OpeningHoursController extends Controller
                 'location_found' => $location !== null,
                 'location_name' => $location ? $location->Navn : null,
                 'opening_hours_found' => $location && $location->openingHours !== null,
-                'opening_hours_avd_id' => $location && $location->openingHours ? $location->openingHours->AvdID : null
+                'opening_hours_avd_id' => $location && $location->openingHours ? $location->openingHours->AvdID : null,
             ]);
 
-            if (!$location) {
+            if (! $location) {
                 Log::error('Location not found', [
                     'location_id' => $locationId,
-                    'all_location_ids' => AvdelingAlternative::pluck('Id')->toArray()
+                    'all_location_ids' => AvdelingAlternative::pluck('Id')->toArray(),
                 ]);
+
                 return response()->json(['error' => 'Location not found'], 404);
             }
 
-            if (!$location->openingHours) {
+            if (! $location->openingHours) {
                 Log::error('Opening hours not found for location', [
                     'location_id' => $locationId,
                     'location_name' => $location->Navn,
-                    'checking_apningstid_table' => ApningstidAlternative::where('AvdID', $locationId)->exists()
+                    'checking_apningstid_table' => ApningstidAlternative::where('AvdID', $locationId)->exists(),
                 ]);
+
                 return response()->json(['error' => 'Opening hours not found for this location'], 404);
             }
 
@@ -170,14 +173,14 @@ class OpeningHoursController extends Controller
                         'hours' => $special->formatted_hours,
                         'reason' => $special->reason,
                         'type' => $special->type,
-                        'specialId' => $special->id
+                        'specialId' => $special->id,
                     ];
                 } else {
                     // Use regular hours
                     try {
                         $regularHours = $location->openingHours->getHoursForDay($dayOfWeek);
                         $isSeasonClosed = $location->openingHours->isSeasonClosed();
-                        
+
                         $calendarData[] = [
                             'date' => $dateStr,
                             'day' => $current->day,
@@ -186,18 +189,18 @@ class OpeningHoursController extends Controller
                             'isClosed' => $regularHours['closed'] == 1 || $isSeasonClosed,
                             'hours' => $regularHours['closed'] == 1 ? 'Stengt' :
                                       ($regularHours['start'] && $regularHours['stop'] ?
-                                       $regularHours['start'] . ' - ' . $regularHours['stop'] : 'Stengt'),
+                                       $regularHours['start'].' - '.$regularHours['stop'] : 'Stengt'),
                             'reason' => $isSeasonClosed ? 'Sesongstengt' : null,
-                            'type' => 'regular'
+                            'type' => 'regular',
                         ];
                     } catch (\Exception $e) {
                         Log::error('Error getting hours for day', [
                             'location_id' => $locationId,
                             'day_of_week' => $dayOfWeek,
                             'date' => $dateStr,
-                            'error' => $e->getMessage()
+                            'error' => $e->getMessage(),
                         ]);
-                        
+
                         // Fallback data
                         $calendarData[] = [
                             'date' => $dateStr,
@@ -207,7 +210,7 @@ class OpeningHoursController extends Controller
                             'isClosed' => true,
                             'hours' => 'Feil ved lasting',
                             'reason' => null,
-                            'type' => 'regular'
+                            'type' => 'regular',
                         ];
                     }
                 }
@@ -222,7 +225,7 @@ class OpeningHoursController extends Controller
             } catch (\Exception $e) {
                 Log::error('Error getting week hours', [
                     'location_id' => $locationId,
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ]);
                 // Provide empty week hours as fallback
                 $weekHours = [
@@ -232,7 +235,7 @@ class OpeningHoursController extends Controller
                     'thursday' => ['start' => null, 'stop' => null, 'closed' => 1],
                     'friday' => ['start' => null, 'stop' => null, 'closed' => 1],
                     'saturday' => ['start' => null, 'stop' => null, 'closed' => 1],
-                    'sunday' => ['start' => null, 'stop' => null, 'closed' => 1]
+                    'sunday' => ['start' => null, 'stop' => null, 'closed' => 1],
                 ];
             }
 
@@ -241,8 +244,8 @@ class OpeningHoursController extends Controller
                 'location' => [
                     'id' => $location->Id,
                     'name' => $location->Navn,
-                    'regularHours' => $weekHours
-                ]
+                    'regularHours' => $weekHours,
+                ],
             ]);
 
         } catch (\Exception $e) {
@@ -250,11 +253,11 @@ class OpeningHoursController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'user_id' => Auth::id(),
-                'location_id' => $locationId ?? null
+                'location_id' => $locationId ?? null,
             ]);
 
             return response()->json([
-                'error' => 'Failed to load calendar data'
+                'error' => 'Failed to load calendar data',
             ], 500);
         }
     }
@@ -268,7 +271,7 @@ class OpeningHoursController extends Controller
         $specialHours = SpecialHours::with('location')->findOrFail($id);
 
         // Check permissions
-        if (!$user->is_admin && $specialHours->location_id != $user->siteid) {
+        if (! $user->is_admin && $specialHours->location_id != $user->siteid) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -283,7 +286,7 @@ class OpeningHoursController extends Controller
         $user = Auth::user();
 
         // Check permissions
-        if (!$user->is_admin && $locationId != $user->siteid) {
+        if (! $user->is_admin && $locationId != $user->siteid) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -309,16 +312,16 @@ class OpeningHoursController extends Controller
             'hours.saturday.closed' => 'required|boolean',
             'hours.sunday.start' => 'nullable|date_format:H:i',
             'hours.sunday.end' => 'nullable|date_format:H:i',
-            'hours.sunday.closed' => 'required|boolean'
+            'hours.sunday.closed' => 'required|boolean',
         ], [
             'hours.*.start.date_format' => 'Starttid må være i formatet TT:MM (f.eks. 09:00)',
             'hours.*.end.date_format' => 'Sluttid må være i formatet TT:MM (f.eks. 17:00)',
             'hours.*.closed.required' => 'Du må angi om dagen er stengt eller ikke',
-            'hours.*.closed.boolean' => 'Stengt-feltet må være sant eller usant'
+            'hours.*.closed.boolean' => 'Stengt-feltet må være sant eller usant',
         ]);
 
         $location = ApningstidAlternative::where('AvdID', $locationId)->first();
-        if (!$location) {
+        if (! $location) {
             return response()->json(['error' => 'Location not found'], 404);
         }
 
@@ -330,7 +333,7 @@ class OpeningHoursController extends Controller
             'thursday' => ['TorStart', 'TorStopp', 'TorStengt'],
             'friday' => ['FreStart', 'FreStopp', 'FreStengt'],
             'saturday' => ['LorStart', 'LorStopp', 'LorStengt'],
-            'sunday' => ['SonStart', 'SonStopp', 'SonStengt']
+            'sunday' => ['SonStart', 'SonStopp', 'SonStengt'],
         ];
 
         foreach ($hours as $day => $dayHours) {
@@ -347,7 +350,7 @@ class OpeningHoursController extends Controller
         Log::info('Regular opening hours updated', [
             'location_id' => $locationId,
             'updated_by' => $user->id,
-            'hours' => $hours
+            'hours' => $hours,
         ]);
 
         return response()->json(['success' => true, 'message' => 'Åpningstider oppdatert']);
@@ -370,11 +373,11 @@ class OpeningHoursController extends Controller
             'reason' => 'nullable|string|max:255',
             'type' => 'required|in:special,holiday,maintenance,event,closure',
             'recurring_yearly' => 'boolean',
-            'notes' => 'nullable|string'
+            'notes' => 'nullable|string',
         ]);
 
         // Check permissions
-        if (!$user->is_admin && $request->location_id != $user->siteid) {
+        if (! $user->is_admin && $request->location_id != $user->siteid) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -396,7 +399,7 @@ class OpeningHoursController extends Controller
         $specialHours = SpecialHours::updateOrCreate(
             [
                 'location_id' => $request->location_id,
-                'date' => $request->date
+                'date' => $request->date,
             ],
             $data
         );
@@ -409,13 +412,13 @@ class OpeningHoursController extends Controller
             'close_time' => $data['close_time'] ?? null,
             'is_closed' => $data['is_closed'] ?? false,
             'was_updated' => $specialHours->wasRecentlyCreated ? 'no' : 'yes',
-            'user_id' => $user->id
+            'user_id' => $user->id,
         ]);
 
         return response()->json([
             'success' => true,
             'message' => 'Spesielle åpningstider lagret',
-            'data' => $specialHours->load('location')
+            'data' => $specialHours->load('location'),
         ]);
     }
 
@@ -428,7 +431,7 @@ class OpeningHoursController extends Controller
         $specialHours = SpecialHours::findOrFail($id);
 
         // Check permissions
-        if (!$user->is_admin && $specialHours->location_id != $user->siteid) {
+        if (! $user->is_admin && $specialHours->location_id != $user->siteid) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -441,7 +444,7 @@ class OpeningHoursController extends Controller
             'reason' => 'nullable|string|max:255',
             'type' => 'required|in:special,holiday,maintenance,event,closure',
             'recurring_yearly' => 'boolean',
-            'notes' => 'nullable|string'
+            'notes' => 'nullable|string',
         ]);
 
         // Prepare data
@@ -462,13 +465,13 @@ class OpeningHoursController extends Controller
             'open_time' => $data['open_time'] ?? null,
             'close_time' => $data['close_time'] ?? null,
             'is_closed' => $data['is_closed'] ?? false,
-            'updated_by' => $user->id
+            'updated_by' => $user->id,
         ]);
 
         return response()->json([
             'success' => true,
             'message' => 'Spesielle åpningstider oppdatert',
-            'data' => $specialHours->load('location')
+            'data' => $specialHours->load('location'),
         ]);
     }
 
@@ -481,7 +484,7 @@ class OpeningHoursController extends Controller
         $specialHours = SpecialHours::findOrFail($id);
 
         // Check permissions
-        if (!$user->is_admin && $specialHours->location_id != $user->siteid) {
+        if (! $user->is_admin && $specialHours->location_id != $user->siteid) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -489,12 +492,12 @@ class OpeningHoursController extends Controller
 
         Log::info('Special hours deleted', [
             'special_hours_id' => $id,
-            'deleted_by' => $user->id
+            'deleted_by' => $user->id,
         ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Spesielle åpningstider slettet'
+            'message' => 'Spesielle åpningstider slettet',
         ]);
     }
 }

@@ -39,7 +39,7 @@ return new class extends Migration
                 'special_requirements',
                 'catering_notes',
                 'catering_status',
-                'catering_email'
+                'catering_email',
             ]);
         });
     }

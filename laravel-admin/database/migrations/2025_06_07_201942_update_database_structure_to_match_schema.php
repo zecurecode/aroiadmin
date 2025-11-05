@@ -15,40 +15,40 @@ return new class extends Migration
         if (Schema::hasTable('apningstid')) {
             Schema::table('apningstid', function (Blueprint $table) {
                 // Add missing columns if they don't exist
-                if (!Schema::hasColumn('apningstid', 'userid')) {
+                if (! Schema::hasColumn('apningstid', 'userid')) {
                     $table->integer('userid')->after('id');
                 }
-                if (!Schema::hasColumn('apningstid', 'opensteinkjer')) {
+                if (! Schema::hasColumn('apningstid', 'opensteinkjer')) {
                     $table->string('opensteinkjer', 11)->default('');
                 }
-                if (!Schema::hasColumn('apningstid', 'closesteinkjer')) {
+                if (! Schema::hasColumn('apningstid', 'closesteinkjer')) {
                     $table->string('closesteinkjer', 11)->default('');
                 }
-                if (!Schema::hasColumn('apningstid', 'notessteinkjer')) {
+                if (! Schema::hasColumn('apningstid', 'notessteinkjer')) {
                     $table->string('notessteinkjer', 11)->default('');
                 }
-                if (!Schema::hasColumn('apningstid', 'statussteinkjer')) {
+                if (! Schema::hasColumn('apningstid', 'statussteinkjer')) {
                     $table->integer('statussteinkjer')->default(0);
                 }
-                if (!Schema::hasColumn('apningstid', 'btbsteinkjer')) {
+                if (! Schema::hasColumn('apningstid', 'btbsteinkjer')) {
                     $table->integer('btbsteinkjer')->default(0);
                 }
-                if (!Schema::hasColumn('apningstid', 'btnmoan')) {
+                if (! Schema::hasColumn('apningstid', 'btnmoan')) {
                     $table->integer('btnmoan')->default(0);
                 }
-                if (!Schema::hasColumn('apningstid', 'btnlade')) {
+                if (! Schema::hasColumn('apningstid', 'btnlade')) {
                     $table->integer('btnlade')->default(0);
                 }
-                if (!Schema::hasColumn('apningstid', 'btngramyra')) {
+                if (! Schema::hasColumn('apningstid', 'btngramyra')) {
                     $table->integer('btngramyra')->default(0);
                 }
-                if (!Schema::hasColumn('apningstid', 'btnnamsos')) {
+                if (! Schema::hasColumn('apningstid', 'btnnamsos')) {
                     $table->integer('btnnamsos')->default(0);
                 }
-                if (!Schema::hasColumn('apningstid', 'btnfrosta')) {
+                if (! Schema::hasColumn('apningstid', 'btnfrosta')) {
                     $table->integer('btnfrosta')->default(0);
                 }
-                if (!Schema::hasColumn('apningstid', 'btnhell')) {
+                if (! Schema::hasColumn('apningstid', 'btnhell')) {
                     $table->integer('btnhell')->default(0);
                 }
 
@@ -102,7 +102,7 @@ return new class extends Migration
         }
 
         // Create avdeling table if it doesn't exist
-        if (!Schema::hasTable('avdeling')) {
+        if (! Schema::hasTable('avdeling')) {
             Schema::create('avdeling', function (Blueprint $table) {
                 $table->id();
                 $table->string('navn', 30);
@@ -116,7 +116,7 @@ return new class extends Migration
         }
 
         // Create leveringstid table if it doesn't exist
-        if (!Schema::hasTable('leveringstid')) {
+        if (! Schema::hasTable('leveringstid')) {
             Schema::create('leveringstid', function (Blueprint $table) {
                 $table->id();
                 $table->string('tid', 11);
@@ -124,7 +124,7 @@ return new class extends Migration
         }
 
         // Create mail table if it doesn't exist
-        if (!Schema::hasTable('mail')) {
+        if (! Schema::hasTable('mail')) {
             Schema::create('mail', function (Blueprint $table) {
                 $table->id();
                 $table->text('text');
@@ -135,19 +135,19 @@ return new class extends Migration
         if (Schema::hasTable('orders')) {
             Schema::table('orders', function (Blueprint $table) {
                 // Add missing columns if they don't exist
-                if (!Schema::hasColumn('orders', 'wcstatus')) {
+                if (! Schema::hasColumn('orders', 'wcstatus')) {
                     $table->string('wcstatus', 50)->default('');
                 }
-                if (!Schema::hasColumn('orders', 'payref')) {
+                if (! Schema::hasColumn('orders', 'payref')) {
                     $table->string('payref', 200)->default('');
                 }
-                if (!Schema::hasColumn('orders', 'seordre')) {
+                if (! Schema::hasColumn('orders', 'seordre')) {
                     $table->integer('seordre')->default(0);
                 }
-                if (!Schema::hasColumn('orders', 'paymentmethod')) {
+                if (! Schema::hasColumn('orders', 'paymentmethod')) {
                     $table->string('paymentmethod', 50)->default('');
                 }
-                if (!Schema::hasColumn('orders', 'hentes')) {
+                if (! Schema::hasColumn('orders', 'hentes')) {
                     $table->string('hentes', 50)->default('');
                 }
 
@@ -163,7 +163,7 @@ return new class extends Migration
         }
 
         // Create overstyr table if it doesn't exist
-        if (!Schema::hasTable('overstyr')) {
+        if (! Schema::hasTable('overstyr')) {
             Schema::create('overstyr', function (Blueprint $table) {
                 $table->id();
                 $table->integer('vognid');
@@ -173,7 +173,7 @@ return new class extends Migration
         }
 
         // Create _apningstid table if it doesn't exist
-        if (!Schema::hasTable('_apningstid')) {
+        if (! Schema::hasTable('_apningstid')) {
             Schema::create('_apningstid', function (Blueprint $table) {
                 $table->integer('AvdID')->primary();
                 $table->string('Navn', 100);
@@ -206,7 +206,7 @@ return new class extends Migration
         }
 
         // Create _avdeling table if it doesn't exist
-        if (!Schema::hasTable('_avdeling')) {
+        if (! Schema::hasTable('_avdeling')) {
             Schema::create('_avdeling', function (Blueprint $table) {
                 $table->id('Id');
                 $table->string('Navn', 50);

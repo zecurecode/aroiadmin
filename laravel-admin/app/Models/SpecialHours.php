@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Carbon\Carbon;
 
 class SpecialHours extends Model
 {
@@ -21,7 +21,7 @@ class SpecialHours extends Model
         'type',
         'recurring_yearly',
         'notes',
-        'created_by'
+        'created_by',
     ];
 
     protected $casts = [
@@ -32,7 +32,7 @@ class SpecialHours extends Model
         'is_closed' => 'boolean',
         'recurring_yearly' => 'boolean',
         'location_id' => 'integer',
-        'created_by' => 'integer'
+        'created_by' => 'integer',
     ];
 
     /**
@@ -61,6 +61,7 @@ class SpecialHours extends Model
 
         if ($this->end_date) {
             $endDate = Carbon::parse($this->end_date);
+
             return $checkDate->between($startDate, $endDate);
         }
 
@@ -72,7 +73,7 @@ class SpecialHours extends Model
      */
     public function appliesToDate($date)
     {
-        if (!$this->recurring_yearly) {
+        if (! $this->recurring_yearly) {
             return $this->coversDate($date);
         }
 
@@ -93,7 +94,7 @@ class SpecialHours extends Model
             return 'Stengt';
         }
 
-        if (!$this->open_time || !$this->close_time) {
+        if (! $this->open_time || ! $this->close_time) {
             return 'Stengt';
         }
 
@@ -101,7 +102,7 @@ class SpecialHours extends Model
         $openTime = substr($this->open_time, 0, 5);
         $closeTime = substr($this->close_time, 0, 5);
 
-        return $openTime . ' - ' . $closeTime;
+        return $openTime.' - '.$closeTime;
     }
 
     /**
@@ -114,7 +115,7 @@ class SpecialHours extends Model
             'holiday' => 'Helligdag',
             'maintenance' => 'Vedlikehold',
             'event' => 'Arrangement',
-            'closure' => 'Stengt'
+            'closure' => 'Stengt',
         ];
 
         return $types[$this->type] ?? ucfirst($this->type);
@@ -143,11 +144,11 @@ class SpecialHours extends Model
     {
         return $query->where(function ($q) use ($startDate, $endDate) {
             $q->whereBetween('date', [$startDate, $endDate])
-              ->orWhere(function ($subQ) use ($startDate, $endDate) {
-                  $subQ->whereNotNull('end_date')
-                       ->where('date', '<=', $endDate)
-                       ->where('end_date', '>=', $startDate);
-              });
+                ->orWhere(function ($subQ) use ($startDate, $endDate) {
+                    $subQ->whereNotNull('end_date')
+                        ->where('date', '<=', $endDate)
+                        ->where('end_date', '>=', $startDate);
+                });
         });
     }
 }

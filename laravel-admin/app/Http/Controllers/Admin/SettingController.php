@@ -13,13 +13,22 @@ class SettingController extends Controller
      */
     public function index()
     {
-        $settings = Setting::orderBy('key')->get()->groupBy(function($setting) {
+        $settings = Setting::orderBy('key')->get()->groupBy(function ($setting) {
             // Group settings by category
             $key = $setting->key;
-            if (str_starts_with($key, 'sms_')) return 'SMS Innstillinger';
-            if (str_starts_with($key, 'pckasse_')) return 'PCKasse Innstillinger';
-            if (str_starts_with($key, 'onesignal_')) return 'OneSignal Innstillinger';
-            if (str_starts_with($key, 'order_') || str_starts_with($key, 'failed_')) return 'System Innstillinger';
+            if (str_starts_with($key, 'sms_')) {
+                return 'SMS Innstillinger';
+            }
+            if (str_starts_with($key, 'pckasse_')) {
+                return 'PCKasse Innstillinger';
+            }
+            if (str_starts_with($key, 'onesignal_')) {
+                return 'OneSignal Innstillinger';
+            }
+            if (str_starts_with($key, 'order_') || str_starts_with($key, 'failed_')) {
+                return 'System Innstillinger';
+            }
+
             return 'Generelle Innstillinger';
         });
 
@@ -85,17 +94,17 @@ class SettingController extends Controller
 
         // If starts with 0047, replace with +47
         if (substr($phone, 0, 4) === '0047') {
-            return '+47' . substr($phone, 4);
+            return '+47'.substr($phone, 4);
         }
 
         // If starts with 47 (without +), add the +
         if (substr($phone, 0, 2) === '47' && strlen($phone) >= 10) {
-            return '+' . $phone;
+            return '+'.$phone;
         }
 
         // If 8 digits (Norwegian mobile without country code), add +47
         if (strlen($phone) === 8 && ctype_digit($phone)) {
-            return '+47' . $phone;
+            return '+47'.$phone;
         }
 
         // Otherwise return as is (might be international number)
@@ -119,15 +128,15 @@ class SettingController extends Controller
         $apiUrl = Setting::get('sms_api_url', 'https://api1.teletopiasms.no/gateway/v3/plain');
         $sender = Setting::get('sms_sender', 'AroiAsia');
 
-        if (!$username || !$password) {
+        if (! $username || ! $password) {
             return response()->json([
                 'success' => false,
-                'message' => 'SMS innstillinger ikke konfigurert.'
+                'message' => 'SMS innstillinger ikke konfigurert.',
             ]);
         }
 
         $message = 'Test melding fra Aroi Admin System';
-        $smsUrl = $apiUrl . '?' . http_build_query([
+        $smsUrl = $apiUrl.'?'.http_build_query([
             'username' => $username,
             'password' => $password,
             'recipient' => $phoneNumber,  // Teletopia uses 'recipient' not 'to'
@@ -138,7 +147,7 @@ class SettingController extends Controller
         \Log::info('Sending test SMS', [
             'phone_original' => $validated['phone'],
             'phone_normalized' => $phoneNumber,
-            'api_url' => $apiUrl
+            'api_url' => $apiUrl,
         ]);
 
         $ch = curl_init();
@@ -156,7 +165,7 @@ class SettingController extends Controller
             'success' => $success,
             'http_code' => $httpcode,
             'response' => $output,
-            'curl_error' => $curlError
+            'curl_error' => $curlError,
         ]);
 
         return response()->json([
@@ -164,7 +173,7 @@ class SettingController extends Controller
             'message' => $success ? 'Test SMS sendt!' : "Kunne ikke sende test SMS. HTTP {$httpcode}",
             'phone_used' => $phoneNumber,
             'response' => $output,
-            'http_code' => $httpcode
+            'http_code' => $httpcode,
         ]);
     }
 }

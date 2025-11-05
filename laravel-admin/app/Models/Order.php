@@ -42,7 +42,7 @@ class Order extends Model
         'total_amount',
         'pck_export_status',
         'pck_exported_at',
-        'pck_last_error'
+        'pck_last_error',
     ];
 
     protected $casts = [
@@ -67,7 +67,7 @@ class Order extends Model
      */
     protected $dates = [
         'datetime',
-        'curltime'
+        'curltime',
     ];
 
     /**
@@ -139,7 +139,7 @@ class Order extends Model
      */
     public function getFullNameAttribute()
     {
-        return $this->fornavn . ' ' . $this->etternavn;
+        return $this->fornavn.' '.$this->etternavn;
     }
 
     /**
@@ -155,7 +155,7 @@ class Order extends Model
      */
     public function isSentToPOS()
     {
-        return !empty($this->curl) && $this->curl !== '0';
+        return ! empty($this->curl) && $this->curl !== '0';
     }
 
     /**
@@ -228,7 +228,7 @@ class Order extends Model
     public function scopeReadyForPckExport($query)
     {
         return $query->where('pck_export_status', 'new')
-                    ->where('paid', true);
+            ->where('paid', true);
     }
 
     /**
@@ -263,7 +263,7 @@ class Order extends Model
         return $this->update([
             'pck_export_status' => 'sent',
             'pck_exported_at' => now(),
-            'pck_last_error' => null
+            'pck_last_error' => null,
         ]);
     }
 
@@ -274,7 +274,7 @@ class Order extends Model
     {
         return $this->update([
             'pck_export_status' => 'ack_failed',
-            'pck_last_error' => $error
+            'pck_last_error' => $error,
         ]);
     }
 
@@ -285,7 +285,7 @@ class Order extends Model
     {
         return $this->update([
             'pck_export_status' => 'new',
-            'pck_last_error' => null
+            'pck_last_error' => null,
         ]);
     }
 
@@ -311,9 +311,9 @@ class Order extends Model
     public static function getOrdersForPckExport(int $tenantId, int $limit = 100)
     {
         return static::where('site', $tenantId)
-                    ->readyForPckExport()
-                    ->orderBy('datetime')
-                    ->limit($limit)
-                    ->get();
+            ->readyForPckExport()
+            ->orderBy('datetime')
+            ->limit($limit)
+            ->get();
     }
 }

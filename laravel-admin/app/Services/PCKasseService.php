@@ -21,7 +21,7 @@ class PCKasseService
      * - When WooCommerce's automatic call to QueueGetOrders failed
      * - When an order is not marked as "completed" in WooCommerce (no kitchen print)
      *
-     * @param int $siteId Site ID to get license number
+     * @param  int  $siteId  Site ID to get license number
      * @return array ['success' => bool, 'message' => string, 'http_code' => int, 'response' => array]
      */
     public function triggerQueue($siteId)
@@ -29,25 +29,27 @@ class PCKasseService
         try {
             $site = Site::findBySiteId($siteId);
 
-            if (!$site) {
+            if (! $site) {
                 Log::warning("PCKasse: No site found for site ID {$siteId}");
+
                 return [
                     'success' => false,
                     'message' => 'No site configuration found',
                     'http_code' => 0,
-                    'response' => null
+                    'response' => null,
                 ];
             }
 
             $license = $site->license;
 
-            if (!$license || $license == 0) {
+            if (! $license || $license == 0) {
                 Log::warning("PCKasse: No license configured for site ID {$siteId}");
+
                 return [
                     'success' => false,
                     'message' => 'No license configured for this location',
                     'http_code' => 0,
-                    'response' => null
+                    'response' => null,
                 ];
             }
 
@@ -66,12 +68,13 @@ class PCKasseService
             curl_close($ch);
 
             if ($curlError) {
-                Log::error("PCKasse: CURL error: " . $curlError);
+                Log::error('PCKasse: CURL error: '.$curlError);
+
                 return [
                     'success' => false,
-                    'message' => 'Connection error: ' . $curlError,
+                    'message' => 'Connection error: '.$curlError,
                     'http_code' => 0,
-                    'response' => null
+                    'response' => null,
                 ];
             }
 
@@ -79,18 +82,18 @@ class PCKasseService
             $responseData = json_decode($output, true);
 
             if ($success) {
-                Log::info("PCKasse: Queue triggered successfully", [
+                Log::info('PCKasse: Queue triggered successfully', [
                     'site_id' => $siteId,
                     'license' => $license,
                     'http_code' => $httpCode,
-                    'response' => $responseData
+                    'response' => $responseData,
                 ]);
             } else {
-                Log::warning("PCKasse: Queue trigger failed", [
+                Log::warning('PCKasse: Queue trigger failed', [
                     'site_id' => $siteId,
                     'license' => $license,
                     'http_code' => $httpCode,
-                    'response' => $output
+                    'response' => $output,
                 ]);
             }
 
@@ -98,16 +101,17 @@ class PCKasseService
                 'success' => $success,
                 'message' => $success ? 'PCKasse queue triggered successfully' : 'Failed to trigger PCKasse queue',
                 'http_code' => $httpCode,
-                'response' => $responseData
+                'response' => $responseData,
             ];
 
         } catch (\Exception $e) {
-            Log::error("PCKasse: Exception triggering queue: " . $e->getMessage());
+            Log::error('PCKasse: Exception triggering queue: '.$e->getMessage());
+
             return [
                 'success' => false,
-                'message' => 'Exception: ' . $e->getMessage(),
+                'message' => 'Exception: '.$e->getMessage(),
                 'http_code' => 0,
-                'response' => null
+                'response' => null,
             ];
         }
     }
@@ -116,17 +120,17 @@ class PCKasseService
      * Check if PCKasse successfully processed orders.
      * Parses the response to check OkCount and FailedCount.
      *
-     * @param array $response PCKasse API response
+     * @param  array  $response  PCKasse API response
      * @return array ['ok_count' => int, 'failed_count' => int, 'success' => bool]
      */
     public function parseQueueResponse($response)
     {
-        if (!is_array($response)) {
+        if (! is_array($response)) {
             return [
                 'ok_count' => 0,
                 'failed_count' => 0,
                 'success' => false,
-                'message' => 'Invalid response format'
+                'message' => 'Invalid response format',
             ];
         }
 
@@ -139,14 +143,13 @@ class PCKasseService
             'failed_count' => $failedCount,
             'success' => $okCount > 0 && $failedCount == 0,
             'message' => "OK: {$okCount}, Failed: {$failedCount}",
-            'db_results' => $dbResults
+            'db_results' => $dbResults,
         ];
     }
 
     /**
      * Mark order as ready for PCK export (reset curl status).
      *
-     * @param Order $order
      * @return bool
      */
     public function markOrderForRetry(Order $order)
@@ -155,14 +158,16 @@ class PCKasseService
             $order->update([
                 'curl' => 0,
                 'curltime' => null,
-                'pck_export_status' => 'new'
+                'pck_export_status' => 'new',
             ]);
 
             Log::info("PCKasse: Order {$order->id} marked for retry");
+
             return true;
 
         } catch (\Exception $e) {
-            Log::error("PCKasse: Failed to mark order for retry: " . $e->getMessage());
+            Log::error('PCKasse: Failed to mark order for retry: '.$e->getMessage());
+
             return false;
         }
     }

@@ -10,7 +10,9 @@ class AvdelingAlternative extends Model
     use HasFactory;
 
     protected $table = '_avdeling';
+
     public $timestamps = false; // The original table doesn't have timestamps
+
     protected $primaryKey = 'Id';
 
     protected $fillable = [
@@ -23,7 +25,7 @@ class AvdelingAlternative extends Model
         'Url',
         'APIKey',
         'APISecret',
-        'APIUrl'
+        'APIUrl',
     ];
 
     protected $casts = [
@@ -80,7 +82,7 @@ class AvdelingAlternative extends Model
         return [
             'key' => $this->APIKey,
             'secret' => $this->APISecret,
-            'url' => $this->APIUrl
+            'url' => $this->APIUrl,
         ];
     }
 
@@ -89,6 +91,6 @@ class AvdelingAlternative extends Model
      */
     public function hasApiCredentials()
     {
-        return !empty($this->APIKey) && !empty($this->APISecret) && !empty($this->APIUrl);
+        return ! empty($this->APIKey) && ! empty($this->APISecret) && ! empty($this->APIUrl);
     }
 }

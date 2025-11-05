@@ -2,12 +2,12 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
-use App\Models\User;
+use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpFoundation\Response;
 
 class CustomAuthMiddleware
 {
@@ -35,7 +35,7 @@ class CustomAuthMiddleware
             'session_data' => $sessionData,
             'session_id' => session()->getId(),
             'is_ajax' => $request->ajax(),
-            'has_session_cookie' => $request->hasCookie(config('session.cookie'))
+            'has_session_cookie' => $request->hasCookie(config('session.cookie')),
         ]);
 
         // Check our custom session first (like the old PHP system)
@@ -48,14 +48,14 @@ class CustomAuthMiddleware
 
         Log::info('CustomAuthMiddleware authentication checks', [
             'custom_session_valid' => $customSessionValid,
-            'laravel_auth_valid' => $laravelAuthValid
+            'laravel_auth_valid' => $laravelAuthValid,
         ]);
 
-        if (!$customSessionValid && !$laravelAuthValid) {
+        if (! $customSessionValid && ! $laravelAuthValid) {
             Log::warning('CustomAuthMiddleware: User not authenticated, redirecting to login', [
                 'attempted_url' => $request->url(),
                 'session_id' => session()->getId(),
-                'is_ajax' => $request->ajax()
+                'is_ajax' => $request->ajax(),
             ]);
 
             if ($request->expectsJson() || $request->ajax()) {
@@ -66,19 +66,19 @@ class CustomAuthMiddleware
         }
 
         // If custom session is valid but Laravel auth is not, set up Laravel auth WITHOUT regenerating session
-        if ($customSessionValid && !$laravelAuthValid) {
+        if ($customSessionValid && ! $laravelAuthValid) {
             $username = session()->get('username');
             $customUserId = session()->get('id');
 
             Log::info('CustomAuthMiddleware: Setting up Laravel auth from custom session', [
                 'username' => $username,
-                'custom_user_id' => $customUserId
+                'custom_user_id' => $customUserId,
             ]);
 
             // Find or create the Laravel User model
             $user = User::where('username', $username)->first();
 
-            if (!$user) {
+            if (! $user) {
                 Log::info('User not found in Laravel, creating from old PHP auth', ['username' => $username]);
                 $user = User::createFromOldPhpAuth($username);
             }
@@ -91,7 +91,7 @@ class CustomAuthMiddleware
                 'laravel_user_id' => $user->id,
                 'username' => $user->username,
                 'siteid' => $user->siteid,
-                'is_admin' => $user->isAdmin()
+                'is_admin' => $user->isAdmin(),
             ]);
         }
 
@@ -99,7 +99,7 @@ class CustomAuthMiddleware
             'username' => session()->get('username') ?: (auth()->user() ? auth()->user()->username : 'unknown'),
             'user_id' => session()->get('id') ?: (auth()->user() ? auth()->user()->id : 'unknown'),
             'auth_method' => $customSessionValid ? 'custom_session' : 'laravel_auth',
-            'laravel_auth_now_valid' => auth()->check()
+            'laravel_auth_now_valid' => auth()->check(),
         ]);
 
         // CRITICAL FIX: Remove manual session()->save() - Laravel handles this automatically

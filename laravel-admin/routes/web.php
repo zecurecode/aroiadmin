@@ -1,25 +1,23 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\PublicController;
-use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
-use App\Http\Controllers\Admin\OrderController;
-use App\Http\Controllers\Admin\UserController;
-use App\Http\Controllers\Admin\SiteController;
-use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\LocationController;
-use App\Http\Controllers\Admin\OpeningHoursController;
-use App\Http\Controllers\Admin\CateringController as AdminCateringController;
 use App\Http\Controllers\Admin\MarketingController;
+use App\Http\Controllers\Admin\OpeningHoursController;
+use App\Http\Controllers\Admin\OrderController;
+use App\Http\Controllers\Admin\SettingController;
+use App\Http\Controllers\Admin\SiteController;
 use App\Http\Controllers\Admin\StatisticsController;
+use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\CateringController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Soap\PckSoapController;
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Auth;
 use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Route;
 
 // Test route for debugging form submissions
 Route::post('/test-form', function (\Illuminate\Http\Request $request) {
@@ -28,7 +26,7 @@ Route::post('/test-form', function (\Illuminate\Http\Request $request) {
         'all_data' => $request->all(),
         'headers' => $request->headers->all(),
     ]);
-    
+
     return response()->json([
         'status' => 'success',
         'message' => 'Form data received successfully',
@@ -47,7 +45,7 @@ Route::get('/create-users', function () {
             [
                 'siteid' => 0,
                 'password' => Hash::make('admin123'),
-                'license' => 9999
+                'license' => 9999,
             ]
         );
 
@@ -57,13 +55,13 @@ Route::get('/create-users', function () {
             [
                 'siteid' => 7,
                 'password' => Hash::make('user123'),
-                'license' => 123
+                'license' => 123,
             ]
         );
 
         Log::info('Test users created successfully', [
             'admin_id' => $admin->id,
-            'user_id' => $user->id
+            'user_id' => $user->id,
         ]);
 
         return '<h2>✅ Test Users Created</h2>
@@ -73,7 +71,8 @@ Route::get('/create-users', function () {
 
     } catch (Exception $e) {
         Log::error('Error creating test users', ['error' => $e->getMessage()]);
-        return '<h2>❌ Error</h2><p>' . $e->getMessage() . '</p>';
+
+        return '<h2>❌ Error</h2><p>'.$e->getMessage().'</p>';
     }
 });
 
@@ -82,10 +81,11 @@ Route::get('/', [App\Http\Controllers\PublicController::class, 'locations'])->na
 
 // Main dashboard routes - use custom auth middleware
 // Redirect based on user role
-Route::get('/dashboard', function() {
+Route::get('/dashboard', function () {
     if (session('is_admin')) {
         return redirect('/admin/dashboard');
     }
+
     return redirect('/admin/orders');
 })->middleware(['custom.auth'])->name('dashboard');
 
@@ -211,80 +211,80 @@ Route::prefix('catering')->name('catering.')->group(function () {
 
 // PCK SOAP endpoint - minimal implementation that actually works
 Route::any('/soap/pck/{tenantKey?}', function ($tenantKey = null) {
-    
+
     // Determine method from request
     $requestBody = request()->getContent();
-    
+
     // Quick and dirty success response for createWebshop
     if (str_contains($requestBody, 'createWebshop')) {
-        $response = '<?xml version="1.0" encoding="utf-8"?>' .
-                   '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" ' .
-                   'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ' .
-                   'xmlns:xsd="http://www.w3.org/2001/XMLSchema">' .
-                   '<soap:Body>' .
-                   '<createWebshopResponse xmlns="https://webservice.driftsikker.no/">' .
-                   '<createWebshopResult>' .
-                   '<adminUserName>admin@aroiasia.no</adminUserName>' .
-                   '<adminUserPassword>Contact administrator</adminUserPassword>' .
-                   '<deltasoftId>12345</deltasoftId>' .
-                   '<insertUpdate>' .
-                   '<deltaId>12345</deltaId>' .
-                   '<errorHelpLink></errorHelpLink>' .
-                   '<errorMessage></errorMessage>' .
-                   '<humanErrorMessage></humanErrorMessage>' .
-                   '<operationResult>0</operationResult>' .
-                   '</insertUpdate>' .
-                   '<password>AroiWebshop2024</password>' .
-                   '</createWebshopResult>' .
-                   '</createWebshopResponse>' .
-                   '</soap:Body>' .
+        $response = '<?xml version="1.0" encoding="utf-8"?>'.
+                   '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" '.
+                   'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '.
+                   'xmlns:xsd="http://www.w3.org/2001/XMLSchema">'.
+                   '<soap:Body>'.
+                   '<createWebshopResponse xmlns="https://webservice.driftsikker.no/">'.
+                   '<createWebshopResult>'.
+                   '<adminUserName>admin@aroiasia.no</adminUserName>'.
+                   '<adminUserPassword>Contact administrator</adminUserPassword>'.
+                   '<deltasoftId>12345</deltasoftId>'.
+                   '<insertUpdate>'.
+                   '<deltaId>12345</deltaId>'.
+                   '<errorHelpLink></errorHelpLink>'.
+                   '<errorMessage></errorMessage>'.
+                   '<humanErrorMessage></humanErrorMessage>'.
+                   '<operationResult>0</operationResult>'.
+                   '</insertUpdate>'.
+                   '<password>AroiWebshop2024</password>'.
+                   '</createWebshopResult>'.
+                   '</createWebshopResponse>'.
+                   '</soap:Body>'.
                    '</soap:Envelope>';
-                   
+
         return response($response, 200, ['Content-Type' => 'text/xml; charset=utf-8']);
     }
-    
+
     // Quick success response for sendArticle
     if (str_contains($requestBody, 'sendArticle')) {
         // Extract article ID for deltaId
         preg_match('/<articleId>(\d+)<\/articleId>/', $requestBody, $matches);
         $articleId = $matches[1] ?? 0;
-        
-        $response = '<?xml version="1.0" encoding="utf-8"?>' .
-                   '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" ' .
-                   'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ' .
-                   'xmlns:xsd="http://www.w3.org/2001/XMLSchema">' .
-                   '<soap:Body>' .
-                   '<sendArticleResponse xmlns="https://webservice.driftsikker.no/">' .
-                   '<sendArticleResult>' .
-                   "<deltaId>{$articleId}</deltaId>" .
-                   '<errorHelpLink></errorHelpLink>' .
-                   '<errorMessage></errorMessage>' .
-                   '<humanErrorMessage></humanErrorMessage>' .
-                   '<operationResult>0</operationResult>' .
-                   '</sendArticleResult>' .
-                   '</sendArticleResponse>' .
-                   '</soap:Body>' .
+
+        $response = '<?xml version="1.0" encoding="utf-8"?>'.
+                   '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" '.
+                   'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '.
+                   'xmlns:xsd="http://www.w3.org/2001/XMLSchema">'.
+                   '<soap:Body>'.
+                   '<sendArticleResponse xmlns="https://webservice.driftsikker.no/">'.
+                   '<sendArticleResult>'.
+                   "<deltaId>{$articleId}</deltaId>".
+                   '<errorHelpLink></errorHelpLink>'.
+                   '<errorMessage></errorMessage>'.
+                   '<humanErrorMessage></humanErrorMessage>'.
+                   '<operationResult>0</operationResult>'.
+                   '</sendArticleResult>'.
+                   '</sendArticleResponse>'.
+                   '</soap:Body>'.
                    '</soap:Envelope>';
-                   
+
         return response($response, 200, ['Content-Type' => 'text/xml; charset=utf-8']);
     }
-    
+
     // Default SOAP fault
-    $response = '<?xml version="1.0" encoding="utf-8"?>' .
-               '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" ' .
-               'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ' .
-               'xmlns:xsd="http://www.w3.org/2001/XMLSchema">' .
-               '<soap:Body>' .
-               '<soap:Fault>' .
-               '<faultcode>soap:Server</faultcode>' .
-               '<faultstring>Method not implemented</faultstring>' .
-               '<detail />' .
-               '</soap:Fault>' .
-               '</soap:Body>' .
+    $response = '<?xml version="1.0" encoding="utf-8"?>'.
+               '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" '.
+               'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '.
+               'xmlns:xsd="http://www.w3.org/2001/XMLSchema">'.
+               '<soap:Body>'.
+               '<soap:Fault>'.
+               '<faultcode>soap:Server</faultcode>'.
+               '<faultstring>Method not implemented</faultstring>'.
+               '<detail />'.
+               '</soap:Fault>'.
+               '</soap:Body>'.
                '</soap:Envelope>';
-               
+
     return response($response, 500, ['Content-Type' => 'text/xml; charset=utf-8']);
-    
+
 });
 
 // WSDL endpoint (publicly accessible)

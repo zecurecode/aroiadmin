@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ApningstidAlternative;
+use App\Models\AvdelingAlternative;
 use App\Models\Location;
 use App\Models\Site;
-use App\Models\AvdelingAlternative;
-use App\Models\ApningstidAlternative;
 use App\Models\SpecialHours;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -49,7 +49,7 @@ class PublicController extends Controller
         foreach ($locations as $location) {
             // Get the corresponding avdeling and opening hours from _apningstid table
             $avdeling = AvdelingAlternative::where('Id', $location->site_id)->first();
-            if (!$avdeling) {
+            if (! $avdeling) {
                 // Fallback: still show the location even if avdeling mapping is missing
                 $locationsData[] = [
                     'id' => $location->id,
@@ -72,11 +72,12 @@ class PublicController extends Controller
                     'special_notes' => null,
                     'weekly_hours' => [],
                 ];
+
                 continue;
             }
 
             $openingHours = ApningstidAlternative::where('AvdID', $avdeling->Id)->first();
-            if (!$openingHours) {
+            if (! $openingHours) {
                 // Fallback: show the location but mark as closed (no hours available)
                 $locationsData[] = [
                     'id' => $location->id,
@@ -99,22 +100,23 @@ class PublicController extends Controller
                     'special_notes' => null,
                     'weekly_hours' => [],
                 ];
+
                 continue;
             }
 
             // Check for special hours for today
             $specialHours = SpecialHours::where('location_id', $avdeling->Id)
-                ->where(function($query) use ($todayDate) {
+                ->where(function ($query) use ($todayDate) {
                     // Single day: date must be exactly today AND end_date is NULL
-                    $query->where(function($q) use ($todayDate) {
+                    $query->where(function ($q) use ($todayDate) {
                         $q->where('date', $todayDate)
-                          ->whereNull('end_date');
+                            ->whereNull('end_date');
                     })
                     // OR period: today is between date and end_date
-                    ->orWhere(function($q) use ($todayDate) {
-                        $q->where('date', '<=', $todayDate)
-                          ->where('end_date', '>=', $todayDate);
-                    });
+                        ->orWhere(function ($q) use ($todayDate) {
+                            $q->where('date', '<=', $todayDate)
+                                ->where('end_date', '>=', $todayDate);
+                        });
                 })
                 ->first();
 
@@ -166,7 +168,7 @@ class PublicController extends Controller
                 // Use regular hours from _apningstid table
                 $dayHours = $openingHours->getHoursForDay(strtolower($todayDayEnglish));
 
-                if ($dayHours && !$dayHours['closed'] && !$openingHours->isSeasonClosed()) {
+                if ($dayHours && ! $dayHours['closed'] && ! $openingHours->isSeasonClosed()) {
                     $locationData['open_time'] = $dayHours['start'];
                     $locationData['close_time'] = $dayHours['stop'];
 
@@ -190,7 +192,7 @@ class PublicController extends Controller
             }
 
             // Calculate next opening time if location is closed or past closing time
-            if (!$locationData['is_open']) {
+            if (! $locationData['is_open']) {
                 $nextOpening = $this->getNextOpeningTime($openingHours, $today, $locationData['past_closing_time']);
                 $locationData['next_opening_time'] = $nextOpening['time'];
                 $locationData['next_opening_day'] = $nextOpening['day'];
@@ -205,7 +207,7 @@ class PublicController extends Controller
                 'thursday' => 'Torsdag',
                 'friday' => 'Fredag',
                 'saturday' => 'Lørdag',
-                'sunday' => 'Søndag'
+                'sunday' => 'Søndag',
             ];
 
             foreach ($days as $day) {
@@ -219,18 +221,18 @@ class PublicController extends Controller
                 }
 
                 $daySpecialHours = SpecialHours::where('location_id', $avdeling->Id)
-                    ->where(function($query) use ($dayDate) {
+                    ->where(function ($query) use ($dayDate) {
                         $dayDateStr = $dayDate->format('Y-m-d');
                         // Single day: date must be exactly this day AND end_date is NULL
-                        $query->where(function($q) use ($dayDateStr) {
+                        $query->where(function ($q) use ($dayDateStr) {
                             $q->where('date', $dayDateStr)
-                              ->whereNull('end_date');
+                                ->whereNull('end_date');
                         })
                         // OR period: this day is between date and end_date
-                        ->orWhere(function($q) use ($dayDateStr) {
-                            $q->where('date', '<=', $dayDateStr)
-                              ->where('end_date', '>=', $dayDateStr);
-                        });
+                            ->orWhere(function ($q) use ($dayDateStr) {
+                                $q->where('date', '<=', $dayDateStr)
+                                    ->where('end_date', '>=', $dayDateStr);
+                            });
                     })
                     ->first();
 
@@ -240,7 +242,7 @@ class PublicController extends Controller
                         'open_time' => $daySpecialHours->is_closed ? null : $daySpecialHours->open_time,
                         'close_time' => $daySpecialHours->is_closed ? null : $daySpecialHours->close_time,
                         'is_today' => strtolower($todayDayEnglish) == $day,
-                        'is_open' => !$daySpecialHours->is_closed
+                        'is_open' => ! $daySpecialHours->is_closed,
                     ];
                 } else {
                     $dayHours = $openingHours->getHoursForDay($day);
@@ -249,7 +251,7 @@ class PublicController extends Controller
                         'open_time' => $dayHours['closed'] || $openingHours->isSeasonClosed() ? null : $dayHours['start'],
                         'close_time' => $dayHours['closed'] || $openingHours->isSeasonClosed() ? null : $dayHours['stop'],
                         'is_today' => strtolower($todayDayEnglish) == $day,
-                        'is_open' => !$dayHours['closed'] && !$openingHours->isSeasonClosed()
+                        'is_open' => ! $dayHours['closed'] && ! $openingHours->isSeasonClosed(),
                     ];
                 }
             }
@@ -262,7 +264,7 @@ class PublicController extends Controller
         if ($request->has('group_by') && $request->group_by === 'region') {
             foreach ($locationsData as $location) {
                 $groupName = $location['group_name'] ?: 'Andre';
-                if (!isset($groupedLocations[$groupName])) {
+                if (! isset($groupedLocations[$groupName])) {
                     $groupedLocations[$groupName] = [];
                 }
                 $groupedLocations[$groupName][] = $location;
@@ -279,7 +281,7 @@ class PublicController extends Controller
             'current_day' => $todayDayEnglish,
             'currentSort' => $request->get('sort', 'default'),
             'currentGroupBy' => $request->get('group_by', 'none'),
-            'availableGroups' => Location::getGroups()
+            'availableGroups' => Location::getGroups(),
         ]);
     }
 
@@ -289,6 +291,7 @@ class PublicController extends Controller
     private function getLocationUrl($siteId)
     {
         $site = Site::where('site_id', $siteId)->first();
+
         return $site ? $site->url : '#';
     }
 
@@ -297,11 +300,12 @@ class PublicController extends Controller
      */
     private function getGoogleMapsUrl($address)
     {
-        if (!$address) {
+        if (! $address) {
             return '#';
         }
 
         $encodedAddress = urlencode($address);
+
         return "https://www.google.com/maps/dir/?api=1&destination={$encodedAddress}";
     }
 
@@ -318,7 +322,7 @@ class PublicController extends Controller
             'thursday' => 'torsdag',
             'friday' => 'fredag',
             'saturday' => 'lørdag',
-            'sunday' => 'søndag'
+            'sunday' => 'søndag',
         ];
 
         // Start checking from tomorrow if past closing time today, otherwise start from today
@@ -335,16 +339,16 @@ class PublicController extends Controller
             }
 
             // Check if location is open on this day
-            if ($dayHours && !$dayHours['closed'] && $dayHours['start']) {
+            if ($dayHours && ! $dayHours['closed'] && $dayHours['start']) {
                 $openTime = $dayHours['start'];
 
                 // If it's today and we haven't passed opening time yet, return today's opening
-                if ($i === 0 && !$pastClosingToday) {
+                if ($i === 0 && ! $pastClosingToday) {
                     $openDateTime = Carbon::createFromTimeString($openTime);
                     if ($currentTime->lt($openDateTime)) {
                         return [
                             'time' => $openTime,
-                            'day' => 'i dag'
+                            'day' => 'i dag',
                         ];
                     }
                 }
@@ -352,9 +356,10 @@ class PublicController extends Controller
                 // If it's tomorrow or later, return this opening time
                 if ($i > 0 || $pastClosingToday) {
                     $dayText = $i === 1 || ($i === 0 && $pastClosingToday) ? 'i morgen' : $dayTranslations[$dayName];
+
                     return [
                         'time' => $openTime,
-                        'day' => $dayText
+                        'day' => $dayText,
                     ];
                 }
             }
@@ -365,7 +370,7 @@ class PublicController extends Controller
         // If no opening found in the next 7 days
         return [
             'time' => null,
-            'day' => null
+            'day' => null,
         ];
     }
 }

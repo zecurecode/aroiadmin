@@ -10,22 +10,23 @@ class Overstyr extends Model
     use HasFactory;
 
     protected $table = 'overstyr';
+
     public $timestamps = false; // The original table uses only timestamp, not Laravel's created_at/updated_at
 
     protected $fillable = [
         'vognid',
         'status',
-        'timestamp'
+        'timestamp',
     ];
 
     protected $casts = [
         'vognid' => 'integer',
         'status' => 'integer',
-        'timestamp' => 'datetime'
+        'timestamp' => 'datetime',
     ];
 
     protected $dates = [
-        'timestamp'
+        'timestamp',
     ];
 
     /**
@@ -34,8 +35,8 @@ class Overstyr extends Model
     public static function getLatestForVogn($vognid)
     {
         return static::where('vognid', $vognid)
-                    ->latest('timestamp')
-                    ->first();
+            ->latest('timestamp')
+            ->first();
     }
 
     /**
@@ -46,7 +47,7 @@ class Overstyr extends Model
         return static::create([
             'vognid' => $vognid,
             'status' => $status,
-            'timestamp' => now()
+            'timestamp' => now(),
         ]);
     }
 
@@ -56,7 +57,7 @@ class Overstyr extends Model
     public static function getTodayOverrides()
     {
         return static::whereDate('timestamp', today())
-                    ->orderBy('timestamp', 'desc')
-                    ->get();
+            ->orderBy('timestamp', 'desc')
+            ->get();
     }
 }

@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
-use App\Models\Order;
 use App\Models\Location;
+use App\Models\Order;
 use App\Models\Setting;
 use Illuminate\Support\Facades\Log;
 
@@ -12,7 +12,6 @@ class SmsService
     /**
      * Send "order received" SMS to customer.
      *
-     * @param Order $order
      * @return bool Success status
      */
     public function sendOrderReceivedSms(Order $order)
@@ -20,18 +19,21 @@ class SmsService
         // Check if SMS already sent
         if ($order->sms) {
             Log::info("Skipping SMS for order {$order->ordreid} - already sent");
+
             return false;
         }
 
         // Check if order is paid
-        if (!$order->paid) {
+        if (! $order->paid) {
             Log::info("Skipping SMS for unpaid order {$order->ordreid}");
+
             return false;
         }
 
         // Check if phone number exists
         if (empty($order->telefon)) {
             Log::warning("No phone number for order {$order->ordreid}");
+
             return false;
         }
 
@@ -40,9 +42,9 @@ class SmsService
 
         // Build "order received" message
         $message = "Hei {$order->fornavn}! Vi har mottatt din ordre #{$order->ordreid}. "
-                 . "Vi vil gjøre bestillingen klar så fort vi kan. "
-                 . "Du får en ny melding når maten er klar til henting. "
-                 . "Mvh {$locationName}";
+                 .'Vi vil gjøre bestillingen klar så fort vi kan. '
+                 .'Du får en ny melding når maten er klar til henting. '
+                 ."Mvh {$locationName}";
 
         return $this->sendSms($order, $message);
     }
@@ -50,8 +52,7 @@ class SmsService
     /**
      * Send SMS to customer.
      *
-     * @param Order $order
-     * @param string $message
+     * @param  string  $message
      * @return bool Success status
      */
     public function sendSms(Order $order, $message)
@@ -66,18 +67,18 @@ class SmsService
         $sender = Setting::get('sms_sender', 'AroiAsia');
 
         // Build SMS URL using same method as working SMS (GET request)
-        $smsUrl = $apiUrl . "?" . http_build_query([
+        $smsUrl = $apiUrl.'?'.http_build_query([
             'username' => $username,
             'password' => $password,
             'recipient' => $phoneNormalized,
             'text' => $message,
-            'from' => $sender
+            'from' => $sender,
         ]);
 
         Log::info("Sending SMS for order {$order->ordreid}", [
             'phone_original' => $order->telefon,
             'phone_normalized' => $phoneNormalized,
-            'message' => $message
+            'message' => $message,
         ]);
 
         try {
@@ -91,7 +92,8 @@ class SmsService
             curl_close($ch);
 
             if ($curlError) {
-                Log::error("CURL error sending SMS for order {$order->ordreid}: " . $curlError);
+                Log::error("CURL error sending SMS for order {$order->ordreid}: ".$curlError);
+
                 return false;
             }
 
@@ -99,19 +101,22 @@ class SmsService
                 $order->update(['sms' => true]);
                 Log::info("SMS sent successfully for order {$order->ordreid}", [
                     'http_code' => $httpcode,
-                    'response' => $output
+                    'response' => $output,
                 ]);
+
                 return true;
             } else {
                 Log::error("Failed to send SMS for order {$order->ordreid}", [
                     'http_code' => $httpcode,
                     'response' => $output,
-                    'curl_error' => $curlError
+                    'curl_error' => $curlError,
                 ]);
+
                 return false;
             }
         } catch (\Exception $e) {
-            Log::error("Exception sending SMS for order {$order->ordreid}: " . $e->getMessage());
+            Log::error("Exception sending SMS for order {$order->ordreid}: ".$e->getMessage());
+
             return false;
         }
     }
@@ -119,7 +124,7 @@ class SmsService
     /**
      * Normalize Norwegian phone number to +47 format.
      *
-     * @param string $phone
+     * @param  string  $phone
      * @return string
      */
     private function normalizePhoneNumber($phone)
@@ -134,17 +139,17 @@ class SmsService
 
         // If starts with 0047, replace with +47
         if (substr($phone, 0, 4) === '0047') {
-            return '+47' . substr($phone, 4);
+            return '+47'.substr($phone, 4);
         }
 
         // If starts with 47 (without +), add the +
         if (substr($phone, 0, 2) === '47' && strlen($phone) >= 10) {
-            return '+' . $phone;
+            return '+'.$phone;
         }
 
         // If 8 digits (Norwegian mobile without country code), add +47
         if (strlen($phone) === 8 && ctype_digit($phone)) {
-            return '+47' . $phone;
+            return '+47'.$phone;
         }
 
         // Otherwise return as is (might be international number)

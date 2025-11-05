@@ -7,7 +7,6 @@ use App\Models\PckCredential;
 use App\Models\PckInboundPayload;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
-use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class PckSoapTest extends TestCase
@@ -17,7 +16,7 @@ class PckSoapTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Create test PCK credential
         PckCredential::create([
             'tenant_id' => 1,
@@ -35,11 +34,11 @@ class PckSoapTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertHeader('content-type', 'application/xml; charset=utf-8');
-        
+
         // Verify it's valid XML
         $xml = simplexml_load_string($response->getContent());
         $this->assertNotFalse($xml);
-        
+
         // Verify it contains expected SOAP elements
         $this->assertStringContains('definitions', $response->getContent());
         $this->assertStringContains('PckWebshopService', $response->getContent());
@@ -55,7 +54,7 @@ class PckSoapTest extends TestCase
             'wsdl_exists' => true,
             'soap_extension' => true,
         ]);
-        
+
         $this->assertArrayHasKey('timestamp', $response->json());
         $this->assertArrayHasKey('enabled_tenants', $response->json());
         $this->assertEquals(1, $response->json('enabled_tenants'));
@@ -103,7 +102,7 @@ class PckSoapTest extends TestCase
     public function test_pck_credential_authentication(): void
     {
         $credential = PckCredential::first();
-        
+
         // Test successful authentication
         $authenticated = PckCredential::authenticate(
             $credential->tenant_id,
@@ -111,10 +110,10 @@ class PckSoapTest extends TestCase
             'test_password',
             $credential->pck_license
         );
-        
+
         $this->assertNotNull($authenticated);
         $this->assertEquals($credential->id, $authenticated->id);
-        
+
         // Test failed authentication
         $failed = PckCredential::authenticate(
             $credential->tenant_id,
@@ -122,18 +121,18 @@ class PckSoapTest extends TestCase
             'wrong_password',
             $credential->pck_license
         );
-        
+
         $this->assertNull($failed);
     }
 
     public function test_ip_whitelist_functionality(): void
     {
         $credential = PckCredential::first();
-        
+
         // Test with no whitelist (should allow all)
         $credential->update(['ip_whitelist' => null]);
         $this->assertTrue($credential->isIpWhitelisted('192.168.1.1'));
-        
+
         // Test with specific IP allowed
         $credential->update(['ip_whitelist' => ['192.168.1.1', '10.0.0.1']]);
         $this->assertTrue($credential->isIpWhitelisted('192.168.1.1'));

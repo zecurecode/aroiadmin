@@ -9,14 +9,17 @@ use Illuminate\Support\Facades\Log;
 class WooCommerceService
 {
     private $baseUrl;
+
     private $consumerKey;
+
     private $consumerSecret;
+
     private $siteId;
 
     /**
      * Create a new class instance.
      *
-     * @param int $siteId The site ID to fetch credentials for
+     * @param  int  $siteId  The site ID to fetch credentials for
      */
     public function __construct($siteId = null)
     {
@@ -47,7 +50,7 @@ class WooCommerceService
     /**
      * Fetch order details from WooCommerce by order ID
      *
-     * @param int $orderId WooCommerce order ID
+     * @param  int  $orderId  WooCommerce order ID
      * @return array|null Order data including total amount
      */
     public function getOrder($orderId)
@@ -78,7 +81,7 @@ class WooCommerceService
             Log::warning('WooCommerce API request failed', [
                 'order_id' => $orderId,
                 'status' => $response->status(),
-                'body' => $response->body()
+                'body' => $response->body(),
             ]);
 
             return null;
@@ -86,7 +89,7 @@ class WooCommerceService
         } catch (\Exception $e) {
             Log::error('WooCommerce API exception', [
                 'order_id' => $orderId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return null;
@@ -96,7 +99,7 @@ class WooCommerceService
     /**
      * Get order total amount by order ID
      *
-     * @param int $orderId
+     * @param  int  $orderId
      * @return float|null
      */
     public function getOrderTotal($orderId)
@@ -109,7 +112,6 @@ class WooCommerceService
     /**
      * Batch fetch multiple order totals
      *
-     * @param array $orderIds
      * @return array Associative array [orderId => total]
      */
     public function getOrderTotals(array $orderIds)
@@ -127,8 +129,8 @@ class WooCommerceService
      * Fetch orders from WooCommerce by criteria
      * Automatically handles pagination to fetch all orders
      *
-     * @param array $params Query parameters (status, per_page, after, before, etc.)
-     * @param bool $paginate Whether to automatically paginate and fetch all results (default: true)
+     * @param  array  $params  Query parameters (status, per_page, after, before, etc.)
+     * @param  bool  $paginate  Whether to automatically paginate and fetch all results (default: true)
      * @return array|null List of orders
      */
     public function getOrders($params = [], $paginate = true)
@@ -155,7 +157,7 @@ class WooCommerceService
                     ->timeout(30)
                     ->get($url, $queryParams);
 
-                if (!$response->successful()) {
+                if (! $response->successful()) {
                     Log::warning('WooCommerce API orders request failed', [
                         'params' => $queryParams,
                         'status' => $response->status(),
@@ -182,7 +184,7 @@ class WooCommerceService
                 ]);
 
                 // If not paginating, just return first page
-                if (!$paginate) {
+                if (! $paginate) {
                     break;
                 }
 
@@ -222,10 +224,10 @@ class WooCommerceService
     /**
      * Get orders by status for a specific location (using meta data)
      *
-     * @param string $status Order status (pending, processing, completed, etc.)
-     * @param int|null $siteId Site ID to filter by (searches in order meta)
-     * @param array $params Additional params (after, before, per_page, etc.)
-     * @param bool $filterBySiteId Whether to filter by site_id in meta_data (default: false)
+     * @param  string  $status  Order status (pending, processing, completed, etc.)
+     * @param  int|null  $siteId  Site ID to filter by (searches in order meta)
+     * @param  array  $params  Additional params (after, before, per_page, etc.)
+     * @param  bool  $filterBySiteId  Whether to filter by site_id in meta_data (default: false)
      * @return array|null
      */
     public function getOrdersByStatus($status, $siteId = null, $params = [], $filterBySiteId = false)
@@ -258,12 +260,13 @@ class WooCommerceService
         // so filtering by site_id in meta_data is usually NOT needed
         if ($filterBySiteId && $siteId !== null && $orders !== null) {
             $originalCount = count($orders);
-            $orders = array_filter($orders, function($order) use ($siteId) {
+            $orders = array_filter($orders, function ($order) use ($siteId) {
                 foreach ($order['meta_data'] ?? [] as $meta) {
                     if ($meta['key'] === 'site_id' && $meta['value'] == $siteId) {
                         return true;
                     }
                 }
+
                 return false;
             });
 
@@ -280,12 +283,12 @@ class WooCommerceService
     /**
      * Calculate total revenue from orders
      *
-     * @param array $orders List of WooCommerce orders
+     * @param  array  $orders  List of WooCommerce orders
      * @return float Total revenue
      */
     public function calculateRevenue($orders)
     {
-        if (!$orders) {
+        if (! $orders) {
             return 0.0;
         }
 
@@ -300,20 +303,20 @@ class WooCommerceService
     /**
      * Get statistics for completed orders within a date range
      *
-     * @param int $siteId
-     * @param string $after Date in Y-m-d format
-     * @param string|null $before Date in Y-m-d format
+     * @param  int  $siteId
+     * @param  string  $after  Date in Y-m-d format
+     * @param  string|null  $before  Date in Y-m-d format
      * @return array ['count' => int, 'revenue' => float]
      */
     public function getCompletedOrdersStats($siteId, $after, $before = null)
     {
         $params = [
-            'after' => $after . 'T00:00:00',
+            'after' => $after.'T00:00:00',
             'per_page' => 100,
         ];
 
         if ($before) {
-            $params['before'] = $before . 'T23:59:59';
+            $params['before'] = $before.'T23:59:59';
         }
 
         $orders = $this->getOrdersByStatus('completed', $siteId, $params);
@@ -321,7 +324,7 @@ class WooCommerceService
         return [
             'count' => $orders ? count($orders) : 0,
             'revenue' => $this->calculateRevenue($orders),
-            'orders' => $orders
+            'orders' => $orders,
         ];
     }
 
@@ -330,7 +333,7 @@ class WooCommerceService
      * Note: In WordPress multisite, each site has its own WooCommerce instance
      * so we don't need to filter by site_id in metadata
      *
-     * @param int $siteId
+     * @param  int  $siteId
      * @return array|null
      */
     public function getPendingOrders($siteId)
@@ -360,9 +363,9 @@ class WooCommerceService
      * Get revenue statistics from WooCommerce Analytics API
      * Uses the fast wc-analytics/reports/revenue/stats endpoint
      *
-     * @param string $after Start date (Y-m-d format)
-     * @param string $before End date (Y-m-d format)
-     * @param string $interval Interval (day, week, month, year)
+     * @param  string  $after  Start date (Y-m-d format)
+     * @param  string  $before  End date (Y-m-d format)
+     * @param  string  $interval  Interval (day, week, month, year)
      * @return array|null ['total_sales' => float, 'orders_count' => int]
      */
     public function getRevenueStats($after, $before, $interval = 'day')
@@ -371,8 +374,8 @@ class WooCommerceService
             $url = "{$this->baseUrl}/wp-json/wc-analytics/reports/revenue/stats";
 
             $params = [
-                'after' => $after . 'T00:00:00',
-                'before' => $before . 'T23:59:59',
+                'after' => $after.'T00:00:00',
+                'before' => $before.'T23:59:59',
                 'interval' => $interval,
             ];
 
@@ -421,8 +424,8 @@ class WooCommerceService
     /**
      * Fallback method: Calculate revenue stats manually from orders
      *
-     * @param string $after Start date (Y-m-d format)
-     * @param string $before End date (Y-m-d format)
+     * @param  string  $after  Start date (Y-m-d format)
+     * @param  string  $before  End date (Y-m-d format)
      * @return array|null
      */
     private function getRevenueStatsFallback($after, $before)
@@ -431,8 +434,8 @@ class WooCommerceService
 
         $params = [
             'status' => 'completed',
-            'after' => $after . 'T00:00:00',
-            'before' => $before . 'T23:59:59',
+            'after' => $after.'T00:00:00',
+            'before' => $before.'T23:59:59',
             'per_page' => 100,
         ];
 
@@ -459,7 +462,7 @@ class WooCommerceService
      * Get comprehensive statistics for a site
      * Uses WooCommerce Analytics API for fast performance
      *
-     * @param int $siteId
+     * @param  int  $siteId
      * @return array
      */
     public function getSiteStatistics($siteId)
@@ -506,7 +509,7 @@ class WooCommerceService
 
         $pendingData = [
             'count' => $pendingCount,
-            'orders' => [] // Never fetch order list from WooCommerce
+            'orders' => [], // Never fetch order list from WooCommerce
         ];
 
         // Calculate percentage changes
@@ -521,10 +524,10 @@ class WooCommerceService
         Log::info('WooCommerce: Statistics calculated', [
             'year_revenue' => $yearStats['total_sales'],
             'year_count' => $yearStats['orders_count'],
-            'year_change' => round($yearChange, 2) . '%',
+            'year_change' => round($yearChange, 2).'%',
             'month_revenue' => $monthStats['total_sales'],
             'month_count' => $monthStats['orders_count'],
-            'month_change' => round($monthChange, 2) . '%',
+            'month_change' => round($monthChange, 2).'%',
         ]);
 
         return [
@@ -556,32 +559,34 @@ class WooCommerceService
     /**
      * Get order status from WooCommerce.
      *
-     * @param int $orderId WooCommerce order ID
+     * @param  int  $orderId  WooCommerce order ID
      * @return string|null Order status (pending, processing, completed, etc.)
      */
     public function getOrderStatus($orderId)
     {
         $order = $this->getOrder($orderId);
+
         return $order ? $order['status'] : null;
     }
 
     /**
      * Check if order is completed in WooCommerce.
      *
-     * @param int $orderId WooCommerce order ID
+     * @param  int  $orderId  WooCommerce order ID
      * @return bool
      */
     public function isOrderCompleted($orderId)
     {
         $status = $this->getOrderStatus($orderId);
+
         return $status === 'completed';
     }
 
     /**
      * Update order status in WooCommerce.
      *
-     * @param int $orderId WooCommerce order ID
-     * @param string $status New status (pending, processing, completed, cancelled, etc.)
+     * @param  int  $orderId  WooCommerce order ID
+     * @param  string  $status  New status (pending, processing, completed, cancelled, etc.)
      * @return bool Success status
      */
     public function updateOrderStatus($orderId, $status)
@@ -597,6 +602,7 @@ class WooCommerceService
 
             if ($response->successful()) {
                 Log::info("WooCommerce: Successfully updated order {$orderId} to {$status}");
+
                 return true;
             }
 
@@ -604,7 +610,7 @@ class WooCommerceService
                 'order_id' => $orderId,
                 'status' => $status,
                 'http_code' => $response->status(),
-                'response' => $response->body()
+                'response' => $response->body(),
             ]);
 
             return false;
@@ -613,7 +619,7 @@ class WooCommerceService
             Log::error('WooCommerce: Exception updating order status', [
                 'order_id' => $orderId,
                 'status' => $status,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return false;
@@ -623,7 +629,7 @@ class WooCommerceService
     /**
      * Mark order as completed in WooCommerce.
      *
-     * @param int $orderId WooCommerce order ID
+     * @param  int  $orderId  WooCommerce order ID
      * @return bool Success status
      */
     public function markOrderCompleted($orderId)

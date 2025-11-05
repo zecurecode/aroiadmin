@@ -4,13 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Location;
-use App\Models\Site;
 use App\Models\OpeningHours;
-use App\Models\ApningstidAlternative;
-use App\Models\AvdelingAlternative;
+use App\Models\Site;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class WordPressController extends Controller
 {
@@ -21,7 +18,7 @@ class WordPressController extends Controller
     {
         $location = Location::where('site_id', $siteId)->first();
 
-        if (!$location) {
+        if (! $location) {
             return response()->json(['error' => 'Location not found'], 404);
         }
 
@@ -31,7 +28,7 @@ class WordPressController extends Controller
         return response()->json([
             'site_id' => $siteId,
             'delivery_time' => $deliveryTime,
-            'location_name' => $location->name
+            'location_name' => $location->name,
         ]);
     }
 
@@ -41,18 +38,18 @@ class WordPressController extends Controller
     public function getOpeningHours($siteId)
     {
         $location = Location::where('site_id', $siteId)->first();
-        
-        if (!$location) {
+
+        if (! $location) {
             return response()->json(['error' => 'Location not found'], 404);
         }
 
         $locationName = strtolower($location->name);
         $currentDay = Carbon::now()->locale('nb')->dayName;
-        
+
         // Get opening hours from apningstid table
         $openingHours = OpeningHours::where('day', $currentDay)->first();
-        
-        if (!$openingHours) {
+
+        if (! $openingHours) {
             return response()->json(['error' => 'Opening hours not found'], 404);
         }
 
@@ -78,7 +75,7 @@ class WordPressController extends Controller
             'close_time' => $closeTime,
             'status' => $status,
             'is_open' => $isOpen,
-            'notes' => $notes
+            'notes' => $notes,
         ]);
     }
 
@@ -88,16 +85,16 @@ class WordPressController extends Controller
     public function getAllOpeningHours($siteId)
     {
         $location = Location::where('site_id', $siteId)->first();
-        
-        if (!$location) {
+
+        if (! $location) {
             return response()->json(['error' => 'Location not found'], 404);
         }
 
         $locationName = strtolower($location->name);
-        
+
         // Get all opening hours from apningstid table
         $allHours = OpeningHours::all();
-        
+
         $schedule = [];
         foreach ($allHours as $dayHours) {
             $schedule[] = [
@@ -105,14 +102,14 @@ class WordPressController extends Controller
                 'open_time' => $dayHours->getOpenTime($locationName),
                 'close_time' => $dayHours->getCloseTime($locationName),
                 'status' => $dayHours->getStatus($locationName),
-                'notes' => $dayHours->getNotes($locationName)
+                'notes' => $dayHours->getNotes($locationName),
             ];
         }
 
         return response()->json([
             'site_id' => $siteId,
             'location_name' => $location->name,
-            'schedule' => $schedule
+            'schedule' => $schedule,
         ]);
     }
 
@@ -122,22 +119,22 @@ class WordPressController extends Controller
     public function isOpenNow($siteId)
     {
         $location = Location::where('site_id', $siteId)->first();
-        
-        if (!$location) {
+
+        if (! $location) {
             return response()->json(['error' => 'Location not found'], 404);
         }
 
         $locationName = strtolower($location->name);
         $currentDay = Carbon::now()->locale('nb')->dayName;
-        
+
         // Get opening hours from apningstid table
         $openingHours = OpeningHours::where('day', $currentDay)->first();
-        
-        if (!$openingHours) {
+
+        if (! $openingHours) {
             return response()->json([
                 'site_id' => $siteId,
                 'is_open' => false,
-                'message' => 'No opening hours found for today'
+                'message' => 'No opening hours found for today',
             ]);
         }
 
@@ -148,14 +145,14 @@ class WordPressController extends Controller
         // Check if currently open
         $isOpen = false;
         $message = 'Vognen er stengt';
-        
+
         if ($status == 0) {
             $message = 'Vognen er stengt i dag';
         } elseif ($openTime && $closeTime) {
             $now = Carbon::now();
             $openTimeCarbon = Carbon::createFromTimeString($openTime);
             $closeTimeCarbon = Carbon::createFromTimeString($closeTime);
-            
+
             if ($now->lt($openTimeCarbon)) {
                 $message = "Åpner klokken {$openTime}";
             } elseif ($now->gt($closeTimeCarbon)) {
@@ -173,7 +170,7 @@ class WordPressController extends Controller
             'message' => $message,
             'open_time' => $openTime,
             'close_time' => $closeTime,
-            'status' => $status
+            'status' => $status,
         ]);
     }
 
@@ -184,8 +181,8 @@ class WordPressController extends Controller
     {
         $location = Location::where('site_id', $siteId)->first();
         $site = Site::where('site_id', $siteId)->first();
-        
-        if (!$location) {
+
+        if (! $location) {
             return response()->json(['error' => 'Location not found'], 404);
         }
 
@@ -197,7 +194,7 @@ class WordPressController extends Controller
             'email' => $location->email,
             'address' => $location->address,
             'url' => $location->order_url ?? $site->url ?? null,
-            'active' => $location->active
+            'active' => $location->active,
         ]);
     }
 
@@ -207,22 +204,22 @@ class WordPressController extends Controller
     public function updateStatus(Request $request, $siteId)
     {
         $request->validate([
-            'status' => 'required|integer|in:0,1'
+            'status' => 'required|integer|in:0,1',
         ]);
 
         $location = Location::where('site_id', $siteId)->first();
-        
-        if (!$location) {
+
+        if (! $location) {
             return response()->json(['error' => 'Location not found'], 404);
         }
 
         $locationName = strtolower($location->name);
         $currentDay = Carbon::now()->locale('nb')->dayName;
-        
+
         // Update status in apningstid table
         $openingHours = OpeningHours::where('day', $currentDay)->first();
-        
-        if (!$openingHours) {
+
+        if (! $openingHours) {
             return response()->json(['error' => 'Opening hours not found'], 404);
         }
 
@@ -232,7 +229,7 @@ class WordPressController extends Controller
             'site_id' => $siteId,
             'location_name' => $location->name,
             'status' => $request->status,
-            'message' => 'Status updated successfully'
+            'message' => 'Status updated successfully',
         ]);
     }
 
@@ -248,7 +245,7 @@ class WordPressController extends Controller
             5 => 13,   // Gramyra
             10 => 14,  // Frosta
             11 => 16,  // Hell
-            12 => 17   // Steinkjer
+            12 => 17,   // Steinkjer
         ];
 
         return $mapping[$siteId] ?? null;

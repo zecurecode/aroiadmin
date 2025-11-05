@@ -100,7 +100,7 @@ class PckCredentialsSeeder extends Seeder
         foreach ($locations as $location) {
             $this->command->line("  - {$location['name']} (ID: {$location['tenant_id']}, License: {$location['pck_license']})");
         }
-        
+
         $this->command->warn('IMPORTANT: These are sample credentials. Update passwords in production!');
         $this->command->info('Use: php artisan pck:update-credentials to manage credentials securely');
     }

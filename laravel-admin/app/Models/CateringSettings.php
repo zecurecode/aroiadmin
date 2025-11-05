@@ -19,7 +19,7 @@ class CateringSettings extends Model
         'catering_info',
         'blocked_dates',
         'delivery_times',
-        'delivery_areas'
+        'delivery_areas',
     ];
 
     protected $casts = [
@@ -29,7 +29,7 @@ class CateringSettings extends Model
         'min_order_amount' => 'decimal:2',
         'blocked_dates' => 'array',
         'delivery_times' => 'array',
-        'delivery_areas' => 'array'
+        'delivery_areas' => 'array',
     ];
 
     /**
@@ -61,7 +61,7 @@ class CateringSettings extends Model
             '17:00',
             '18:00',
             '19:00',
-            '20:00'
+            '20:00',
         ];
     }
 
@@ -71,6 +71,7 @@ class CateringSettings extends Model
     public function isDateBlocked($date)
     {
         $dateString = $date instanceof \Carbon\Carbon ? $date->format('Y-m-d') : $date;
+
         return in_array($dateString, $this->blocked_dates ?? []);
     }
 
@@ -81,8 +82,8 @@ class CateringSettings extends Model
     {
         $dateString = $date instanceof \Carbon\Carbon ? $date->format('Y-m-d') : $date;
         $blockedDates = $this->blocked_dates ?? [];
-        
-        if (!in_array($dateString, $blockedDates)) {
+
+        if (! in_array($dateString, $blockedDates)) {
             $blockedDates[] = $dateString;
             $this->update(['blocked_dates' => $blockedDates]);
         }
@@ -95,7 +96,7 @@ class CateringSettings extends Model
     {
         $dateString = $date instanceof \Carbon\Carbon ? $date->format('Y-m-d') : $date;
         $blockedDates = $this->blocked_dates ?? [];
-        
+
         $blockedDates = array_values(array_diff($blockedDates, [$dateString]));
         $this->update(['blocked_dates' => $blockedDates]);
     }
