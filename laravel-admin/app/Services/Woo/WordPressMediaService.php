@@ -12,18 +12,21 @@ use Psr\Http\Message\ResponseInterface;
 class WordPressMediaService
 {
     private TenantContext $tenant;
+
     private Client $httpClient;
+
     private string $baseUrl;
+
     private array $auth;
 
     public function __construct(TenantContext $tenant)
     {
         $this->tenant = $tenant;
         $config = $tenant->getWooCommerceConfig();
-        
-        $this->baseUrl = rtrim($config['base_url'], '/') . '/wp-json/wp/v2';
+
+        $this->baseUrl = rtrim($config['base_url'], '/').'/wp-json/wp/v2';
         $this->auth = [$config['consumer_key'], $config['consumer_secret']];
-        
+
         $this->httpClient = new Client([
             'timeout' => 60, // Longer timeout for file uploads
             'connect_timeout' => 10,
@@ -48,12 +51,12 @@ class WordPressMediaService
 
         // Detect image format
         $imageInfo = $this->detectImageFormat($binaryData);
-        if (!$imageInfo) {
+        if (! $imageInfo) {
             throw new \RuntimeException('Unable to detect image format');
         }
 
         // Prepare filename
-        $filename = $metadata['filename'] ?? 'image-' . time() . '.' . $imageInfo['extension'];
+        $filename = $metadata['filename'] ?? 'image-'.time().'.'.$imageInfo['extension'];
         $filename = $this->sanitizeFilename($filename);
 
         // Prepare upload data
@@ -66,7 +69,7 @@ class WordPressMediaService
             $uploadResponse = $this->uploadFile($binaryData, $filename, $imageInfo['mime_type']);
 
             // Update media metadata if needed
-            if (!empty($title) || !empty($altText) || !empty($description)) {
+            if (! empty($title) || ! empty($altText) || ! empty($description)) {
                 $uploadResponse = $this->updateMediaMetadata($uploadResponse['id'], [
                     'title' => $title,
                     'alt_text' => $altText,
@@ -101,13 +104,13 @@ class WordPressMediaService
      */
     private function uploadFile(string $binaryData, string $filename, string $mimeType): array
     {
-        $url = $this->baseUrl . '/media';
+        $url = $this->baseUrl.'/media';
 
         $options = [
             'auth' => $this->auth,
             'headers' => [
                 'Content-Type' => $mimeType,
-                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+                'Content-Disposition' => 'attachment; filename="'.$filename.'"',
             ],
             'body' => $binaryData,
             'verify' => false,
@@ -135,7 +138,7 @@ class WordPressMediaService
                 'size' => strlen($binaryData),
                 'mime_type' => $mimeType,
             ]);
-            throw new \RuntimeException("WordPress media upload failed: " . $e->getMessage(), $e->getCode(), $e);
+            throw new \RuntimeException('WordPress media upload failed: '.$e->getMessage(), $e->getCode(), $e);
         }
     }
 
@@ -144,23 +147,23 @@ class WordPressMediaService
      */
     public function updateMediaMetadata(int $mediaId, array $metadata): array
     {
-        $url = $this->baseUrl . '/media/' . $mediaId;
+        $url = $this->baseUrl.'/media/'.$mediaId;
 
         $updateData = [];
-        
-        if (!empty($metadata['title'])) {
+
+        if (! empty($metadata['title'])) {
             $updateData['title'] = $metadata['title'];
         }
-        
-        if (!empty($metadata['alt_text'])) {
+
+        if (! empty($metadata['alt_text'])) {
             $updateData['alt_text'] = $metadata['alt_text'];
         }
-        
-        if (!empty($metadata['description'])) {
+
+        if (! empty($metadata['description'])) {
             $updateData['description'] = $metadata['description'];
         }
-        
-        if (!empty($metadata['caption'])) {
+
+        if (! empty($metadata['caption'])) {
             $updateData['caption'] = $metadata['caption'];
         }
 
@@ -189,7 +192,7 @@ class WordPressMediaService
 
         } catch (GuzzleException $e) {
             $this->logRequestError('PUT', "/media/{$mediaId}", $e, $updateData);
-            throw new \RuntimeException("WordPress media metadata update failed: " . $e->getMessage(), $e->getCode(), $e);
+            throw new \RuntimeException('WordPress media metadata update failed: '.$e->getMessage(), $e->getCode(), $e);
         }
     }
 
@@ -237,13 +240,13 @@ class WordPressMediaService
     {
         // Get image info from binary data
         $imageInfo = @getimagesizefromstring($binaryData);
-        
+
         if ($imageInfo === false) {
             return null;
         }
 
         $mimeType = $imageInfo['mime'] ?? '';
-        
+
         $formats = [
             'image/jpeg' => 'jpg',
             'image/jpg' => 'jpg',
@@ -254,8 +257,8 @@ class WordPressMediaService
         ];
 
         $extension = $formats[$mimeType] ?? null;
-        
-        if (!$extension) {
+
+        if (! $extension) {
             return null;
         }
 
@@ -274,15 +277,15 @@ class WordPressMediaService
     {
         // Remove path info
         $filename = basename($filename);
-        
+
         // Convert to lowercase and replace spaces/special chars
-        $filename = Str::slug(pathinfo($filename, PATHINFO_FILENAME)) . '.' . pathinfo($filename, PATHINFO_EXTENSION);
-        
+        $filename = Str::slug(pathinfo($filename, PATHINFO_FILENAME)).'.'.pathinfo($filename, PATHINFO_EXTENSION);
+
         // Ensure we have an extension
-        if (!pathinfo($filename, PATHINFO_EXTENSION)) {
+        if (! pathinfo($filename, PATHINFO_EXTENSION)) {
             $filename .= '.jpg';
         }
-        
+
         return $filename;
     }
 
@@ -291,14 +294,14 @@ class WordPressMediaService
      */
     private function makeRequest(string $method, string $endpoint, array $data = []): array
     {
-        $url = $this->baseUrl . $endpoint;
+        $url = $this->baseUrl.$endpoint;
 
         $options = [
             'auth' => $this->auth,
             'verify' => false,
         ];
 
-        if (!empty($data) && in_array($method, ['POST', 'PUT', 'PATCH'])) {
+        if (! empty($data) && in_array($method, ['POST', 'PUT', 'PATCH'])) {
             $options['json'] = $data;
         }
 
@@ -324,7 +327,7 @@ class WordPressMediaService
         } catch (GuzzleException $e) {
             $this->logRequestError($method, $endpoint, $e, $data);
             throw new \RuntimeException(
-                "WordPress API request failed: {$method} {$endpoint} - " . $e->getMessage(),
+                "WordPress API request failed: {$method} {$endpoint} - ".$e->getMessage(),
                 $e->getCode(),
                 $e
             );
@@ -372,7 +375,7 @@ class WordPressMediaService
         }
 
         // Include request data for POST/PUT requests (but mask sensitive data)
-        if (!empty($data) && in_array($method, ['POST', 'PUT', 'PATCH'])) {
+        if (! empty($data) && in_array($method, ['POST', 'PUT', 'PATCH'])) {
             $context['request_data'] = $this->maskSensitiveData($data);
         }
 

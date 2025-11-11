@@ -8,8 +8,8 @@ use App\Tenancy\TenantResolver;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
-use SoapServer;
 use SoapFault;
+use SoapServer;
 
 class PckSoapController extends Controller
 {
@@ -19,16 +19,16 @@ class PckSoapController extends Controller
     public function wsdl(Request $request): Response
     {
         $wsdlPath = public_path('wsdl/pck.wsdl');
-        
-        if (!file_exists($wsdlPath)) {
+
+        if (! file_exists($wsdlPath)) {
             abort(404, 'WSDL file not found');
         }
 
         // Update WSDL location dynamically based on request
         $wsdlContent = file_get_contents($wsdlPath);
         $baseUrl = $request->getSchemeAndHttpHost();
-        $soapEndpoint = $baseUrl . '/soap/pck';
-        
+        $soapEndpoint = $baseUrl.'/soap/pck';
+
         // Replace placeholder with actual endpoint
         $wsdlContent = str_replace(
             'http://localhost/soap/pck',
@@ -40,9 +40,9 @@ class PckSoapController extends Controller
         $userAgent = $request->userAgent();
         $accept = $request->header('Accept', '');
         $forceXml = $request->has('xml') || $request->has('raw');
-        
+
         // If it's a browser request and not forced XML, show as HTML for easy viewing
-        if (!$forceXml && str_contains($userAgent, 'Mozilla') && str_contains($accept, 'text/html')) {
+        if (! $forceXml && str_contains($userAgent, 'Mozilla') && str_contains($accept, 'text/html')) {
             try {
                 return response()->view('soap.wsdl-viewer', [
                     'wsdl_content' => htmlspecialchars($wsdlContent),
@@ -55,7 +55,7 @@ class PckSoapController extends Controller
             } catch (\Exception $e) {
                 // Fallback to raw XML if view doesn't exist
                 Log::warning('WSDL viewer template not found, falling back to raw XML', [
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
@@ -90,7 +90,7 @@ class PckSoapController extends Controller
                         <body>
                             <h1>🔧 PCK SOAP Endpoint</h1>
                             <p>This is a SOAP endpoint for PCKasse integration.</p>
-                            <p><strong>Tenant:</strong> ' . ($tenantKey ?? 'Auto-resolved') . '</p>
+                            <p><strong>Tenant:</strong> '.($tenantKey ?? 'Auto-resolved').'</p>
                             <p><strong>WSDL:</strong> <a href="/wsdl/pck.wsdl">View WSDL</a></p>
                             <p><strong>Health Check:</strong> <a href="/pck/health">System Status</a></p>
                             <hr>
@@ -102,25 +102,25 @@ class PckSoapController extends Controller
 
             // Enable SOAP error reporting
             ini_set('soap.wsdl_cache_enabled', '0');
-            
+
             // Use local WSDL file path instead of HTTP URL to avoid circular loading
             $wsdlPath = public_path('wsdl/pck.wsdl');
-            
-            if (!file_exists($wsdlPath)) {
-                throw new \Exception('WSDL file not found at: ' . $wsdlPath);
+
+            if (! file_exists($wsdlPath)) {
+                throw new \Exception('WSDL file not found at: '.$wsdlPath);
             }
-            
+
             // Create SOAP server with document/literal for .NET ASMX compatibility
             $server = new SoapServer($wsdlPath, [
                 'soap_version' => SOAP_1_1, // BasicProfile 1.1
                 'cache_wsdl' => WSDL_CACHE_NONE,
                 'features' => SOAP_SINGLE_ELEMENT_ARRAYS, // safer array serialization
-                'location' => $request->getSchemeAndHttpHost() . '/soap/pck/' . ($tenantKey ?? ''),
+                'location' => $request->getSchemeAndHttpHost().'/soap/pck/'.($tenantKey ?? ''),
             ]);
 
             // Create handler with request context
             $handler = new PckSoapHandler($request, $tenantKey);
-            
+
             // Set the service object
             $server->setObject($handler);
 
@@ -138,10 +138,10 @@ class PckSoapController extends Controller
             ]);
 
             // Clean any output buffer before SOAP handling
-            if (ob_get_level() > 0) { 
-                ob_end_clean(); 
+            if (ob_get_level() > 0) {
+                ob_end_clean();
             }
-            
+
             // Let SoapServer handle everything and serialize PHP objects automatically
             ob_start();
             $server->handle();
@@ -193,7 +193,6 @@ class PckSoapController extends Controller
         }
     }
 
-
     /**
      * Health check endpoint
      */
@@ -202,7 +201,7 @@ class PckSoapController extends Controller
         try {
             $wsdlPath = public_path('wsdl/pck.wsdl');
             $wsdlExists = file_exists($wsdlPath);
-            
+
             $status = [
                 'status' => 'ok',
                 'timestamp' => now()->toISOString(),
@@ -225,7 +224,7 @@ class PckSoapController extends Controller
             $status['enabled_tenants'] = $tenantCount;
 
             return response()->json($status, 200);
-            
+
         } catch (\Exception $e) {
             Log::error('PCK SOAP health check failed', [
                 'error' => $e->getMessage(),
@@ -247,8 +246,8 @@ class PckSoapController extends Controller
     {
         try {
             $tenant = TenantResolver::resolveFromTenantKey($tenantKey);
-            
-            if (!$tenant) {
+
+            if (! $tenant) {
                 return response()->json([
                     'error' => 'Tenant not found',
                     'tenant_key' => $tenantKey,

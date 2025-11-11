@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Services\WooCommerceService;
 use App\Models\Site;
+use App\Services\WooCommerceService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
@@ -19,7 +19,7 @@ class StatisticsController extends Controller
     {
         $user = Auth::user();
 
-        if (!$user) {
+        if (! $user) {
             return redirect('/login')->withErrors(['error' => 'Authentication required']);
         }
 
@@ -28,13 +28,14 @@ class StatisticsController extends Controller
         // If admin (siteid = 0), show site selector
         if ($userSiteId == 0 || $userSiteId === null) {
             $sites = Site::where('active', true)->orderBy('name')->get();
+
             return view('admin.statistics.select-site', compact('sites'));
         }
 
         // Get site information
         $site = Site::findBySiteId($userSiteId);
 
-        if (!$site) {
+        if (! $site) {
             return back()->withErrors(['error' => 'Site not found for your account. Please contact administrator.']);
         }
 
@@ -59,24 +60,24 @@ class StatisticsController extends Controller
             Log::error('Error fetching WooCommerce statistics', [
                 'site_id' => $userSiteId,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
-            return back()->withErrors(['error' => 'Failed to fetch statistics from WooCommerce: ' . $e->getMessage()]);
+            return back()->withErrors(['error' => 'Failed to fetch statistics from WooCommerce: '.$e->getMessage()]);
         }
     }
 
     /**
      * Show statistics for a specific site (for admin users)
      *
-     * @param int $siteId
+     * @param  int  $siteId
      * @return \Illuminate\View\View
      */
     public function showSite($siteId)
     {
         $user = Auth::user();
 
-        if (!$user) {
+        if (! $user) {
             return redirect('/login')->withErrors(['error' => 'Authentication required']);
         }
 
@@ -88,7 +89,7 @@ class StatisticsController extends Controller
         // Get site information
         $site = Site::findBySiteId($siteId);
 
-        if (!$site) {
+        if (! $site) {
             return back()->withErrors(['error' => 'Site not found.']);
         }
 
@@ -114,10 +115,10 @@ class StatisticsController extends Controller
             Log::error('Error fetching WooCommerce statistics', [
                 'site_id' => $siteId,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
-            return back()->withErrors(['error' => 'Failed to fetch statistics from WooCommerce: ' . $e->getMessage()]);
+            return back()->withErrors(['error' => 'Failed to fetch statistics from WooCommerce: '.$e->getMessage()]);
         }
     }
 }

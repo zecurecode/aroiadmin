@@ -10,10 +10,11 @@ class LeveringsTid extends Model
     use HasFactory;
 
     protected $table = 'leveringstid';
+
     public $timestamps = false; // The original table doesn't have timestamps
 
     protected $fillable = [
-        'tid'
+        'tid',
     ];
 
     /**
@@ -30,6 +31,7 @@ class LeveringsTid extends Model
     public static function getTimeById($id)
     {
         $time = static::find($id);
+
         return $time ? $time->tid : null;
     }
 }

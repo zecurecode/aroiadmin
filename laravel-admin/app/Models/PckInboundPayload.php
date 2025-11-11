@@ -38,23 +38,36 @@ class PckInboundPayload extends Model
      * Status constants
      */
     const STATUS_RECEIVED = 'received';
+
     const STATUS_PROCESSED = 'processed';
+
     const STATUS_FAILED = 'failed';
 
     /**
      * Method constants
      */
     const METHOD_SEND_ARTICLE = 'sendArticle';
+
     const METHOD_SEND_PRODUCT_LINE = 'sendProductLine';
+
     const METHOD_SEND_IMAGE = 'sendImage';
+
     const METHOD_SEND_IMAGE_COLOR = 'sendImageColor';
+
     const METHOD_SEND_ARTICLE_GROUP = 'sendArticleGroup';
+
     const METHOD_SEND_MANUFACTURER = 'sendManufacturer';
+
     const METHOD_SEND_SIZE = 'sendSize';
+
     const METHOD_SEND_COLOR = 'sendColor';
+
     const METHOD_UPDATE_STOCK_COUNT = 'updateStockCount';
+
     const METHOD_REMOVE_ARTICLE = 'removeArticle';
+
     const METHOD_SEND_DISCOUNT = 'sendDiscount';
+
     const METHOD_SEND_CUSTOMER_INFO = 'sendCustomerInfo';
 
     /**
@@ -83,7 +96,7 @@ class PckInboundPayload extends Model
     ): string {
         // Extract primary identifiers based on method
         $identifiers = self::extractPrimaryIdentifiers($method, $payload);
-        
+
         // Create hash from tenant, method, identifiers, and timestamp
         $hashData = [
             'tenant_id' => $tenantId,
@@ -148,9 +161,9 @@ class PckInboundPayload extends Model
         array $payload
     ): array {
         $idempotencyKey = self::generateIdempotencyKey($tenantId, $method, $payload);
-        
+
         $existing = self::where('idempotency_key', $idempotencyKey)->first();
-        
+
         if ($existing) {
             return [
                 'payload' => $existing,

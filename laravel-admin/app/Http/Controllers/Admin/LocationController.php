@@ -14,6 +14,7 @@ class LocationController extends Controller
     public function index()
     {
         $locations = Location::ordered()->get();
+
         return view('admin.locations.index', compact('locations'));
     }
 
@@ -41,7 +42,7 @@ class LocationController extends Controller
             'group_name' => 'nullable|string|max:100',
             'display_order' => 'nullable|integer|min:0',
             'delivery_time_minutes' => 'nullable|integer|min:10|max:90',
-            'active' => 'nullable|in:on,1,true,0,false'
+            'active' => 'nullable|in:on,1,true,0,false',
         ]);
 
         Location::create([
@@ -55,7 +56,7 @@ class LocationController extends Controller
             'group_name' => $request->group_name,
             'display_order' => $request->display_order ?? 0,
             'delivery_time_minutes' => $request->delivery_time_minutes ?? 30,
-            'active' => $request->active == '1' || $request->active === true
+            'active' => $request->active == '1' || $request->active === true,
         ]);
 
         return redirect()->route('admin.locations.index')
@@ -68,6 +69,7 @@ class LocationController extends Controller
     public function show(string $id)
     {
         $location = Location::findOrFail($id);
+
         return view('admin.locations.show', compact('location'));
     }
 
@@ -77,6 +79,7 @@ class LocationController extends Controller
     public function edit(string $id)
     {
         $location = Location::findOrFail($id);
+
         return view('admin.locations.edit', compact('location'));
     }
 
@@ -86,7 +89,7 @@ class LocationController extends Controller
     public function update(Request $request, string $id)
     {
         $location = Location::findOrFail($id);
-        
+
         $request->validate([
             'name' => 'required|string|max:255',
             'license' => 'required|integer',
@@ -97,7 +100,7 @@ class LocationController extends Controller
             'group_name' => 'nullable|string|max:100',
             'display_order' => 'nullable|integer|min:0',
             'delivery_time_minutes' => 'nullable|integer|min:10|max:90',
-            'active' => 'nullable|in:on,1,true,0,false'
+            'active' => 'nullable|in:on,1,true,0,false',
         ]);
 
         $location->update([
@@ -110,7 +113,7 @@ class LocationController extends Controller
             'group_name' => $request->group_name,
             'display_order' => $request->display_order ?? 0,
             'delivery_time_minutes' => $request->delivery_time_minutes ?? 30,
-            'active' => $request->active == '1' || $request->active === true
+            'active' => $request->active == '1' || $request->active === true,
         ]);
 
         return redirect()->route('admin.locations.index')
@@ -123,7 +126,7 @@ class LocationController extends Controller
     public function destroy(string $id)
     {
         $location = Location::findOrFail($id);
-        
+
         // Log the deletion attempt
         \Log::info('Attempting to delete location', [
             'location_id' => $location->id,
@@ -132,37 +135,39 @@ class LocationController extends Controller
             'user_count' => $location->users()->count(),
             'order_count' => $location->orders()->count(),
             'request_method' => request()->method(),
-            'is_delete_method' => request()->isMethod('DELETE')
+            'is_delete_method' => request()->isMethod('DELETE'),
         ]);
-        
+
         // Check if there are associated users
         $userCount = $location->users()->count();
         if ($userCount > 0) {
             \Log::warning('Cannot delete location with users', [
                 'location_id' => $location->id,
-                'user_count' => $userCount
+                'user_count' => $userCount,
             ]);
+
             return redirect()->route('admin.locations.index')
                 ->with('error', "Kan ikke slette lokasjon '{$location->name}' som har {$userCount} tilknyttede brukere. Vennligst fjern eller flytt brukerne først.");
         }
-        
+
         // Check if there are associated orders
         $orderCount = $location->orders()->count();
         if ($orderCount > 0) {
             \Log::warning('Cannot delete location with orders', [
                 'location_id' => $location->id,
-                'order_count' => $orderCount
+                'order_count' => $orderCount,
             ]);
+
             return redirect()->route('admin.locations.index')
                 ->with('error', "Kan ikke slette lokasjon '{$location->name}' som har {$orderCount} eksisterende ordrer.");
         }
-        
+
         $locationName = $location->name;
         $location->delete();
-        
+
         \Log::info('Location deleted successfully', [
             'location_id' => $id,
-            'location_name' => $locationName
+            'location_name' => $locationName,
         ]);
 
         return redirect()->route('admin.locations.index')

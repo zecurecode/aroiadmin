@@ -2,15 +2,18 @@
 
 namespace App\Tenancy;
 
-use App\Models\PckCredential;
-use App\Models\AvdelingAlternative;
 use App\Models\Avdeling;
+use App\Models\AvdelingAlternative;
+use App\Models\PckCredential;
 
 class TenantContext
 {
     private int $tenantId;
+
     private PckCredential $credential;
+
     private ?AvdelingAlternative $avdelingAlternative = null;
+
     private ?Avdeling $avdeling = null;
 
     public function __construct(int $tenantId, PckCredential $credential)
@@ -43,6 +46,7 @@ class TenantContext
         if ($this->avdeling === null) {
             $this->avdeling = Avdeling::where('siteid', $this->tenantId)->first();
         }
+
         return $this->avdeling;
     }
 
@@ -54,6 +58,7 @@ class TenantContext
         if ($this->avdelingAlternative === null) {
             $this->avdelingAlternative = AvdelingAlternative::where('SiteID', $this->tenantId)->first();
         }
+
         return $this->avdelingAlternative;
     }
 
@@ -63,8 +68,8 @@ class TenantContext
     public function getWooCommerceConfig(): array
     {
         $avdelingAlt = $this->getAvdelingAlternative();
-        
-        if (!$avdelingAlt) {
+
+        if (! $avdelingAlt) {
             throw new \RuntimeException("No WooCommerce configuration found for tenant {$this->tenantId}");
         }
 
@@ -102,9 +107,10 @@ class TenantContext
     {
         try {
             $config = $this->getWooCommerceConfig();
-            return !empty($config['base_url']) && 
-                   !empty($config['consumer_key']) && 
-                   !empty($config['consumer_secret']);
+
+            return ! empty($config['base_url']) &&
+                   ! empty($config['consumer_key']) &&
+                   ! empty($config['consumer_secret']);
         } catch (\Exception $e) {
             return false;
         }

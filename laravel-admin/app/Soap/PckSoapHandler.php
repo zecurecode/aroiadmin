@@ -16,7 +16,9 @@ use SoapFault;
 class PckSoapHandler
 {
     private Request $request;
+
     private ?string $tenantKey;
+
     private ?TenantContext $tenantContext = null;
 
     public function __construct(Request $request, ?string $tenantKey = null)
@@ -33,11 +35,11 @@ class PckSoapHandler
         if (is_object($data)) {
             $data = get_object_vars($data);
         }
-        
+
         if (is_array($data)) {
             return array_map([$this, 'objectToArray'], $data);
         }
-        
+
         return $data;
     }
 
@@ -50,14 +52,14 @@ class PckSoapHandler
         $login = $params['login'] ?? null;
         $password = $params['password'] ?? null;
 
-        if (!is_numeric($login) || empty($password)) {
+        if (! is_numeric($login) || empty($password)) {
             throw new SoapFault('Client', 'Invalid authentication parameters');
         }
 
         // Resolve tenant context
         $tenant = TenantResolver::resolveWithFallback($params, $this->request);
-        
-        if (!$tenant) {
+
+        if (! $tenant) {
             Log::warning('PCK SOAP: Tenant resolution failed', [
                 'login' => $login,
                 'tenant_key' => $this->tenantKey,
@@ -74,7 +76,7 @@ class PckSoapHandler
             $tenant->getPckLicense()
         );
 
-        if (!$authenticated) {
+        if (! $authenticated) {
             Log::warning('PCK SOAP: Authentication failed', [
                 'tenant_id' => $tenant->getTenantId(),
                 'username' => $tenant->getPckUsername(),
@@ -84,7 +86,7 @@ class PckSoapHandler
         }
 
         // Validate tenant access (IP whitelist, etc.)
-        if (!TenantResolver::validateTenantAccess($tenant, $this->request)) {
+        if (! TenantResolver::validateTenantAccess($tenant, $this->request)) {
             Log::warning('PCK SOAP: Access denied', [
                 'tenant_id' => $tenant->getTenantId(),
                 'ip' => $this->request->ip(),
@@ -94,6 +96,7 @@ class PckSoapHandler
         }
 
         $this->tenantContext = $tenant;
+
         return $tenant;
     }
 
@@ -126,7 +129,7 @@ class PckSoapHandler
     }
 
     /**
-     * Send Article - Document/Literal Wrapped signature  
+     * Send Article - Document/Literal Wrapped signature
      * Takes: $params with login, password, article properties
      * Returns: insertUpdateResponse
      */
@@ -177,13 +180,13 @@ class PckSoapHandler
                     'payload_id' => $result['payload']->id,
                     'article_data_keys' => array_keys($articleArray),
                 ]);
-                
+
                 // Mark as processed without queue job
                 $result['payload']->markProcessed();
             }
 
             // Create insertUpdateResponse exactly like .NET version
-            $svar = new \stdClass();
+            $svar = new \stdClass;
             $svar->deltaId = $articleArray['articleId'] ?? 0;
             $svar->errorHelpLink = '';
             $svar->errorMessage = '';
@@ -200,7 +203,7 @@ class PckSoapHandler
                 'trace' => $e->getTraceAsString(),
                 'article' => $this->objectToArray($article ?? null),
             ]);
-            $errorResponse = new \stdClass();
+            $errorResponse = new \stdClass;
             $errorResponse->deltaId = 0;
             $errorResponse->errorHelpLink = '';
             $errorResponse->errorMessage = 'Internal server error';
@@ -238,7 +241,7 @@ class PckSoapHandler
                 $payload
             );
 
-            if (!$result['is_duplicate']) {
+            if (! $result['is_duplicate']) {
                 ProcessInboundImagePayload::dispatch($result['payload']->id)
                     ->onQueue('pck-inbound');
 
@@ -259,6 +262,7 @@ class PckSoapHandler
                 'error' => $e->getMessage(),
                 'article_id' => $articleid ?? null,
             ]);
+
             return $this->createErrorResponse('Internal server error', 2);
         }
     }
@@ -292,7 +296,7 @@ class PckSoapHandler
                 $payload
             );
 
-            if (!$result['is_duplicate']) {
+            if (! $result['is_duplicate']) {
                 ProcessStockUpdatePayload::dispatch($result['payload']->id)
                     ->onQueue('pck-inbound');
 
@@ -313,6 +317,7 @@ class PckSoapHandler
                 'error' => $e->getMessage(),
                 'updateStock' => $this->objectToArray($updateStock ?? null),
             ]);
+
             return $this->createErrorResponse('Internal server error', 2);
         }
     }
@@ -368,6 +373,7 @@ class PckSoapHandler
                 'error' => $e->getMessage(),
                 'computer_name' => $computerName ?? null,
             ]);
+
             return [
                 'insertUpdate' => $this->createErrorResponse('Internal server error', 2),
                 'listWebOrders' => [],
@@ -394,21 +400,22 @@ class PckSoapHandler
             $statusId = $updateOrderArray['orderStatusId'] ?? null;
             $message = $updateOrderArray['message'] ?? '';
 
-            if (!$orderId) {
+            if (! $orderId) {
                 throw new SoapFault('Client', 'Order ID is required');
             }
 
             // Find the order
             $order = Order::where('site', $tenant->getTenantId())
-                          ->where('ordreid', $orderId)
-                          ->first();
+                ->where('ordreid', $orderId)
+                ->first();
 
-            if (!$order) {
+            if (! $order) {
                 Log::warning('PCK SOAP: Order not found for status update', [
                     'tenant_id' => $tenant->getTenantId(),
                     'order_id' => $orderId,
                     'status_id' => $statusId,
                 ]);
+
                 return $this->createErrorResponse('Order not found', 1);
             }
 
@@ -436,6 +443,7 @@ class PckSoapHandler
                 'error' => $e->getMessage(),
                 'updateOrder' => $this->objectToArray($updateOrder ?? null),
             ]);
+
             return [
                 'insertUpdate' => $this->createErrorResponse('Internal server error', 2),
                 'amount' => 0.0,
@@ -454,12 +462,12 @@ class PckSoapHandler
     {
         try {
             // Document/literal wrapped: extract webcompany from params
-            $webcompany = is_object($params) && isset($params->webcompany) 
-                ? $params->webcompany 
+            $webcompany = is_object($params) && isset($params->webcompany)
+                ? $params->webcompany
                 : $params; // fallback
 
             $companyArray = $this->objectToArray($webcompany);
-            
+
             Log::info('PCK SOAP: createWebshop called', [
                 'company_data' => $companyArray,
                 'params_structure' => $this->objectToArray($params),
@@ -467,14 +475,14 @@ class PckSoapHandler
             ]);
 
             // Create response exactly like .NET version - let SoapServer serialize
-            $insertUpdate = new \stdClass();
+            $insertUpdate = new \stdClass;
             $insertUpdate->deltaId = 12345; // ID for webshop
             $insertUpdate->errorHelpLink = '';
             $insertUpdate->errorMessage = '';
             $insertUpdate->humanErrorMessage = '';
             $insertUpdate->operationResult = 0; // 0 = OK
 
-            $svar = new \stdClass();
+            $svar = new \stdClass;
             $svar->adminUserName = 'admin@aroiasia.no';
             $svar->adminUserPassword = 'Contact system administrator';
             $svar->deltasoftId = 12345;
@@ -495,15 +503,15 @@ class PckSoapHandler
                 'trace' => $e->getTraceAsString(),
                 'params_structure' => $this->objectToArray($params ?? null),
             ]);
-            
-            $errorInsertUpdate = new \stdClass();
+
+            $errorInsertUpdate = new \stdClass;
             $errorInsertUpdate->deltaId = 0;
             $errorInsertUpdate->errorHelpLink = '';
-            $errorInsertUpdate->errorMessage = 'Setup error: ' . $e->getMessage();
-            $errorInsertUpdate->humanErrorMessage = 'Setup error: ' . $e->getMessage();
+            $errorInsertUpdate->errorMessage = 'Setup error: '.$e->getMessage();
+            $errorInsertUpdate->humanErrorMessage = 'Setup error: '.$e->getMessage();
             $errorInsertUpdate->operationResult = 2; // 2 = Temporary error
 
-            $errorResponse = new \stdClass();
+            $errorResponse = new \stdClass;
             $errorResponse->adminUserName = '';
             $errorResponse->adminUserPassword = '';
             $errorResponse->deltasoftId = 0;
@@ -540,7 +548,7 @@ class PckSoapHandler
                 $payload
             );
 
-            if (!$result['is_duplicate']) {
+            if (! $result['is_duplicate']) {
                 // Remove mapping immediately as this is a removal
                 \App\Models\PckEntityMap::removeByPckArticle($tenant->getTenantId(), $articleid);
                 $result['payload']->markProcessed();
@@ -560,6 +568,7 @@ class PckSoapHandler
                 'error' => $e->getMessage(),
                 'article_id' => $articleid ?? null,
             ]);
+
             return $this->createErrorResponse('Internal server error', 2);
         }
     }
@@ -591,7 +600,7 @@ class PckSoapHandler
                 'qty' => 1.0,
                 'price' => 100.0,
                 'discount' => 0.0,
-            ]
+            ],
         ];
     }
 

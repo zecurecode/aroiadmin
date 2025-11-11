@@ -24,7 +24,7 @@ return new class extends Migration
 
             // Unique mapping per tenant
             $table->unique(['tenant_id', 'pck_article_id', 'pck_variant_id'], 'pck_entity_unique');
-            
+
             // Indexes for efficient lookups
             $table->index(['tenant_id', 'woo_product_id']);
             $table->index(['tenant_id', 'woo_variation_id']);

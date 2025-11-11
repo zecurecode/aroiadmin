@@ -4,8 +4,8 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpFoundation\Response;
 
 class AdminMiddleware
 {
@@ -31,7 +31,7 @@ class AdminMiddleware
 
         Log::info('AdminMiddleware::handle', [
             'request_url' => $request->url(),
-            'session_data' => $sessionData
+            'session_data' => $sessionData,
         ]);
 
         // Check our custom session first (like the old PHP system)
@@ -46,11 +46,12 @@ class AdminMiddleware
             'custom_session_valid' => $customSessionValid,
             'laravel_auth_valid' => $laravelAuthValid,
             'session_is_admin' => session()->get('is_admin'),
-            'laravel_is_admin' => auth()->user() ? auth()->user()->isAdmin() : false
+            'laravel_is_admin' => auth()->user() ? auth()->user()->isAdmin() : false,
         ]);
 
-        if (!$customSessionValid && !$laravelAuthValid) {
+        if (! $customSessionValid && ! $laravelAuthValid) {
             Log::warning('AdminMiddleware: User not authenticated, redirecting to login');
+
             return redirect()->route('login');
         }
 
@@ -65,16 +66,16 @@ class AdminMiddleware
             Log::info('AdminMiddleware: Using Laravel auth admin check', ['is_admin' => $isAdmin]);
         }
 
-        if (!$isAdmin) {
+        if (! $isAdmin) {
             Log::warning('AdminMiddleware: User lacks admin privileges', [
                 'username' => session()->get('username') ?: (auth()->user() ? auth()->user()->username : 'unknown'),
-                'is_admin' => $isAdmin
+                'is_admin' => $isAdmin,
             ]);
             abort(403, 'Access denied. Admin privileges required.');
         }
 
         Log::info('AdminMiddleware: Admin access granted', [
-            'username' => session()->get('username') ?: (auth()->user() ? auth()->user()->username : 'unknown')
+            'username' => session()->get('username') ?: (auth()->user() ? auth()->user()->username : 'unknown'),
         ]);
 
         return $next($request);

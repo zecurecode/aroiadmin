@@ -87,7 +87,7 @@ class User extends Authenticatable
         Log::info('User::getOldPhpUserIdMapping result', [
             'username' => $username,
             'mapped_user_id' => $userId,
-            'is_admin' => $userId === 0
+            'is_admin' => $userId === 0,
         ]);
 
         return $userId;
@@ -115,7 +115,7 @@ class User extends Authenticatable
 
         Log::info('User::getUserIdToSiteIdMapping result', [
             'user_id' => $userId,
-            'mapped_site_id' => $siteId
+            'mapped_site_id' => $siteId,
         ]);
 
         return $siteId;
@@ -145,7 +145,7 @@ class User extends Authenticatable
             'user_id' => $user->id,
             'siteid' => $user->siteid,
             'license' => $user->license,
-            'is_admin' => $user->isAdmin()
+            'is_admin' => $user->isAdmin(),
         ]);
 
         return $user;
@@ -241,7 +241,7 @@ class User extends Authenticatable
         if (isset($this->role)) {
             return $this->role === 'admin';
         }
-        
+
         // Old logic for backwards compatibility
         $isAdmin = in_array($this->username, ['admin']) || $this->siteid === 0;
 
@@ -249,7 +249,7 @@ class User extends Authenticatable
             'username' => $this->username,
             'siteid' => $this->siteid,
             'role' => $this->role ?? 'not set',
-            'is_admin' => $isAdmin
+            'is_admin' => $isAdmin,
         ]);
 
         return $isAdmin;
@@ -283,7 +283,7 @@ class User extends Authenticatable
             'moan' => 'Moan',
             'gramyra' => 'Gramyra',
             'frosta' => 'Frosta',
-            'admin' => 'Admin'
+            'admin' => 'Admin',
         ];
 
         return $locationNames[$this->username] ?? $this->username;

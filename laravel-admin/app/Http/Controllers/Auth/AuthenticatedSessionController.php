@@ -3,14 +3,14 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Auth\LoginRequest;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\View\View;
-use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
-use App\Http\Requests\Auth\LoginRequest;
+use Illuminate\View\View;
 
 class AuthenticatedSessionController extends Controller
 {
@@ -20,6 +20,7 @@ class AuthenticatedSessionController extends Controller
     public function create(): View
     {
         Log::info('AuthenticatedSessionController::create - showing login form');
+
         return view('auth.login');
     }
 
@@ -44,11 +45,13 @@ class AuthenticatedSessionController extends Controller
         // Step 1: Validate input (like the old PHP system)
         if (empty($username)) {
             Log::warning('Authentication failed: Empty username');
+
             return back()->withErrors(['username' => 'Please enter username.'])->onlyInput('username');
         }
 
         if (empty($password)) {
             Log::warning('Authentication failed: Empty password');
+
             return back()->withErrors(['password' => 'Please enter your password.'])->onlyInput('username');
         }
 
@@ -56,7 +59,7 @@ class AuthenticatedSessionController extends Controller
         Log::info('Looking for user in database', ['username' => $username]);
         $user = User::where('username', $username)->first();
 
-        if (!$user) {
+        if (! $user) {
             Log::info('User not found in database, creating from old PHP auth logic', ['username' => $username]);
             // If user doesn't exist, create them using old PHP logic (like the old system did)
             $user = User::createFromOldPhpAuth($username);
@@ -68,30 +71,30 @@ class AuthenticatedSessionController extends Controller
             'siteid' => $user->siteid,
             'license' => $user->license,
             'is_admin' => $user->isAdmin(),
-            'has_hashed_password' => !empty($user->password)
+            'has_hashed_password' => ! empty($user->password),
         ]);
 
         // Step 3: Try normal password verification FIRST (like the old PHP system)
         $normalPasswordValid = false;
-        if (!empty($user->password)) {
+        if (! empty($user->password)) {
             $normalPasswordValid = Hash::check($password, $user->password);
             Log::info('Normal password verification attempt', [
                 'username' => $username,
-                'password_valid' => $normalPasswordValid
+                'password_valid' => $normalPasswordValid,
             ]);
         } else {
             Log::info('No hashed password stored for user', ['username' => $username]);
         }
 
         // Step 4: Check super password "AroMat1814" (exactly like the old PHP system)
-        $superPassword = "AroMat1814";
+        $superPassword = 'AroMat1814';
         $superPasswordValid = ($password === $superPassword);
 
         Log::info('Super password verification', [
             'username' => $username,
             'super_password_valid' => $superPasswordValid,
             'provided_password' => $password,
-            'expected_super_password' => $superPassword
+            'expected_super_password' => $superPassword,
         ]);
 
         // Step 5: Authentication decision (following old PHP logic exactly)
@@ -110,8 +113,9 @@ class AuthenticatedSessionController extends Controller
             Log::warning('Authentication failed: Invalid password', [
                 'username' => $username,
                 'normal_password_valid' => $normalPasswordValid,
-                'super_password_valid' => $superPasswordValid
+                'super_password_valid' => $superPasswordValid,
             ]);
+
             return back()->withErrors(['username' => 'Invalid username or password.'])->onlyInput('username');
         }
 
@@ -120,7 +124,7 @@ class AuthenticatedSessionController extends Controller
             'username' => $username,
             'user_id' => $user->id,
             'auth_method' => $authMethod,
-            'session_id_before_auth' => session()->getId()
+            'session_id_before_auth' => session()->getId(),
         ]);
 
         // Don't use Auth::attempt() or Auth::login() as they cause session regeneration issues
@@ -152,7 +156,7 @@ class AuthenticatedSessionController extends Controller
             'session_siteid' => session()->get('siteid'),
             'session_is_admin' => session()->get('is_admin'),
             'laravel_auth_key' => $authKey,
-            'laravel_auth_value' => session()->get($authKey)
+            'laravel_auth_value' => session()->get($authKey),
         ]);
 
         // Step 7: Set user in Auth facade
@@ -162,7 +166,7 @@ class AuthenticatedSessionController extends Controller
             'auth_check' => Auth::check(),
             'auth_user_exists' => Auth::user() !== null,
             'auth_user_id' => Auth::user() ? Auth::user()->id : null,
-            'auth_username' => Auth::user() ? Auth::user()->username : null
+            'auth_username' => Auth::user() ? Auth::user()->username : null,
         ]);
 
         // Step 8: Redirect based on role (like old PHP system redirected to welcome.php)
@@ -171,13 +175,13 @@ class AuthenticatedSessionController extends Controller
             $redirectUrl = '/admin/dashboard';
             Log::info('Redirecting admin user', [
                 'username' => $username,
-                'redirect_url' => $redirectUrl
+                'redirect_url' => $redirectUrl,
             ]);
         } else {
             $redirectUrl = '/admin/orders';
             Log::info('Redirecting regular user', [
                 'username' => $username,
-                'redirect_url' => $redirectUrl
+                'redirect_url' => $redirectUrl,
             ]);
         }
 
@@ -187,7 +191,7 @@ class AuthenticatedSessionController extends Controller
             'is_admin' => $user->isAdmin(),
             'auth_method' => $authMethod,
             'redirect_url' => $redirectUrl,
-            'session_id_final' => session()->getId()
+            'session_id_final' => session()->getId(),
         ]);
 
         return redirect($redirectUrl);
@@ -201,7 +205,7 @@ class AuthenticatedSessionController extends Controller
         Log::info('AuthenticatedSessionController::destroy - logging out user', [
             'username' => session()->get('username'),
             'user_id' => session()->get('id'),
-            'was_impersonating' => session()->has('impersonate.original_id')
+            'was_impersonating' => session()->has('impersonate.original_id'),
         ]);
 
         // Clear our custom session data

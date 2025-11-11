@@ -5,7 +5,6 @@ namespace App\Jobs;
 use App\Models\PckEntityMap;
 use App\Models\PckInboundPayload;
 use App\Services\Woo\WooCommerceService;
-use App\Tenancy\TenantContext;
 use App\Tenancy\TenantResolver;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -19,7 +18,9 @@ class ProcessInboundArticlePayload implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $payloadId;
+
     public int $tries = 3;
+
     public int $maxExceptions = 2;
 
     public function __construct(int $payloadId)
@@ -31,11 +32,12 @@ class ProcessInboundArticlePayload implements ShouldQueue
     public function handle(): void
     {
         $payload = PckInboundPayload::find($this->payloadId);
-        
-        if (!$payload) {
+
+        if (! $payload) {
             Log::error('ProcessInboundArticlePayload: Payload not found', [
                 'payload_id' => $this->payloadId,
             ]);
+
             return;
         }
 
@@ -69,25 +71,25 @@ class ProcessInboundArticlePayload implements ShouldQueue
 
         // Resolve tenant context
         $tenant = TenantResolver::resolveFromTenantId($tenantId);
-        if (!$tenant) {
+        if (! $tenant) {
             throw new \RuntimeException("Tenant {$tenantId} not found");
         }
 
-        if (!$tenant->hasValidWooCommerceConfig()) {
+        if (! $tenant->hasValidWooCommerceConfig()) {
             throw new \RuntimeException("Tenant {$tenantId} has invalid WooCommerce configuration");
         }
 
         // Check if we should ignore this update based on timestamp
-        $articleId = (string)($article['articleId'] ?? '');
+        $articleId = (string) ($article['articleId'] ?? '');
         $timestamp = $article['timestamp'] ?? null;
-        
+
         if (empty($articleId)) {
             throw new \RuntimeException('Article ID is required');
         }
 
         // Find or create entity mapping
         $mapping = PckEntityMap::findByPckArticle($tenantId, $articleId);
-        
+
         if ($mapping && $mapping->shouldIgnoreUpdate($timestamp)) {
             Log::info('ProcessInboundArticlePayload: Ignoring older update', [
                 'payload_id' => $this->payloadId,
@@ -96,15 +98,16 @@ class ProcessInboundArticlePayload implements ShouldQueue
                 'incoming_timestamp' => $timestamp,
                 'existing_timestamp' => $mapping->last_timestamp?->getTimestamp(),
             ]);
+
             return;
         }
 
         // Process the article data
         $processedData = $this->normalizeArticleData($article);
-        
+
         // Generate content hash for idempotency
         $contentHash = PckEntityMap::generateHash($article);
-        
+
         // Check if content has actually changed
         if ($mapping && $mapping->last_hash === $contentHash) {
             Log::info('ProcessInboundArticlePayload: No content changes detected', [
@@ -112,17 +115,18 @@ class ProcessInboundArticlePayload implements ShouldQueue
                 'tenant_id' => $tenantId,
                 'article_id' => $articleId,
             ]);
-            
+
             // Update timestamp but don't sync to WooCommerce
             $mapping->update([
                 'last_timestamp' => $timestamp ? now()->setTimestamp($timestamp) : now(),
             ]);
+
             return;
         }
 
         // Sync to WooCommerce
         $wooService = new WooCommerceService($tenant);
-        
+
         try {
             if ($mapping && $mapping->woo_product_id) {
                 // Update existing product
@@ -170,10 +174,10 @@ class ProcessInboundArticlePayload implements ShouldQueue
     {
         $name = $article['name'] ?? "Product {$article['articleId']}";
         $description = $article['description'] ?? '';
-        $price = (float)($article['salesPrice'] ?? 0);
-        $stockCount = (int)($article['stockCount'] ?? 0);
+        $price = (float) ($article['salesPrice'] ?? 0);
+        $stockCount = (int) ($article['stockCount'] ?? 0);
         $sku = $article['articleNo'] ?? $article['articleId'];
-        $visible = (bool)($article['visibleOnWeb'] ?? true);
+        $visible = (bool) ($article['visibleOnWeb'] ?? true);
 
         return [
             'name' => $name,

@@ -49,6 +49,7 @@ class PckCredentialsCommand extends Command
 
         if ($credentials->isEmpty()) {
             $this->info('No PCK credentials found.');
+
             return Command::SUCCESS;
         }
 
@@ -59,20 +60,20 @@ class PckCredentialsCommand extends Command
         $rows = [];
 
         foreach ($credentials as $credential) {
-            $tenantName = $credential->avdeling->navn ?? 
-                         $credential->avdelingAlternative->Navn ?? 
+            $tenantName = $credential->avdeling->navn ??
+                         $credential->avdelingAlternative->Navn ??
                          "Tenant {$credential->tenant_id}";
 
-            $lastSeen = $credential->last_seen_at 
+            $lastSeen = $credential->last_seen_at
                 ? $credential->last_seen_at->diffForHumans()
                 : 'Never';
 
-            $ipWhitelist = $credential->ip_whitelist 
+            $ipWhitelist = $credential->ip_whitelist
                 ? implode(', ', $credential->ip_whitelist)
                 : 'All IPs allowed';
 
             $rows[] = [
-                $credential->tenant_id . " ({$tenantName})",
+                $credential->tenant_id." ({$tenantName})",
                 $credential->pck_username,
                 $credential->pck_license,
                 $credential->is_enabled ? '<info>Enabled</info>' : '<error>Disabled</error>',
@@ -82,6 +83,7 @@ class PckCredentialsCommand extends Command
         }
 
         $this->table($headers, $rows);
+
         return Command::SUCCESS;
     }
 
@@ -93,19 +95,19 @@ class PckCredentialsCommand extends Command
         $license = $this->option('license');
 
         // Interactive mode if options not provided
-        if (!$tenantId) {
+        if (! $tenantId) {
             $tenantId = $this->ask('Enter tenant ID');
         }
-        
-        if (!$username) {
+
+        if (! $username) {
             $username = $this->ask('Enter PCK username');
         }
-        
-        if (!$password) {
+
+        if (! $password) {
             $password = $this->secret('Enter PCK password');
         }
-        
-        if (!$license) {
+
+        if (! $license) {
             $license = $this->ask('Enter PCK license number');
         }
 
@@ -127,6 +129,7 @@ class PckCredentialsCommand extends Command
             foreach ($validator->errors()->all() as $error) {
                 $this->line("  - {$error}");
             }
+
             return Command::FAILURE;
         }
 
@@ -137,6 +140,7 @@ class PckCredentialsCommand extends Command
 
         if ($existing) {
             $this->error("Credential already exists for tenant {$tenantId} with username {$username}");
+
             return Command::FAILURE;
         }
 
@@ -161,6 +165,7 @@ class PckCredentialsCommand extends Command
         ]);
 
         $this->info("PCK credential created successfully (ID: {$credential->id})");
+
         return Command::SUCCESS;
     }
 
@@ -169,8 +174,9 @@ class PckCredentialsCommand extends Command
         $tenantId = $this->option('tenant-id');
         $username = $this->option('username');
 
-        if (!$tenantId || !$username) {
+        if (! $tenantId || ! $username) {
             $this->error('Both --tenant-id and --username are required for update');
+
             return Command::FAILURE;
         }
 
@@ -178,8 +184,9 @@ class PckCredentialsCommand extends Command
             ->where('pck_username', $username)
             ->first();
 
-        if (!$credential) {
+        if (! $credential) {
             $this->error("Credential not found for tenant {$tenantId} with username {$username}");
+
             return Command::FAILURE;
         }
 
@@ -207,15 +214,15 @@ class PckCredentialsCommand extends Command
 
         // Update IP whitelist if provided
         $ipWhitelist = $this->option('ip-whitelist');
-        if (!empty($ipWhitelist)) {
+        if (! empty($ipWhitelist)) {
             $updates['ip_whitelist'] = $ipWhitelist;
         } elseif ($this->confirm('Update IP whitelist?', false)) {
-            $currentIps = $credential->ip_whitelist 
+            $currentIps = $credential->ip_whitelist
                 ? implode(', ', $credential->ip_whitelist)
                 : '';
-            
+
             $ipInput = $this->ask('Enter IP addresses (comma-separated, empty for no restrictions)', $currentIps);
-            
+
             if ($ipInput === '') {
                 $updates['ip_whitelist'] = null;
             } else {
@@ -225,6 +232,7 @@ class PckCredentialsCommand extends Command
 
         if (empty($updates)) {
             $this->info('No changes made.');
+
             return Command::SUCCESS;
         }
 
@@ -249,8 +257,9 @@ class PckCredentialsCommand extends Command
         $tenantId = $this->option('tenant-id');
         $username = $this->option('username');
 
-        if (!$tenantId || !$username) {
+        if (! $tenantId || ! $username) {
             $this->error('Both --tenant-id and --username are required');
+
             return Command::FAILURE;
         }
 
@@ -258,13 +267,14 @@ class PckCredentialsCommand extends Command
             ->where('pck_username', $username)
             ->first();
 
-        if (!$credential) {
+        if (! $credential) {
             $this->error("Credential not found for tenant {$tenantId} with username {$username}");
+
             return Command::FAILURE;
         }
 
         $credential->update(['is_enabled' => $enabled]);
-        
+
         $status = $enabled ? 'enabled' : 'disabled';
         $this->info("PCK credential {$status} successfully");
 
@@ -275,6 +285,7 @@ class PckCredentialsCommand extends Command
     {
         $this->error("Invalid action: {$action}");
         $this->line('Available actions: list, create, update, disable, enable');
+
         return Command::FAILURE;
     }
 }

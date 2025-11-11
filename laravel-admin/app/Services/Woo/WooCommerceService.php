@@ -11,18 +11,21 @@ use Psr\Http\Message\ResponseInterface;
 class WooCommerceService
 {
     private TenantContext $tenant;
+
     private Client $httpClient;
+
     private string $baseUrl;
+
     private array $auth;
 
     public function __construct(TenantContext $tenant)
     {
         $this->tenant = $tenant;
         $config = $tenant->getWooCommerceConfig();
-        
-        $this->baseUrl = rtrim($config['base_url'], '/') . '/wp-json/wc/v3';
+
+        $this->baseUrl = rtrim($config['base_url'], '/').'/wp-json/wc/v3';
         $this->auth = [$config['consumer_key'], $config['consumer_secret']];
-        
+
         $this->httpClient = new Client([
             'timeout' => 30,
             'connect_timeout' => 10,
@@ -40,7 +43,7 @@ class WooCommerceService
     public function createProduct(array $productData): array
     {
         $response = $this->makeRequest('POST', '/products', $productData);
-        
+
         Log::info('WooCommerce: Product created', [
             'tenant_id' => $this->tenant->getTenantId(),
             'product_id' => $response['id'],
@@ -57,7 +60,7 @@ class WooCommerceService
     public function updateProduct(int $productId, array $productData): array
     {
         $response = $this->makeRequest('PUT', "/products/{$productId}", $productData);
-        
+
         Log::info('WooCommerce: Product updated', [
             'tenant_id' => $this->tenant->getTenantId(),
             'product_id' => $productId,
@@ -81,7 +84,7 @@ class WooCommerceService
     public function deleteProduct(int $productId): array
     {
         $response = $this->makeRequest('DELETE', "/products/{$productId}", ['force' => true]);
-        
+
         Log::info('WooCommerce: Product deleted', [
             'tenant_id' => $this->tenant->getTenantId(),
             'product_id' => $productId,
@@ -96,7 +99,7 @@ class WooCommerceService
     public function createVariation(int $productId, array $variationData): array
     {
         $response = $this->makeRequest('POST', "/products/{$productId}/variations", $variationData);
-        
+
         Log::info('WooCommerce: Product variation created', [
             'tenant_id' => $this->tenant->getTenantId(),
             'product_id' => $productId,
@@ -112,7 +115,7 @@ class WooCommerceService
     public function updateVariation(int $productId, int $variationId, array $variationData): array
     {
         $response = $this->makeRequest('PUT', "/products/{$productId}/variations/{$variationId}", $variationData);
-        
+
         Log::info('WooCommerce: Product variation updated', [
             'tenant_id' => $this->tenant->getTenantId(),
             'product_id' => $productId,
@@ -137,14 +140,14 @@ class WooCommerceService
     {
         // Try to find existing attribute by name
         $existingAttributes = $this->makeRequest('GET', '/products/attributes');
-        
+
         foreach ($existingAttributes as $attr) {
             if ($attr['slug'] === $attributeData['slug']) {
                 // Update existing attribute
                 return $this->makeRequest('PUT', "/products/attributes/{$attr['id']}", $attributeData);
             }
         }
-        
+
         // Create new attribute
         return $this->makeRequest('POST', '/products/attributes', $attributeData);
     }
@@ -156,14 +159,14 @@ class WooCommerceService
     {
         // Try to find existing term by name
         $existingTerms = $this->makeRequest('GET', "/products/attributes/{$attributeId}/terms");
-        
+
         foreach ($existingTerms as $term) {
             if ($term['slug'] === $termData['slug']) {
                 // Update existing term
                 return $this->makeRequest('PUT', "/products/attributes/{$attributeId}/terms/{$term['id']}", $termData);
             }
         }
-        
+
         // Create new term
         return $this->makeRequest('POST', "/products/attributes/{$attributeId}/terms", $termData);
     }
@@ -178,10 +181,10 @@ class WooCommerceService
             'orderby' => 'date',
             'order' => 'desc',
         ];
-        
+
         $queryParams = array_merge($defaultParams, $params);
         $queryString = http_build_query($queryParams);
-        
+
         return $this->makeRequest('GET', "/orders?{$queryString}");
     }
 
@@ -191,13 +194,13 @@ class WooCommerceService
     public function updateOrderStatus(int $orderId, string $status, ?string $note = null): array
     {
         $data = ['status' => $status];
-        
+
         if ($note) {
             $data['customer_note'] = $note;
         }
-        
+
         $response = $this->makeRequest('PUT', "/orders/{$orderId}", $data);
-        
+
         Log::info('WooCommerce: Order status updated', [
             'tenant_id' => $this->tenant->getTenantId(),
             'order_id' => $orderId,
@@ -214,7 +217,7 @@ class WooCommerceService
     public function createRefund(int $orderId, array $refundData): array
     {
         $response = $this->makeRequest('POST', "/orders/{$orderId}/refunds", $refundData);
-        
+
         Log::info('WooCommerce: Refund created', [
             'tenant_id' => $this->tenant->getTenantId(),
             'order_id' => $orderId,
@@ -233,7 +236,7 @@ class WooCommerceService
         $defaultParams = ['per_page' => 100];
         $queryParams = array_merge($defaultParams, $params);
         $queryString = http_build_query($queryParams);
-        
+
         return $this->makeRequest('GET', "/products/categories?{$queryString}");
     }
 
@@ -243,7 +246,7 @@ class WooCommerceService
     public function createCategory(array $categoryData): array
     {
         $response = $this->makeRequest('POST', '/products/categories', $categoryData);
-        
+
         Log::info('WooCommerce: Category created', [
             'tenant_id' => $this->tenant->getTenantId(),
             'category_id' => $response['id'],
@@ -259,7 +262,7 @@ class WooCommerceService
     public function batchProducts(array $batchData): array
     {
         $response = $this->makeRequest('POST', '/products/batch', $batchData);
-        
+
         Log::info('WooCommerce: Batch products processed', [
             'tenant_id' => $this->tenant->getTenantId(),
             'create_count' => count($batchData['create'] ?? []),
@@ -279,10 +282,10 @@ class WooCommerceService
             'search' => $search,
             'per_page' => 100,
         ];
-        
+
         $queryParams = array_merge($defaultParams, $params);
         $queryString = http_build_query($queryParams);
-        
+
         return $this->makeRequest('GET', "/products?{$queryString}");
     }
 
@@ -292,13 +295,13 @@ class WooCommerceService
     public function findProductBySku(string $sku): ?array
     {
         $products = $this->searchProducts('', ['sku' => $sku]);
-        
+
         foreach ($products as $product) {
             if ($product['sku'] === $sku) {
                 return $product;
             }
         }
-        
+
         return null;
     }
 
@@ -313,7 +316,7 @@ class WooCommerceService
             'meta_value' => $pckArticleId,
             'per_page' => 1,
         ]);
-        
+
         return $products[0] ?? null;
     }
 
@@ -322,14 +325,14 @@ class WooCommerceService
      */
     private function makeRequest(string $method, string $endpoint, array $data = []): array
     {
-        $url = $this->baseUrl . $endpoint;
-        
+        $url = $this->baseUrl.$endpoint;
+
         $options = [
             'auth' => $this->auth,
             'verify' => false, // You may want to enable SSL verification in production
         ];
-        
-        if (!empty($data) && in_array($method, ['POST', 'PUT', 'PATCH'])) {
+
+        if (! empty($data) && in_array($method, ['POST', 'PUT', 'PATCH'])) {
             $options['json'] = $data;
         }
 
@@ -337,10 +340,10 @@ class WooCommerceService
             $startTime = microtime(true);
             $response = $this->httpClient->request($method, $url, $options);
             $duration = microtime(true) - $startTime;
-            
+
             $statusCode = $response->getStatusCode();
             $body = $this->parseResponse($response);
-            
+
             // Log successful requests (except GET requests to reduce noise)
             if ($method !== 'GET') {
                 Log::debug('WooCommerce API request', [
@@ -351,15 +354,15 @@ class WooCommerceService
                     'duration_ms' => round($duration * 1000, 2),
                 ]);
             }
-            
+
             return $body;
-            
+
         } catch (GuzzleException $e) {
             $this->logRequestError($method, $endpoint, $e, $data);
-            
+
             // Re-throw with more context
             throw new \RuntimeException(
-                "WooCommerce API request failed: {$method} {$endpoint} - " . $e->getMessage(),
+                "WooCommerce API request failed: {$method} {$endpoint} - ".$e->getMessage(),
                 $e->getCode(),
                 $e
             );
@@ -372,17 +375,17 @@ class WooCommerceService
     private function parseResponse(ResponseInterface $response): array
     {
         $body = $response->getBody()->getContents();
-        
+
         if (empty($body)) {
             return [];
         }
-        
+
         $decoded = json_decode($body, true);
-        
+
         if (json_last_error() !== JSON_ERROR_NONE) {
             throw new \RuntimeException('Invalid JSON response from WooCommerce API');
         }
-        
+
         return $decoded;
     }
 
@@ -398,19 +401,19 @@ class WooCommerceService
             'error' => $e->getMessage(),
             'code' => $e->getCode(),
         ];
-        
+
         // Include response body if available
         if ($e->hasResponse()) {
             $response = $e->getResponse();
             $context['status_code'] = $response->getStatusCode();
             $context['response_body'] = $response->getBody()->getContents();
         }
-        
+
         // Include request data for POST/PUT requests (but mask sensitive data)
-        if (!empty($data) && in_array($method, ['POST', 'PUT', 'PATCH'])) {
+        if (! empty($data) && in_array($method, ['POST', 'PUT', 'PATCH'])) {
             $context['request_data'] = $this->maskSensitiveData($data);
         }
-        
+
         Log::error('WooCommerce API request failed', $context);
     }
 
@@ -420,7 +423,7 @@ class WooCommerceService
     private function maskSensitiveData(array $data): array
     {
         $sensitiveKeys = ['password', 'token', 'key', 'secret'];
-        
+
         foreach ($data as $key => $value) {
             if (is_string($key) && in_array(strtolower($key), $sensitiveKeys)) {
                 $data[$key] = '***masked***';
@@ -428,7 +431,7 @@ class WooCommerceService
                 $data[$key] = $this->maskSensitiveData($value);
             }
         }
-        
+
         return $data;
     }
 }

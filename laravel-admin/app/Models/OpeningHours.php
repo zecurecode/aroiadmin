@@ -10,6 +10,7 @@ class OpeningHours extends Model
     use HasFactory;
 
     protected $table = 'apningstid';
+
     public $timestamps = false; // The original table doesn't have timestamps
 
     protected $fillable = [
@@ -49,7 +50,7 @@ class OpeningHours extends Model
         'btnnamsos',
         'btnfrosta',
         'btnhell',
-        'btbsteinkjer'
+        'btbsteinkjer',
     ];
 
     protected $casts = [
@@ -83,7 +84,8 @@ class OpeningHours extends Model
      */
     public function getOpenTime($locationName)
     {
-        $field = 'open' . strtolower($locationName);
+        $field = 'open'.strtolower($locationName);
+
         return $this->$field ?? null;
     }
 
@@ -92,7 +94,8 @@ class OpeningHours extends Model
      */
     public function getCloseTime($locationName)
     {
-        $field = 'close' . strtolower($locationName);
+        $field = 'close'.strtolower($locationName);
+
         return $this->$field ?? null;
     }
 
@@ -101,7 +104,8 @@ class OpeningHours extends Model
      */
     public function getStatus($locationName)
     {
-        $field = 'status' . strtolower($locationName);
+        $field = 'status'.strtolower($locationName);
+
         return $this->$field ?? 0;
     }
 
@@ -110,7 +114,8 @@ class OpeningHours extends Model
      */
     public function getNotes($locationName)
     {
-        $field = 'notes' . strtolower($locationName);
+        $field = 'notes'.strtolower($locationName);
+
         return $this->$field ?? null;
     }
 
@@ -119,10 +124,11 @@ class OpeningHours extends Model
      */
     public function getButtonStatus($locationName)
     {
-        $field = 'btn' . strtolower($locationName);
+        $field = 'btn'.strtolower($locationName);
         if ($locationName === 'steinkjer') {
-            $field = 'btb' . strtolower($locationName);
+            $field = 'btb'.strtolower($locationName);
         }
+
         return $this->$field ?? 0;
     }
 
@@ -131,8 +137,9 @@ class OpeningHours extends Model
      */
     public function setStatus($locationName, $status)
     {
-        $field = 'status' . strtolower($locationName);
+        $field = 'status'.strtolower($locationName);
         $this->$field = $status;
+
         return $this->save();
     }
 
@@ -146,7 +153,7 @@ class OpeningHours extends Model
         $locationName = $site ? strtolower($site->name) : null;
 
         // Fallback to hardcoded mapping
-        if (!$locationName) {
+        if (! $locationName) {
             $locationNames = [
                 7 => 'namsos',
                 4 => 'lade',
@@ -154,12 +161,12 @@ class OpeningHours extends Model
                 5 => 'gramyra',
                 10 => 'frosta',
                 11 => 'hell',
-                13 => 'steinkjer'
+                13 => 'steinkjer',
             ];
             $locationName = $locationNames[$siteId] ?? null;
         }
 
-        if (!$locationName) {
+        if (! $locationName) {
             return null;
         }
 
@@ -183,7 +190,7 @@ class OpeningHours extends Model
             'gramyra' => 'Gramyra',
             'frosta' => 'Frosta',
             'hell' => 'Hell',
-            'steinkjer' => 'Steinkjer'
+            'steinkjer' => 'Steinkjer',
         ];
     }
 }

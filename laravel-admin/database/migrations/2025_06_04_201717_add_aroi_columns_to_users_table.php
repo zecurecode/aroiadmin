@@ -13,15 +13,15 @@ return new class extends Migration
     {
         Schema::table('users', function (Blueprint $table) {
             // Add required columns for Aroi system only if they don't exist
-            if (!Schema::hasColumn('users', 'username')) {
+            if (! Schema::hasColumn('users', 'username')) {
                 $table->string('username')->unique()->after('id');
             }
 
-            if (!Schema::hasColumn('users', 'siteid')) {
+            if (! Schema::hasColumn('users', 'siteid')) {
                 $table->integer('siteid')->nullable()->after('username');
             }
 
-            if (!Schema::hasColumn('users', 'license')) {
+            if (! Schema::hasColumn('users', 'license')) {
                 $table->integer('license')->nullable()->after('siteid');
             }
 

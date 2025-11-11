@@ -3,14 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Order;
-use App\Models\Location;
-use App\Models\Setting;
-use App\Models\Mail;
 use App\Models\ApningstidAlternative;
+use App\Models\Location;
+use App\Models\Mail;
+use App\Models\Order;
+use App\Models\Setting;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Carbon\Carbon;
 
 class OrderController extends Controller
 {
@@ -22,7 +22,7 @@ class OrderController extends Controller
         $user = Auth::user();
 
         // If user is not admin, show user dashboard
-        if (!$user->isAdmin()) {
+        if (! $user->isAdmin()) {
             return $this->userDashboard($request);
         }
 
@@ -43,7 +43,7 @@ class OrderController extends Controller
             }
         } else {
             // By default, only show paid orders unless specifically filtering for unpaid
-            if (!$request->has('show_unpaid') || !$request->show_unpaid) {
+            if (! $request->has('show_unpaid') || ! $request->show_unpaid) {
                 $query->where('paid', 1);
             }
         }
@@ -56,11 +56,11 @@ class OrderController extends Controller
         // Search by customer name or order ID
         if ($request->has('search') && $request->search) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('fornavn', 'like', "%{$search}%")
-                  ->orWhere('etternavn', 'like', "%{$search}%")
-                  ->orWhere('ordreid', 'like', "%{$search}%")
-                  ->orWhere('telefon', 'like', "%{$search}%");
+                    ->orWhere('etternavn', 'like', "%{$search}%")
+                    ->orWhere('ordreid', 'like', "%{$search}%")
+                    ->orWhere('telefon', 'like', "%{$search}%");
             });
         }
 
@@ -69,7 +69,7 @@ class OrderController extends Controller
 
         // Auto-populate wcstatus and send SMS for orders (background check for paid orders only)
         $wooService = new \App\Services\WooCommerceService($user->siteid);
-        $smsService = new \App\Services\SmsService();
+        $smsService = new \App\Services\SmsService;
 
         foreach ($orders as $order) {
             if ($order->paid) {
@@ -82,7 +82,7 @@ class OrderController extends Controller
                 }
 
                 // Send "order received" SMS for new orders (status 0) if not sent yet
-                if ($order->ordrestatus == 0 && !$order->sms) {
+                if ($order->ordrestatus == 0 && ! $order->sms) {
                     $smsService->sendOrderReceivedSms($order);
                 }
             }
@@ -132,7 +132,7 @@ class OrderController extends Controller
 
         // Auto-populate wcstatus and send SMS for new orders
         $wooService = new \App\Services\WooCommerceService($siteid);
-        $smsService = new \App\Services\SmsService();
+        $smsService = new \App\Services\SmsService;
 
         foreach ($newOrders as $order) {
             // Check and update WooCommerce status
@@ -144,7 +144,7 @@ class OrderController extends Controller
             }
 
             // Send "order received" SMS if not sent yet
-            if (!$order->sms && $order->paid) {
+            if (! $order->sms && $order->paid) {
                 $smsService->sendOrderReceivedSms($order);
             }
         }
@@ -191,7 +191,7 @@ class OrderController extends Controller
             'headers' => request()->headers->all(),
             'accept' => request()->header('Accept'),
             'x_requested_with' => request()->header('X-Requested-With'),
-            'user_agent' => request()->userAgent()
+            'user_agent' => request()->userAgent(),
         ]);
 
         // Get WooCommerce order details
@@ -200,10 +200,12 @@ class OrderController extends Controller
         // If this is an AJAX request, just return the order details view
         if (request()->ajax()) {
             \Log::info("Returning AJAX view for order {$order->id}");
+
             return view('admin.orders.show', compact('order', 'wooOrder'));
         }
 
         \Log::info("Returning full page view for order {$order->id}");
+
         return view('admin.orders.show', compact('order', 'wooOrder'));
     }
 
@@ -222,7 +224,7 @@ class OrderController extends Controller
         ]);
 
         $order->update([
-            'ordrestatus' => $request->ordrestatus
+            'ordrestatus' => $request->ordrestatus,
         ]);
 
         return redirect()->route('admin.orders.show', $order)
@@ -243,7 +245,7 @@ class OrderController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Order marked as paid'
+            'message' => 'Order marked as paid',
         ]);
     }
 
@@ -265,7 +267,7 @@ class OrderController extends Controller
         if ($license == 0) {
             return response()->json([
                 'success' => false,
-                'message' => 'No license configured for this location'
+                'message' => 'No license configured for this location',
             ], 400);
         }
 
@@ -284,14 +286,14 @@ class OrderController extends Controller
         if ($success) {
             $order->update([
                 'curl' => $httpcode,
-                'curltime' => Carbon::now()
+                'curltime' => Carbon::now(),
             ]);
         }
 
         return response()->json([
             'success' => $success,
             'message' => $success ? 'Order sent to POS successfully' : 'Failed to send order to POS',
-            'http_code' => $httpcode
+            'http_code' => $httpcode,
         ]);
     }
 
@@ -309,14 +311,14 @@ class OrderController extends Controller
         if ($order->paid == 0) {
             return response()->json([
                 'success' => false,
-                'message' => 'Kan ikke sende SMS for ubetalte ordrer'
+                'message' => 'Kan ikke sende SMS for ubetalte ordrer',
             ], 400);
         }
 
         if ($order->sms) {
             return response()->json([
                 'success' => false,
-                'message' => 'SMS already sent for this order'
+                'message' => 'SMS already sent for this order',
             ], 400);
         }
 
@@ -337,15 +339,15 @@ class OrderController extends Controller
 
         \Log::info("Sending SMS for order {$order->ordreid}", [
             'phone_original' => $order->telefon,
-            'phone_normalized' => $phoneNumber
+            'phone_normalized' => $phoneNumber,
         ]);
 
-        $smsUrl = $apiUrl . "?" . http_build_query([
+        $smsUrl = $apiUrl.'?'.http_build_query([
             'username' => $username,
             'password' => $password,
             'recipient' => $phoneNumber,  // Teletopia uses 'recipient' not 'to'
             'text' => $message,
-            'from' => $sender
+            'from' => $sender,
         ]);
 
         $ch = curl_init();
@@ -363,7 +365,7 @@ class OrderController extends Controller
 
         return response()->json([
             'success' => $success,
-            'message' => $success ? 'SMS sendt!' : 'Kunne ikke sende SMS'
+            'message' => $success ? 'SMS sendt!' : 'Kunne ikke sende SMS',
         ]);
     }
 
@@ -376,12 +378,12 @@ class OrderController extends Controller
         if ($order->site !== Auth::user()->siteid) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized'
+                'message' => 'Unauthorized',
             ], 403);
         }
 
         $request->validate([
-            'status' => 'required|integer|in:0,1,2,3'
+            'status' => 'required|integer|in:0,1,2,3',
         ]);
 
         // Store previous status for comparison
@@ -403,7 +405,7 @@ class OrderController extends Controller
         // Only send SMS if order is paid, status has changed, and not in silent mode
         $smsSuccess = true;
         $smsMessage = '';
-        if ($order->paid == 1 && $previousStatus != $newStatus && !$silent) {
+        if ($order->paid == 1 && $previousStatus != $newStatus && ! $silent) {
             $smsResult = $this->sendStatusChangeSMS($order, $newStatus);
             $smsSuccess = $smsResult['success'];
             $smsMessage = $smsResult['message'];
@@ -416,14 +418,14 @@ class OrderController extends Controller
             if ($smsSuccess) {
                 $message .= ' og SMS sendt!';
             } else {
-                $message .= '. OBS: SMS kunne ikke sendes - ' . $smsMessage;
+                $message .= '. OBS: SMS kunne ikke sendes - '.$smsMessage;
             }
         }
 
         return response()->json([
             'success' => true,
             'message' => $message,
-            'sms_sent' => !$silent && $smsSuccess
+            'sms_sent' => ! $silent && $smsSuccess,
         ]);
     }
 
@@ -442,7 +444,7 @@ class OrderController extends Controller
         return response()->json(['count' => $count]);
     }
 
-        /**
+    /**
      * Fetch WooCommerce order details with enhanced logging.
      */
     private function fetchWooCommerceOrder(Order $order)
@@ -451,16 +453,17 @@ class OrderController extends Controller
             // Get site credentials from database
             $site = \App\Models\Site::findBySiteId($order->site);
 
-            if (!$site) {
+            if (! $site) {
                 \Log::warning("No site found for order {$order->id} with site ID {$order->site}");
+
                 return null;
             }
 
             // Construct WooCommerce API URL
-            $url = $site->url . '/wp-json/wc/v3/orders/' . $order->ordreid;
-            $url .= '?consumer_key=' . $site->consumer_key . '&consumer_secret=' . $site->consumer_secret;
+            $url = $site->url.'/wp-json/wc/v3/orders/'.$order->ordreid;
+            $url .= '?consumer_key='.$site->consumer_key.'&consumer_secret='.$site->consumer_secret;
 
-            \Log::info("Fetching WooCommerce order from: " . $site->url . " for order ID: " . $order->ordreid);
+            \Log::info('Fetching WooCommerce order from: '.$site->url.' for order ID: '.$order->ordreid);
 
             // Make API request to WooCommerce
             $ch = curl_init();
@@ -476,35 +479,39 @@ class OrderController extends Controller
             curl_close($ch);
 
             if ($curlError) {
-                \Log::error("CURL error fetching WooCommerce order: " . $curlError);
+                \Log::error('CURL error fetching WooCommerce order: '.$curlError);
+
                 return null;
             }
 
             if ($httpCode !== 200) {
                 \Log::warning("WooCommerce API returned HTTP {$httpCode} for order {$order->ordreid}");
                 if ($response) {
-                    \Log::warning("Response: " . $response);
+                    \Log::warning('Response: '.$response);
                 }
+
                 return null;
             }
 
-            if (!$response) {
+            if (! $response) {
                 \Log::warning("Empty response from WooCommerce for order {$order->ordreid}");
+
                 return null;
             }
 
             $wooOrder = json_decode($response, true);
 
-            if (!$wooOrder || isset($wooOrder['code'])) {
-                \Log::error("Invalid WooCommerce response for order {$order->ordreid}: " . $response);
+            if (! $wooOrder || isset($wooOrder['code'])) {
+                \Log::error("Invalid WooCommerce response for order {$order->ordreid}: ".$response);
+
                 return null;
             }
 
             // Log what we received for debugging
-            \Log::info("WooCommerce order data keys: " . implode(', ', array_keys($wooOrder)));
+            \Log::info('WooCommerce order data keys: '.implode(', ', array_keys($wooOrder)));
 
             if (isset($wooOrder['customer_note'])) {
-                \Log::info("Customer note found for order {$order->ordreid}: " . $wooOrder['customer_note']);
+                \Log::info("Customer note found for order {$order->ordreid}: ".$wooOrder['customer_note']);
             } else {
                 \Log::info("No customer_note field in WooCommerce data for order {$order->ordreid}");
 
@@ -521,7 +528,8 @@ class OrderController extends Controller
             return $wooOrder;
 
         } catch (\Exception $e) {
-            \Log::error("Exception fetching WooCommerce order {$order->ordreid}: " . $e->getMessage());
+            \Log::error("Exception fetching WooCommerce order {$order->ordreid}: ".$e->getMessage());
+
             return null;
         }
     }
@@ -541,17 +549,17 @@ class OrderController extends Controller
 
         // If starts with 0047, replace with +47
         if (substr($phone, 0, 4) === '0047') {
-            return '+47' . substr($phone, 4);
+            return '+47'.substr($phone, 4);
         }
 
         // If starts with 47 (without +), add the +
         if (substr($phone, 0, 2) === '47' && strlen($phone) >= 10) {
-            return '+' . $phone;
+            return '+'.$phone;
         }
 
         // If 8 digits (Norwegian mobile without country code), add +47
         if (strlen($phone) === 8 && ctype_digit($phone)) {
-            return '+47' . $phone;
+            return '+47'.$phone;
         }
 
         // Otherwise return as is (might be international number)
@@ -566,6 +574,7 @@ class OrderController extends Controller
         // Don't send SMS if order is not paid
         if ($order->paid == 0) {
             \Log::info("Skipping SMS for unpaid order {$order->ordreid}");
+
             return ['success' => false, 'message' => 'Ordre er ikke betalt'];
         }
 
@@ -598,12 +607,12 @@ class OrderController extends Controller
         $apiUrl = Setting::get('sms_api_url', 'https://api1.teletopiasms.no/gateway/v3/plain');
         $sender = Setting::get('sms_sender', 'AroiAsia');
 
-        $smsUrl = $apiUrl . "?" . http_build_query([
+        $smsUrl = $apiUrl.'?'.http_build_query([
             'username' => $username,
             'password' => $password,
             'recipient' => $phoneNumber,  // Teletopia uses 'recipient' not 'to'
             'text' => $message,
-            'from' => $sender
+            'from' => $sender,
         ]);
 
         \Log::info("Sending SMS for order {$order->ordreid}", [
@@ -612,7 +621,7 @@ class OrderController extends Controller
             'phone_normalized' => $phoneNumber,
             'api_url' => $apiUrl,
             'sender' => $sender,
-            'message' => $message
+            'message' => $message,
         ]);
 
         try {
@@ -630,23 +639,25 @@ class OrderController extends Controller
             if ($success) {
                 \Log::info("SMS sent successfully for order {$order->ordreid}", [
                     'http_code' => $httpcode,
-                    'response' => $output
+                    'response' => $output,
                 ]);
+
                 return ['success' => true, 'message' => 'SMS sendt'];
             } else {
                 \Log::error("Failed to send SMS for order {$order->ordreid}", [
                     'http_code' => $httpcode,
                     'response' => $output,
-                    'curl_error' => $curlError
+                    'curl_error' => $curlError,
                 ]);
+
                 return ['success' => false, 'message' => "HTTP feil {$httpcode}"];
             }
         } catch (\Exception $e) {
-            \Log::error("Exception sending SMS for order {$order->ordreid}: " . $e->getMessage());
-            return ['success' => false, 'message' => 'Teknisk feil: ' . $e->getMessage()];
+            \Log::error("Exception sending SMS for order {$order->ordreid}: ".$e->getMessage());
+
+            return ['success' => false, 'message' => 'Teknisk feil: '.$e->getMessage()];
         }
     }
-
 
     /**
      * Delete old orders (called by cron).
@@ -660,7 +671,7 @@ class OrderController extends Controller
 
         return response()->json([
             'success' => true,
-            'deleted' => $deleted
+            'deleted' => $deleted,
         ]);
     }
 
@@ -673,7 +684,7 @@ class OrderController extends Controller
         if ($order->site !== Auth::user()->siteid) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized'
+                'message' => 'Unauthorized',
             ], 403);
         }
 
@@ -683,7 +694,7 @@ class OrderController extends Controller
         if ($status === null) {
             return response()->json([
                 'success' => false,
-                'message' => 'Kunne ikke hente status fra WooCommerce'
+                'message' => 'Kunne ikke hente status fra WooCommerce',
             ]);
         }
 
@@ -693,7 +704,7 @@ class OrderController extends Controller
         return response()->json([
             'success' => true,
             'status' => $status,
-            'message' => "WooCommerce status: {$status}"
+            'message' => "WooCommerce status: {$status}",
         ]);
     }
 
@@ -706,11 +717,11 @@ class OrderController extends Controller
         if ($order->site !== Auth::user()->siteid) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized'
+                'message' => 'Unauthorized',
             ], 403);
         }
 
-        $pckService = new \App\Services\PCKasseService();
+        $pckService = new \App\Services\PCKasseService;
 
         // Mark order for retry first
         $pckService->markOrderForRetry($order);
@@ -727,20 +738,20 @@ class OrderController extends Controller
                 $order->update([
                     'curl' => $result['http_code'],
                     'curltime' => Carbon::now(),
-                    'pck_export_status' => 'sent'
+                    'pck_export_status' => 'sent',
                 ]);
             }
 
             return response()->json([
                 'success' => true,
                 'message' => $parsed['message'],
-                'details' => $parsed
+                'details' => $parsed,
             ]);
         }
 
         return response()->json([
             'success' => false,
-            'message' => $result['message']
+            'message' => $result['message'],
         ]);
     }
 
@@ -761,13 +772,13 @@ class OrderController extends Controller
         if ($order->site !== Auth::user()->siteid) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized'
+                'message' => 'Unauthorized',
             ], 403);
         }
 
         $wooService = new \App\Services\WooCommerceService($order->site);
-        $pckService = new \App\Services\PCKasseService();
-        $smsService = new \App\Services\SmsService();
+        $pckService = new \App\Services\PCKasseService;
+        $smsService = new \App\Services\SmsService;
 
         $actions = [];
         $issues = [];
@@ -777,13 +788,14 @@ class OrderController extends Controller
 
         if ($wcStatus === null) {
             $issues[] = 'Kunne ikke hente WooCommerce status';
+
             return response()->json([
                 'success' => false,
                 'actions' => $actions,
                 'issues' => $issues,
                 'wc_status' => null,
                 'order_status' => $order->ordrestatus,
-                'pck_acknowledged' => false
+                'pck_acknowledged' => false,
             ]);
         }
 
@@ -792,7 +804,7 @@ class OrderController extends Controller
         $actions[] = "WooCommerce status: {$wcStatus}";
 
         // 1.5. Send "order received" SMS if this is a new order and SMS hasn't been sent
-        if ($order->ordrestatus == 0 && !$order->sms && $order->paid) {
+        if ($order->ordrestatus == 0 && ! $order->sms && $order->paid) {
             $smsSent = $smsService->sendOrderReceivedSms($order);
             if ($smsSent) {
                 $actions[] = '📱 SMS "Vi har mottatt din ordre" sendt til kunde';
@@ -808,7 +820,7 @@ class OrderController extends Controller
                 $order->update([
                     'curl' => 200,
                     'curltime' => Carbon::now(),
-                    'pck_export_status' => 'sent'
+                    'pck_export_status' => 'sent',
                 ]);
                 $actions[] = 'Lokal status oppdatert';
             }
@@ -819,7 +831,7 @@ class OrderController extends Controller
                 'issues' => $issues,
                 'wc_status' => $wcStatus,
                 'order_status' => $order->ordrestatus,
-                'pck_acknowledged' => true
+                'pck_acknowledged' => true,
             ]);
         }
 
@@ -833,31 +845,32 @@ class OrderController extends Controller
         // Trigger PCKasse queue
         $result = $pckService->triggerQueue($order->site);
 
-        if (!$result['success']) {
-            $issues[] = 'Kunne ikke trigge PCKasse: ' . $result['message'];
+        if (! $result['success']) {
+            $issues[] = 'Kunne ikke trigge PCKasse: '.$result['message'];
+
             return response()->json([
                 'success' => false,
                 'actions' => $actions,
                 'issues' => $issues,
                 'wc_status' => $wcStatus,
                 'order_status' => $order->ordrestatus,
-                'pck_acknowledged' => false
+                'pck_acknowledged' => false,
             ]);
         }
 
         // Parse PCK response
         $parsed = $pckService->parseQueueResponse($result['response']);
-        $actions[] = 'PCKasse respons: ' . $parsed['message'];
+        $actions[] = 'PCKasse respons: '.$parsed['message'];
 
         if ($parsed['success']) {
             $actions[] = '✅ PCKasse kø trigget vellykket';
             $order->update([
                 'curl' => $result['http_code'],
                 'curltime' => Carbon::now(),
-                'pck_export_status' => 'sent'
+                'pck_export_status' => 'sent',
             ]);
         } else {
-            $issues[] = 'PCKasse kunne ikke hente ordren: ' . $parsed['message'];
+            $issues[] = 'PCKasse kunne ikke hente ordren: '.$parsed['message'];
         }
 
         // 4. Check WooCommerce status AGAIN to verify if PCK acknowledged
@@ -874,7 +887,7 @@ class OrderController extends Controller
                 'issues' => [],
                 'wc_status' => $wcStatusAfter,
                 'order_status' => $order->ordrestatus,
-                'pck_acknowledged' => true
+                'pck_acknowledged' => true,
             ]);
         } else {
             $issues[] = '⚠️ Ordren er fortsatt ikke fullført i WooCommerce. PCKasse har kanskje ikke lest ordren ennå.';
@@ -886,7 +899,7 @@ class OrderController extends Controller
                 'issues' => $issues,
                 'wc_status' => $wcStatusAfter,
                 'order_status' => $order->ordrestatus,
-                'pck_acknowledged' => false
+                'pck_acknowledged' => false,
             ]);
         }
     }

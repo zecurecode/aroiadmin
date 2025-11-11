@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Location;
 use App\Models\CateringOrder;
 use App\Models\CateringSettings;
+use App\Models\Location;
 use App\Services\WooCommerceApiClient;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
 
 class CateringController extends Controller
 {
@@ -16,7 +16,7 @@ class CateringController extends Controller
 
     public function __construct()
     {
-        $this->woocommerce = new WooCommerceApiClient();
+        $this->woocommerce = new WooCommerceApiClient;
     }
 
     /**
@@ -43,10 +43,10 @@ class CateringController extends Controller
     public function selectProducts($locationId)
     {
         $location = Location::findOrFail($locationId);
-        
+
         // Check if catering is enabled for this location
         $cateringSettings = CateringSettings::where('site_id', $location->site_id)->first();
-        if (!$cateringSettings || !$cateringSettings->catering_enabled) {
+        if (! $cateringSettings || ! $cateringSettings->catering_enabled) {
             return redirect()->route('catering.index')
                 ->with('error', 'Catering er ikke tilgjengelig for denne lokasjonen.');
         }
@@ -64,10 +64,10 @@ class CateringController extends Controller
     {
         $location = Location::findOrFail($locationId);
         $cateringSettings = CateringSettings::where('site_id', $location->site_id)->firstOrFail();
-        
+
         // Get selected products from session or request
         $selectedProducts = $request->session()->get('catering_products', []);
-        
+
         if (empty($selectedProducts)) {
             return redirect()->route('catering.products', $locationId)
                 ->with('error', 'Vennligst velg produkter først.');
@@ -75,7 +75,7 @@ class CateringController extends Controller
 
         // Calculate minimum date based on advance notice
         $minDate = Carbon::now()->addDays($cateringSettings->advance_notice_days)->format('Y-m-d');
-        
+
         // Get blocked dates
         $blockedDates = $cateringSettings->blocked_dates ?? [];
 
@@ -106,7 +106,7 @@ class CateringController extends Controller
             'products.*.id' => 'required|integer',
             'products.*.quantity' => 'required|integer|min:1',
             'products.*.price' => 'required|numeric|min:0',
-            'products.*.name' => 'required|string'
+            'products.*.name' => 'required|string',
         ]);
 
         $location = Location::findOrFail($validated['location_id']);
@@ -115,7 +115,7 @@ class CateringController extends Controller
         // Validate minimum guests
         if ($validated['number_of_guests'] < $cateringSettings->min_guests) {
             return back()->withErrors([
-                'number_of_guests' => "Minimum antall gjester er {$cateringSettings->min_guests}."
+                'number_of_guests' => "Minimum antall gjester er {$cateringSettings->min_guests}.",
             ])->withInput();
         }
 
@@ -124,14 +124,14 @@ class CateringController extends Controller
         $minDate = Carbon::now()->addDays($cateringSettings->advance_notice_days);
         if ($deliveryDate->lt($minDate)) {
             return back()->withErrors([
-                'delivery_date' => "Bestilling må gjøres minst {$cateringSettings->advance_notice_days} dager i forveien."
+                'delivery_date' => "Bestilling må gjøres minst {$cateringSettings->advance_notice_days} dager i forveien.",
             ])->withInput();
         }
 
         // Check if date is blocked
         if (in_array($validated['delivery_date'], $cateringSettings->blocked_dates ?? [])) {
             return back()->withErrors([
-                'delivery_date' => "Denne datoen er ikke tilgjengelig for catering."
+                'delivery_date' => 'Denne datoen er ikke tilgjengelig for catering.',
             ])->withInput();
         }
 
@@ -144,7 +144,7 @@ class CateringController extends Controller
         // Validate minimum order amount
         if ($totalAmount < $cateringSettings->min_order_amount) {
             return back()->withErrors([
-                'products' => "Minimumsbeløp for catering er {$cateringSettings->min_order_amount} kr."
+                'products' => "Minimumsbeløp for catering er {$cateringSettings->min_order_amount} kr.",
             ])->withInput();
         }
 
@@ -154,7 +154,7 @@ class CateringController extends Controller
             $order = CateringOrder::create([
                 'location_id' => $location->id,
                 'site_id' => $location->site_id,
-                'order_number' => 'CAT-' . time() . '-' . rand(1000, 9999),
+                'order_number' => 'CAT-'.time().'-'.rand(1000, 9999),
                 'delivery_date' => $validated['delivery_date'],
                 'delivery_time' => $validated['delivery_time'],
                 'delivery_address' => $validated['delivery_address'],
@@ -171,7 +171,7 @@ class CateringController extends Controller
                 'products' => $validated['products'],
                 'total_amount' => $totalAmount,
                 'status' => 'pending',
-                'catering_email' => $cateringSettings->catering_email
+                'catering_email' => $cateringSettings->catering_email,
             ]);
 
             // Send notifications
@@ -186,6 +186,7 @@ class CateringController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+
             return back()->withErrors(['error' => 'Det oppstod en feil ved opprettelse av bestilling.'])
                 ->withInput();
         }
@@ -197,7 +198,7 @@ class CateringController extends Controller
     public function confirmation($orderId)
     {
         $order = CateringOrder::with('location')->findOrFail($orderId);
-        
+
         return view('catering.confirmation', compact('order'));
     }
 
@@ -208,13 +209,13 @@ class CateringController extends Controller
     {
         $validated = $request->validate([
             'location_id' => 'required|exists:locations,id',
-            'date' => 'required|date'
+            'date' => 'required|date',
         ]);
 
         $location = Location::findOrFail($validated['location_id']);
         $cateringSettings = CateringSettings::where('site_id', $location->site_id)->first();
 
-        if (!$cateringSettings || !$cateringSettings->catering_enabled) {
+        if (! $cateringSettings || ! $cateringSettings->catering_enabled) {
             return response()->json(['available' => false, 'message' => 'Catering ikke tilgjengelig']);
         }
 
@@ -228,8 +229,8 @@ class CateringController extends Controller
         $minDate = Carbon::now()->addDays($cateringSettings->advance_notice_days);
         if ($deliveryDate->lt($minDate)) {
             return response()->json([
-                'available' => false, 
-                'message' => "Bestilling må gjøres minst {$cateringSettings->advance_notice_days} dager i forveien"
+                'available' => false,
+                'message' => "Bestilling må gjøres minst {$cateringSettings->advance_notice_days} dager i forveien",
             ]);
         }
 
@@ -247,7 +248,7 @@ class CateringController extends Controller
             'products.*.id' => 'required|integer',
             'products.*.quantity' => 'required|integer|min:1',
             'products.*.name' => 'required|string',
-            'products.*.price' => 'required|numeric|min:0'
+            'products.*.price' => 'required|numeric|min:0',
         ]);
 
         $request->session()->put('catering_products', $validated['products']);

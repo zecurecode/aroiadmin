@@ -13,14 +13,15 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 class ProcessInboundImagePayload implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $payloadId;
+
     public int $tries = 3;
+
     public int $maxExceptions = 2;
 
     public function __construct(int $payloadId)
@@ -32,11 +33,12 @@ class ProcessInboundImagePayload implements ShouldQueue
     public function handle(): void
     {
         $payload = PckInboundPayload::find($this->payloadId);
-        
-        if (!$payload) {
+
+        if (! $payload) {
             Log::error('ProcessInboundImagePayload: Payload not found', [
                 'payload_id' => $this->payloadId,
             ]);
+
             return;
         }
 
@@ -66,34 +68,36 @@ class ProcessInboundImagePayload implements ShouldQueue
     {
         $data = $payload->payload;
         $imageData = $data['image'] ?? '';
-        $articleId = (string)($data['articleid'] ?? '');
+        $articleId = (string) ($data['articleid'] ?? '');
         $tenantId = $payload->tenant_id;
 
         // Resolve tenant context
         $tenant = TenantResolver::resolveFromTenantId($tenantId);
-        if (!$tenant) {
+        if (! $tenant) {
             throw new \RuntimeException("Tenant {$tenantId} not found");
         }
 
-        if (!$tenant->hasValidWooCommerceConfig()) {
+        if (! $tenant->hasValidWooCommerceConfig()) {
             throw new \RuntimeException("Tenant {$tenantId} has invalid WooCommerce configuration");
         }
 
         // Handle special case: company logo (articleId = -10)
         if ($articleId === '-10') {
             $this->processCompanyLogo($tenant, $imageData);
+
             return;
         }
 
         // Handle empty image (deletion)
         if (empty($imageData)) {
             $this->removeProductImage($tenant, $articleId);
+
             return;
         }
 
         // Find the product mapping
         $mapping = PckEntityMap::findByPckArticle($tenantId, $articleId);
-        if (!$mapping || !$mapping->woo_product_id) {
+        if (! $mapping || ! $mapping->woo_product_id) {
             Log::warning('ProcessInboundImagePayload: Product mapping not found', [
                 'payload_id' => $this->payloadId,
                 'tenant_id' => $tenantId,
@@ -123,7 +127,7 @@ class ProcessInboundImagePayload implements ShouldQueue
             $uploadResult = $mediaService->uploadImage($imageData, [
                 'filename' => 'company-logo.jpg',
                 'title' => 'Company Logo',
-                'alt_text' => $tenant->getTenantName() . ' Logo',
+                'alt_text' => $tenant->getTenantName().' Logo',
             ]);
 
             Log::info('ProcessInboundImagePayload: Company logo uploaded', [
@@ -147,17 +151,17 @@ class ProcessInboundImagePayload implements ShouldQueue
     private function removeProductImage(TenantContext $tenant, string $articleId): void
     {
         $mapping = PckEntityMap::findByPckArticle($tenant->getTenantId(), $articleId);
-        if (!$mapping || !$mapping->woo_product_id) {
+        if (! $mapping || ! $mapping->woo_product_id) {
             return;
         }
 
         try {
             $wooService = new WooCommerceService($tenant);
-            
+
             // Get current product to check for existing images
             $product = $wooService->getProduct($mapping->woo_product_id);
-            
-            if (!empty($product['images'])) {
+
+            if (! empty($product['images'])) {
                 // Remove all images from the product
                 $wooService->updateProduct($mapping->woo_product_id, [
                     'images' => [],
@@ -195,9 +199,9 @@ class ProcessInboundImagePayload implements ShouldQueue
             // Attach image to WooCommerce product
             $wooService = new WooCommerceService($tenant);
             $currentProduct = $wooService->getProduct($mapping->woo_product_id);
-            
+
             $images = $currentProduct['images'] ?? [];
-            
+
             // Add new image (replace existing or add as first image)
             $newImage = [
                 'id' => $uploadResult['id'],
