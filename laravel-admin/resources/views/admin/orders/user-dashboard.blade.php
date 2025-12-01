@@ -13,13 +13,6 @@
                             <small>{{ now()->format('d. F Y') }}</small>
                         </div>
                         <div class="col-6 text-end">
-                            <div class="form-check form-switch d-inline-block">
-                                <input class="form-check-input" type="checkbox" id="locationStatus"
-                                       {{ $isOpen ? 'checked' : '' }} onchange="toggleLocationStatus()">
-                                <label class="form-check-label text-white" for="locationStatus">
-                                    {{ $isOpen ? 'ÅPEN' : 'STENGT' }}
-                                </label>
-                            </div>
                             <button class="btn btn-sm btn-light ms-2" onclick="manualRefresh()" id="refreshBtn">
                                 <i class="fas fa-sync-alt" id="refreshIcon"></i>
                             </button>
@@ -140,7 +133,7 @@
                         <div class="col-md-6 col-lg-4">
                             <div class="card border-warning h-100 {{ $order->wcstatus != 'completed' ? 'border-danger order-missing-print' : '' }}">
                                 <div class="card-header {{ $order->wcstatus != 'completed' ? 'bg-danger text-white' : 'bg-warning text-dark' }}">
-                                    <div class="d-flex justify-content-between align-items-center">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
                                         <h5 class="mb-0">
                                             #{{ $order->ordreid }}
                                             @if($order->wcstatus != 'completed')
@@ -153,10 +146,13 @@
                                         </div>
                                     </div>
                                     @if($order->wcstatus != 'completed')
-                                        <div class="mt-1">
+                                        <div class="mb-2">
                                             <small class="fw-bold">⚠️ INGEN KJØKKENPRINT - PCK har ikke mottatt!</small>
                                         </div>
                                     @endif
+                                    <button class="btn btn-light w-100" onclick="showOrderDetails({{ $order->id }})" style="min-height: 44px;">
+                                        <i class="fas fa-eye me-1"></i>Se detaljer
+                                    </button>
                                 </div>
                                 <div class="card-body">
                                     <h6 class="card-title">{{ $order->fornavn }} {{ $order->etternavn }}</h6>
@@ -192,38 +188,38 @@
                                         <small class="text-muted">{{ $order->ekstrainfo }}</small>
                                     </div>
 
-                                    <!-- Status Check Buttons -->
-                                    <div class="d-grid gap-1 mb-2">
+                                    <!-- Main Action Buttons (Touch-Optimized) -->
+                                    <div class="d-grid gap-2 mb-3">
+                                        <button class="btn btn-success" onclick="markOrderReady({{ $order->id }})" style="min-height: 50px; font-size: 1.1rem;">
+                                            <i class="fas fa-check me-1"></i>KLAR FOR HENTING
+                                        </button>
+                                        <button class="btn btn-outline-secondary" onclick="markOrderReadySilent({{ $order->id }})" style="min-height: 44px;">
+                                            <i class="fas fa-check-circle me-1"></i>Klar (uten SMS)
+                                        </button>
+                                    </div>
+
+                                    <!-- Status Check Buttons (for problem orders) -->
+                                    @if($order->wcstatus != 'completed' || !$order->sms)
+                                    <div class="d-grid gap-2">
                                         @if($order->wcstatus != 'completed')
-                                            <button class="btn btn-sm btn-outline-info check-wc-status-btn"
-                                                    data-order-id="{{ $order->id }}">
+                                            <button class="btn btn-outline-info check-wc-status-btn"
+                                                    data-order-id="{{ $order->id }}" style="min-height: 40px;">
                                                 <i class="bi bi-search me-1"></i>Sjekk status
                                             </button>
-                                            <button class="btn btn-sm btn-danger sync-status-btn"
-                                                    data-order-id="{{ $order->id }}">
+                                            <button class="btn btn-danger sync-status-btn"
+                                                    data-order-id="{{ $order->id }}" style="min-height: 40px;">
                                                 <i class="bi bi-arrow-repeat me-1"></i>Trigger PCKasse
                                             </button>
                                         @endif
 
                                         @if(!$order->sms)
-                                            <button class="btn btn-sm btn-outline-warning send-sms-btn"
-                                                    data-order-id="{{ $order->id }}">
+                                            <button class="btn btn-outline-warning send-sms-btn"
+                                                    data-order-id="{{ $order->id }}" style="min-height: 40px;">
                                                 <i class="bi bi-chat-dots me-1"></i>Send SMS nå
                                             </button>
                                         @endif
                                     </div>
-
-                                    <div class="d-grid gap-2">
-                                        <button class="btn btn-success" onclick="markOrderReady({{ $order->id }})">
-                                            <i class="fas fa-check me-1"></i>KLAR FOR HENTING
-                                        </button>
-                                        <button class="btn btn-outline-primary btn-sm" onclick="showOrderDetails({{ $order->id }})">
-                                            <i class="fas fa-eye me-1"></i>Se detaljer
-                                        </button>
-                                        <button class="btn btn-outline-secondary btn-sm" onclick="markOrderReadySilent({{ $order->id }})">
-                                            <i class="fas fa-check-circle me-1"></i>Klar (uten SMS)
-                                        </button>
-                                    </div>
+                                    @endif
                                 </div>
                             </div>
                         </div>
@@ -246,7 +242,7 @@
                         <div class="col-md-6 col-lg-4">
                             <div class="card border-info h-100">
                                 <div class="card-header bg-info text-white">
-                                    <div class="d-flex justify-content-between align-items-center">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
                                         <div>
                                             <h5 class="mb-0">#{{ $order->ordreid }}</h5>
                                             <small>{{ $order->datetime ? $order->datetime->format('D d.m H:i') : 'N/A' }}</small>
@@ -259,22 +255,23 @@
                                             @endif
                                         </span>
                                     </div>
+                                    <button class="btn btn-light w-100" onclick="showOrderDetails({{ $order->id }})" style="min-height: 44px;">
+                                        <i class="fas fa-eye me-1"></i>Se detaljer
+                                    </button>
                                 </div>
                                 <div class="card-body">
                                     <h6 class="card-title">{{ $order->fornavn }} {{ $order->etternavn }}</h6>
                                     <p class="mb-1"><i class="fas fa-phone me-1"></i>{{ $order->telefon }}</p>
                                     @if($order->hentes)
-                                        <p class="mb-2"><i class="fas fa-clock me-1"></i>Henting: <strong>{{ $order->hentes }}</strong></p>
+                                        <p class="mb-3"><i class="fas fa-clock me-1"></i>Henting: <strong>{{ $order->hentes }}</strong></p>
                                     @endif
 
+                                    <!-- Main Action Buttons (Touch-Optimized) -->
                                     <div class="d-grid gap-2">
-                                        <button class="btn btn-success" onclick="markOrderCompleted({{ $order->id }})">
+                                        <button class="btn btn-success" onclick="markOrderCompleted({{ $order->id }})" style="min-height: 50px; font-size: 1.1rem;">
                                             <i class="fas fa-check-double me-1"></i>HENTET
                                         </button>
-                                        <button class="btn btn-outline-primary btn-sm" onclick="showOrderDetails({{ $order->id }})">
-                                            <i class="fas fa-eye me-1"></i>Se detaljer
-                                        </button>
-                                        <button class="btn btn-danger btn-sm" onclick="markOrderCompletedSilent({{ $order->id }})">
+                                        <button class="btn btn-outline-danger" onclick="markOrderCompletedSilent({{ $order->id }})" style="min-height: 44px;">
                                             <i class="fas fa-check-double me-1"></i>Hentet (uten SMS)
                                         </button>
                                     </div>
@@ -320,8 +317,8 @@
                                         </span>
                                     </td>
                                     <td>
-                                        <button class="btn btn-sm btn-outline-primary" onclick="showOrderDetails({{ $order->id }})">
-                                            <i class="fas fa-eye"></i>
+                                        <button class="btn btn-outline-primary" onclick="showOrderDetails({{ $order->id }})" style="min-height: 40px; min-width: 100px;">
+                                            <i class="fas fa-eye me-1"></i>Detaljer
                                         </button>
                                     </td>
                                 </tr>
@@ -1232,13 +1229,42 @@ refreshOrderLists = function(force) {
     font-size: 0.875rem;
 }
 
-@media (max-width: 768px) {
+/* Touch-friendly button sizing for tablets and mobile */
+.btn {
+    padding: 0.5rem 1rem;
+}
+
+/* Ensure adequate spacing between button groups */
+.card-body .d-grid {
+    margin-bottom: 0.75rem;
+}
+
+.card-body .d-grid:last-child {
+    margin-bottom: 0;
+}
+
+/* Tablet-specific optimizations (10-inch tablets at ~768px-1024px) */
+@media (min-width: 768px) and (max-width: 1024px) {
+    .card-body {
+        padding: 1rem;
+    }
+
+    /* Ensure buttons maintain touch-friendly sizes on tablets */
+    .btn {
+        min-height: 44px;
+        font-size: 1rem;
+    }
+}
+
+/* Mobile optimizations */
+@media (max-width: 767px) {
     .card-body {
         padding: 0.75rem;
     }
 
     .btn {
         font-size: 0.875rem;
+        min-height: 42px;
     }
 }
 </style>
