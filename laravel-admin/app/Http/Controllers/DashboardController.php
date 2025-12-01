@@ -2,15 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ApningstidAlternative;
+use App\Models\Location;
+use App\Models\Order;
+use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
-use App\Models\Order;
-use App\Models\Location;
-use App\Models\OpeningHours;
-use App\Models\ApningstidAlternative;
-use App\Models\User;
-use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
@@ -68,7 +67,7 @@ class DashboardController extends Controller
                 'username' => $username,
                 'siteid' => $userSiteId,
                 'is_admin' => $isAdmin,
-                'user_model_found' => $user !== null
+                'user_model_found' => $user !== null,
             ]);
         } elseif (Auth::check()) {
             // Fallback to Laravel auth
@@ -82,25 +81,27 @@ class DashboardController extends Controller
                 'user_id' => $userId,
                 'username' => $username,
                 'siteid' => $userSiteId,
-                'is_admin' => $isAdmin
+                'is_admin' => $isAdmin,
             ]);
         } else {
             Log::warning('No valid authentication found in dashboard controller');
+
             return redirect('/login')->withErrors(['error' => 'Authentication required']);
         }
 
         // If admin user somehow gets here, redirect them to admin dashboard
         if ($isAdmin) {
             Log::info('Admin user accessing regular dashboard, redirecting to admin dashboard', [
-                'username' => $username
+                'username' => $username,
             ]);
+
             return redirect('/admin/dashboard');
         }
 
         Log::info('Loading dashboard for regular user', [
             'username' => $username,
             'user_id' => $userId,
-            'siteid' => $userSiteId
+            'siteid' => $userSiteId,
         ]);
 
         // Get statistics for user's location
@@ -124,7 +125,7 @@ class DashboardController extends Controller
         // Get location information
         $locationName = $user ? $user->getLocationName() : "Site $userSiteId";
 
-                // Get today's opening hours using new dynamic table
+        // Get today's opening hours using new dynamic table
         $todayDay = Carbon::now()->format('l'); // Monday, Tuesday, etc.
         $openingHours = ApningstidAlternative::where('AvdID', $userSiteId)->first();
 
@@ -138,7 +139,7 @@ class DashboardController extends Controller
                 'day' => $todayDay,
                 'location_name' => $locationName,
                 'site_id' => $userSiteId,
-                'opening_hours_found' => $openingHours !== null
+                'opening_hours_found' => $openingHours !== null,
             ]);
 
             // Get today's hours using the new model structure
@@ -153,16 +154,16 @@ class DashboardController extends Controller
                     'open_time' => $openTime,
                     'close_time' => $closeTime,
                     'is_closed' => $isClosed,
-                    'season_closed' => $openingHours->isSeasonClosed()
+                    'season_closed' => $openingHours->isSeasonClosed(),
                 ]);
 
                 // Check if open: must have valid times, not be marked as closed, and not be season closed
-                if ($openTime && $closeTime && !$isClosed && !$openingHours->isSeasonClosed()) {
+                if ($openTime && $closeTime && ! $isClosed && ! $openingHours->isSeasonClosed()) {
                     $now = Carbon::now();
                     try {
                         // Handle time formats with or without seconds
-                        $openTime = strlen($openTime) === 5 ? $openTime . ':00' : $openTime;
-                        $closeTime = strlen($closeTime) === 5 ? $closeTime . ':00' : $closeTime;
+                        $openTime = strlen($openTime) === 5 ? $openTime.':00' : $openTime;
+                        $closeTime = strlen($closeTime) === 5 ? $closeTime.':00' : $closeTime;
 
                         $openDateTime = Carbon::createFromFormat('H:i:s', $openTime);
                         $closeDateTime = Carbon::createFromFormat('H:i:s', $closeTime);
@@ -240,7 +241,7 @@ class DashboardController extends Controller
             return [
                 'estimated' => 0,
                 'confidence' => 'low',
-                'trend' => 'stable'
+                'trend' => 'stable',
             ];
         }
 
@@ -279,7 +280,7 @@ class DashboardController extends Controller
             'confidence' => $confidence,
             'trend' => $trend,
             'recent_avg' => round($recent4Weeks),
-            'historical_data' => $dailyCounts->values()->toArray()
+            'historical_data' => $dailyCounts->values()->toArray(),
         ];
     }
 
@@ -320,7 +321,7 @@ class DashboardController extends Controller
         return [
             'labels' => range(0, 23),
             'data' => array_values($hourlyAverage),
-            'total_weeks' => $weeks
+            'total_weeks' => $weeks,
         ];
     }
 
@@ -333,10 +334,10 @@ class DashboardController extends Controller
         $defaultLocation = [
             'address' => 'Namsos, Norge',
             'lat' => 64.4669,
-            'lon' => 11.4948
+            'lon' => 11.4948,
         ];
 
-        if (!$user) {
+        if (! $user) {
             return $defaultLocation;
         }
 
@@ -366,8 +367,8 @@ class DashboardController extends Controller
             $context = stream_context_create([
                 'http' => [
                     'header' => "User-Agent: {$userAgent}\r\n",
-                    'timeout' => 10
-                ]
+                    'timeout' => 10,
+                ],
             ]);
 
             $response = file_get_contents($url, false, $context);
@@ -378,7 +379,7 @@ class DashboardController extends Controller
 
             $data = json_decode($response, true);
 
-            if (!$data || !isset($data['properties']['timeseries'])) {
+            if (! $data || ! isset($data['properties']['timeseries'])) {
                 return $this->getDefaultWeatherData();
             }
 
@@ -394,18 +395,19 @@ class DashboardController extends Controller
                     'time' => $time->format('H:i'),
                     'temperature' => round($details['air_temperature']),
                     'icon' => $this->getWeatherIcon($entry['data']['next_1_hours']['summary']['symbol_code'] ?? 'clearsky_day'),
-                    'description' => $this->getWeatherDescription($entry['data']['next_1_hours']['summary']['symbol_code'] ?? 'clearsky_day')
+                    'description' => $this->getWeatherDescription($entry['data']['next_1_hours']['summary']['symbol_code'] ?? 'clearsky_day'),
                 ];
             }
 
             return [
                 'current' => $forecast[0] ?? null,
                 'forecast' => array_slice($forecast, 1),
-                'location' => "Lat: {$lat}, Lon: {$lon}"
+                'location' => "Lat: {$lat}, Lon: {$lon}",
             ];
 
         } catch (\Exception $e) {
             Log::warning('Weather API failed', ['error' => $e->getMessage()]);
+
             return $this->getDefaultWeatherData();
         }
     }
@@ -417,10 +419,10 @@ class DashboardController extends Controller
                 'time' => Carbon::now()->format('H:i'),
                 'temperature' => '--',
                 'icon' => '☀️',
-                'description' => 'Værdata ikke tilgjengelig'
+                'description' => 'Værdata ikke tilgjengelig',
             ],
             'forecast' => [],
-            'location' => 'Ukjent lokasjon'
+            'location' => 'Ukjent lokasjon',
         ];
     }
 
@@ -435,7 +437,7 @@ class DashboardController extends Controller
             'rain' => '🌧️',
             'rainshowers_day' => '🌦️',
             'snow' => '❄️',
-            'fog' => '🌫️'
+            'fog' => '🌫️',
         ];
 
         return $iconMap[$symbolCode] ?? '🌤️';
@@ -452,7 +454,7 @@ class DashboardController extends Controller
             'rain' => 'Regn',
             'rainshowers_day' => 'Regnbyger',
             'snow' => 'Snø',
-            'fog' => 'Tåke'
+            'fog' => 'Tåke',
         ];
 
         return $descMap[$symbolCode] ?? 'Varierende vær';
@@ -464,7 +466,7 @@ class DashboardController extends Controller
     public function updateDeliveryTime(Request $request)
     {
         $request->validate([
-            'delivery_time' => 'required|integer|min:10|max:90'
+            'delivery_time' => 'required|integer|min:10|max:90',
         ]);
 
         $deliveryTime = $request->input('delivery_time');
@@ -472,26 +474,26 @@ class DashboardController extends Controller
         // Get the authenticated user
         $user = \Illuminate\Support\Facades\Auth::user();
 
-        if (!$user) {
+        if (! $user) {
             return response()->json([
                 'success' => false,
-                'message' => 'Bruker ikke autentisert'
+                'message' => 'Bruker ikke autentisert',
             ], 401);
         }
 
         // Find the location for this user's site
         $location = Location::where('site_id', $user->siteid)->first();
 
-        if (!$location) {
+        if (! $location) {
             return response()->json([
                 'success' => false,
-                'message' => 'Finner ikke lokasjon'
+                'message' => 'Finner ikke lokasjon',
             ], 404);
         }
 
         // Update delivery time in database
         $location->update([
-            'delivery_time_minutes' => $deliveryTime
+            'delivery_time_minutes' => $deliveryTime,
         ]);
 
         Log::info('Delivery time updated in database', [
@@ -500,13 +502,13 @@ class DashboardController extends Controller
             'site_id' => $user->siteid,
             'location_id' => $location->id,
             'location_name' => $location->name,
-            'delivery_time' => $deliveryTime
+            'delivery_time' => $deliveryTime,
         ]);
 
         return response()->json([
             'success' => true,
             'delivery_time' => $deliveryTime,
-            'message' => 'Leveringstid oppdatert til ' . $deliveryTime . ' minutter'
+            'message' => 'Leveringstid oppdatert til '.$deliveryTime.' minutter',
         ]);
     }
 }

@@ -94,6 +94,7 @@ class Location extends Model
     public function getTodayOpeningHours()
     {
         $day = now()->format('l'); // Monday, Tuesday, etc.
+
         return $this->openingHours()->where('day', $day)->first();
     }
 
@@ -119,7 +120,7 @@ class Location extends Model
     public function scopeOrdered($query)
     {
         return $query->orderBy('display_order', 'asc')
-                    ->orderBy('name', 'asc');
+            ->orderBy('name', 'asc');
     }
 
     /**
@@ -128,9 +129,9 @@ class Location extends Model
     public static function getGroups()
     {
         return self::whereNotNull('group_name')
-                   ->distinct()
-                   ->pluck('group_name')
-                   ->sort()
-                   ->values();
+            ->distinct()
+            ->pluck('group_name')
+            ->sort()
+            ->values();
     }
 }

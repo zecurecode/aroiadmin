@@ -22,7 +22,7 @@ return new class extends Migration
             $table->text('catering_info')->nullable();
             $table->json('blocked_dates')->nullable();
             $table->timestamps();
-            
+
             $table->index('site_id');
         });
     }

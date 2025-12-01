@@ -13,15 +13,15 @@ return new class extends Migration
     {
         Schema::table('orders', function (Blueprint $table) {
             // Only add columns if they don't exist
-            if (!Schema::hasColumn('orders', 'pck_export_status')) {
+            if (! Schema::hasColumn('orders', 'pck_export_status')) {
                 $table->enum('pck_export_status', ['new', 'sent', 'ack_failed'])->default('new')->after('paymentmethod');
             }
-            
-            if (!Schema::hasColumn('orders', 'pck_exported_at')) {
+
+            if (! Schema::hasColumn('orders', 'pck_exported_at')) {
                 $table->timestamp('pck_exported_at')->nullable()->after('pck_export_status');
             }
-            
-            if (!Schema::hasColumn('orders', 'pck_last_error')) {
+
+            if (! Schema::hasColumn('orders', 'pck_last_error')) {
                 $table->text('pck_last_error')->nullable()->after('pck_exported_at');
             }
         });
@@ -33,7 +33,7 @@ return new class extends Migration
             });
         } catch (\Exception $e) {
             // Index might already exist, ignore the error
-            \Log::info('PCK export index might already exist: ' . $e->getMessage());
+            \Log::info('PCK export index might already exist: '.$e->getMessage());
         }
     }
 
@@ -56,11 +56,11 @@ return new class extends Migration
             if (Schema::hasColumn('orders', 'pck_export_status')) {
                 $table->dropColumn('pck_export_status');
             }
-            
+
             if (Schema::hasColumn('orders', 'pck_exported_at')) {
                 $table->dropColumn('pck_exported_at');
             }
-            
+
             if (Schema::hasColumn('orders', 'pck_last_error')) {
                 $table->dropColumn('pck_last_error');
             }

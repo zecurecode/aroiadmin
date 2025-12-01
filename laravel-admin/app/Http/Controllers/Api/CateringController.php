@@ -3,14 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Order;
-use App\Models\Location;
 use App\Models\CateringSettings;
-use App\Models\Mail;
+use App\Models\Location;
+use App\Models\Order;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Http;
-use Carbon\Carbon;
 
 class CateringController extends Controller
 {
@@ -21,19 +19,19 @@ class CateringController extends Controller
     {
         try {
             $settings = CateringSettings::where('site_id', $siteId)->first();
-            
-            if (!$settings) {
+
+            if (! $settings) {
                 $settings = CateringSettings::create([
                     'site_id' => $siteId,
                     'catering_enabled' => true,
                     'min_guests' => 10,
                     'advance_notice_days' => 2,
-                    'min_order_amount' => 1500.00
+                    'min_order_amount' => 1500.00,
                 ]);
             }
 
             $location = Location::where('site_id', $siteId)->first();
-            
+
             return response()->json([
                 'success' => true,
                 'data' => [
@@ -44,15 +42,16 @@ class CateringController extends Controller
                         'site_id' => $location->site_id,
                         'woocommerce_key' => $location->woocommerce_key,
                         'woocommerce_secret' => $location->woocommerce_secret,
-                        'woocommerce_url' => $location->woocommerce_url
-                    ] : null
-                ]
+                        'woocommerce_url' => $location->woocommerce_url,
+                    ] : null,
+                ],
             ]);
         } catch (\Exception $e) {
-            Log::error('Error fetching catering settings: ' . $e->getMessage());
+            Log::error('Error fetching catering settings: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch catering settings'
+                'message' => 'Failed to fetch catering settings',
             ], 500);
         }
     }
@@ -63,17 +62,17 @@ class CateringController extends Controller
     public function checkAvailability(Request $request, $siteId)
     {
         $request->validate([
-            'date' => 'required|date|after:today'
+            'date' => 'required|date|after:today',
         ]);
 
         try {
             $settings = CateringSettings::where('site_id', $siteId)->first();
-            
-            if (!$settings || !$settings->catering_enabled) {
+
+            if (! $settings || ! $settings->catering_enabled) {
                 return response()->json([
                     'success' => false,
                     'available' => false,
-                    'message' => 'Catering is not available for this location'
+                    'message' => 'Catering is not available for this location',
                 ]);
             }
 
@@ -85,7 +84,7 @@ class CateringController extends Controller
                 return response()->json([
                     'success' => false,
                     'available' => false,
-                    'message' => "Catering orders must be placed at least {$settings->advance_notice_days} days in advance"
+                    'message' => "Catering orders must be placed at least {$settings->advance_notice_days} days in advance",
                 ]);
             }
 
@@ -93,20 +92,21 @@ class CateringController extends Controller
                 return response()->json([
                     'success' => false,
                     'available' => false,
-                    'message' => 'This date is not available for catering'
+                    'message' => 'This date is not available for catering',
                 ]);
             }
 
             return response()->json([
                 'success' => true,
                 'available' => true,
-                'message' => 'Date is available for catering'
+                'message' => 'Date is available for catering',
             ]);
         } catch (\Exception $e) {
-            Log::error('Error checking catering availability: ' . $e->getMessage());
+            Log::error('Error checking catering availability: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to check availability'
+                'message' => 'Failed to check availability',
             ], 500);
         }
     }
@@ -118,16 +118,17 @@ class CateringController extends Controller
     {
         try {
             $settings = CateringSettings::where('site_id', $siteId)->first();
-            
+
             return response()->json([
                 'success' => true,
-                'blocked_dates' => $settings ? $settings->blocked_dates : []
+                'blocked_dates' => $settings ? $settings->blocked_dates : [],
             ]);
         } catch (\Exception $e) {
-            Log::error('Error fetching blocked dates: ' . $e->getMessage());
+            Log::error('Error fetching blocked dates: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch blocked dates'
+                'message' => 'Failed to fetch blocked dates',
             ], 500);
         }
     }
@@ -151,30 +152,30 @@ class CateringController extends Controller
             'paymentmethod' => 'required|string',
             'special_requirements' => 'nullable|string',
             'catering_notes' => 'nullable|string',
-            'total_amount' => 'required|numeric'
+            'total_amount' => 'required|numeric',
         ]);
 
         try {
             $settings = CateringSettings::where('site_id', $request->site)->first();
-            
-            if (!$settings || !$settings->catering_enabled) {
+
+            if (! $settings || ! $settings->catering_enabled) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Catering is not available for this location'
+                    'message' => 'Catering is not available for this location',
                 ], 400);
             }
 
             if ($request->number_of_guests < $settings->min_guests) {
                 return response()->json([
                     'success' => false,
-                    'message' => "Minimum {$settings->min_guests} guests required for catering"
+                    'message' => "Minimum {$settings->min_guests} guests required for catering",
                 ], 400);
             }
 
             if ($request->total_amount < $settings->min_order_amount) {
                 return response()->json([
                     'success' => false,
-                    'message' => "Minimum order amount is {$settings->min_order_amount} NOK"
+                    'message' => "Minimum order amount is {$settings->min_order_amount} NOK",
                 ], 400);
             }
 
@@ -198,7 +199,7 @@ class CateringController extends Controller
                 'catering_notes' => $request->catering_notes,
                 'catering_status' => 'pending',
                 'catering_email' => $settings->catering_email,
-                'total_amount' => $request->total_amount
+                'total_amount' => $request->total_amount,
             ]);
 
             $this->sendCateringNotifications($order, $settings);
@@ -206,13 +207,14 @@ class CateringController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Catering order created successfully',
-                'order_id' => $order->id
+                'order_id' => $order->id,
             ]);
         } catch (\Exception $e) {
-            Log::error('Error creating catering order: ' . $e->getMessage());
+            Log::error('Error creating catering order: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to create catering order'
+                'message' => 'Failed to create catering order',
             ], 500);
         }
     }
@@ -223,37 +225,38 @@ class CateringController extends Controller
     public function markPaid(Request $request)
     {
         $request->validate([
-            'order_id' => 'required|integer'
+            'order_id' => 'required|integer',
         ]);
 
         try {
             $order = Order::where('ordreid', $request->order_id)
-                         ->where('is_catering', true)
-                         ->first();
+                ->where('is_catering', true)
+                ->first();
 
-            if (!$order) {
+            if (! $order) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Catering order not found'
+                    'message' => 'Catering order not found',
                 ], 404);
             }
 
             $order->update([
                 'paid' => true,
-                'catering_status' => 'confirmed'
+                'catering_status' => 'confirmed',
             ]);
 
             $this->sendPaymentConfirmation($order);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Catering order marked as paid'
+                'message' => 'Catering order marked as paid',
             ]);
         } catch (\Exception $e) {
-            Log::error('Error marking catering order as paid: ' . $e->getMessage());
+            Log::error('Error marking catering order as paid: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update order'
+                'message' => 'Failed to update order',
             ], 500);
         }
     }
@@ -268,7 +271,7 @@ class CateringController extends Controller
             $customerMessage .= "Ordre #{$order->ordreid} \n";
             $customerMessage .= "Levering: {$order->delivery_date} kl. {$order->delivery_time} \n";
             $customerMessage .= "Antall gjester: {$order->number_of_guests} \n";
-            $customerMessage .= "Du vil motta en bekreftelse når bestillingen er godkjent.";
+            $customerMessage .= 'Du vil motta en bekreftelse når bestillingen er godkjent.';
 
             $this->sendSMS($order->telefon, $customerMessage);
 
@@ -288,7 +291,7 @@ class CateringController extends Controller
                 $adminMessage .= "Levering: {$order->delivery_date} kl. {$order->delivery_time} \n";
                 $adminMessage .= "Adresse: {$order->delivery_address} \n";
                 $adminMessage .= "Antall gjester: {$order->number_of_guests} \n";
-                
+
                 if ($order->special_requirements) {
                     $adminMessage .= "Spesielle krav: {$order->special_requirements} \n";
                 }
@@ -300,7 +303,7 @@ class CateringController extends Controller
                 );
             }
         } catch (\Exception $e) {
-            Log::error('Error sending catering notifications: ' . $e->getMessage());
+            Log::error('Error sending catering notifications: '.$e->getMessage());
         }
     }
 
@@ -324,7 +327,7 @@ class CateringController extends Controller
                 );
             }
         } catch (\Exception $e) {
-            Log::error('Error sending payment confirmation: ' . $e->getMessage());
+            Log::error('Error sending payment confirmation: '.$e->getMessage());
         }
     }
 
@@ -333,7 +336,8 @@ class CateringController extends Controller
      */
     private function sendSMS($phone, $message)
     {
-        $apiController = new ApiController();
+        $apiController = new ApiController;
+
         return $apiController->sendSms($phone, $message);
     }
 
@@ -345,12 +349,14 @@ class CateringController extends Controller
         try {
             \Mail::raw($body, function ($message) use ($to, $subject) {
                 $message->to($to)
-                       ->subject($subject)
-                       ->from('post@hungryeyes.no', 'Aroi Food Truck');
+                    ->subject($subject)
+                    ->from('post@hungryeyes.no', 'Aroi Food Truck');
             });
+
             return true;
         } catch (\Exception $e) {
-            Log::error('Error sending email: ' . $e->getMessage());
+            Log::error('Error sending email: '.$e->getMessage());
+
             return false;
         }
     }
@@ -361,16 +367,16 @@ class CateringController extends Controller
     public function updateStatus(Request $request, $orderId)
     {
         $request->validate([
-            'status' => 'required|in:pending,confirmed,preparing,ready,delivered,cancelled'
+            'status' => 'required|in:pending,confirmed,preparing,ready,delivered,cancelled',
         ]);
 
         try {
             $order = Order::find($orderId);
-            
-            if (!$order || !$order->is_catering) {
+
+            if (! $order || ! $order->is_catering) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Catering order not found'
+                    'message' => 'Catering order not found',
                 ], 404);
             }
 
@@ -384,13 +390,14 @@ class CateringController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Status updated successfully'
+                'message' => 'Status updated successfully',
             ]);
         } catch (\Exception $e) {
-            Log::error('Error updating catering status: ' . $e->getMessage());
+            Log::error('Error updating catering status: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update status'
+                'message' => 'Failed to update status',
             ], 500);
         }
     }

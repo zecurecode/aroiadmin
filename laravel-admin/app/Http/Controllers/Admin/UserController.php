@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
 use App\Models\Site;
+use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Validation\Rule;
 
@@ -19,6 +19,7 @@ class UserController extends Controller
     public function index()
     {
         $users = User::with('site')->paginate(15);
+
         return view('admin.users.index', compact('users'));
     }
 
@@ -28,6 +29,7 @@ class UserController extends Controller
     public function create()
     {
         $sites = Site::where('active', true)->get();
+
         return view('admin.users.create', compact('sites'));
     }
 
@@ -68,6 +70,7 @@ class UserController extends Controller
     public function show(User $user)
     {
         $user->load('site');
+
         return view('admin.users.show', compact('user'));
     }
 
@@ -77,6 +80,7 @@ class UserController extends Controller
     public function edit(User $user)
     {
         $sites = Site::where('active', true)->get();
+
         return view('admin.users.edit', compact('user', 'sites'));
     }
 
@@ -163,7 +167,7 @@ class UserController extends Controller
         Session::put('is_admin', $user->isAdmin());
 
         return redirect()->route('admin.dashboard')
-            ->with('success', 'Du er nå logget inn som ' . $user->username);
+            ->with('success', 'Du er nå logget inn som '.$user->username);
     }
 
     /**
@@ -174,7 +178,7 @@ class UserController extends Controller
         $originalId = Session::get('impersonate.original_id');
 
         // Security check: Only allow if currently impersonating
-        if (!$originalId) {
+        if (! $originalId) {
             return redirect()->route('admin.dashboard')
                 ->with('error', 'Du impersonerer ikke en bruker for øyeblikket.');
         }

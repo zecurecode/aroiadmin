@@ -4,7 +4,6 @@ namespace App\Tenancy;
 
 use App\Models\PckCredential;
 use Illuminate\Http\Request;
-use InvalidArgumentException;
 
 class TenantResolver
 {
@@ -21,7 +20,7 @@ class TenantResolver
 
         // Try to resolve from SOAP parameters
         if (isset($soapParams['login']) && is_numeric($soapParams['login'])) {
-            return self::resolveFromLogin((int)$soapParams['login']);
+            return self::resolveFromLogin((int) $soapParams['login']);
         }
 
         // Try to resolve from CompanyId if present in SOAP header
@@ -40,7 +39,7 @@ class TenantResolver
     {
         // If numeric, treat as direct tenant ID
         if (is_numeric($tenantKey)) {
-            return self::resolveFromTenantId((int)$tenantKey);
+            return self::resolveFromTenantId((int) $tenantKey);
         }
 
         // Map string identifiers to tenant IDs based on existing system
@@ -55,7 +54,7 @@ class TenantResolver
         ];
 
         $tenantId = $tenantMapping[$tenantKey] ?? null;
-        if (!$tenantId) {
+        if (! $tenantId) {
             return null;
         }
 
@@ -72,7 +71,7 @@ class TenantResolver
             ->where('is_enabled', true)
             ->first();
 
-        if (!$credential) {
+        if (! $credential) {
             return null;
         }
 
@@ -107,19 +106,19 @@ class TenantResolver
 
             // Look for CompanyId in SOAP header
             $namespaces = $xml->getNamespaces(true);
-            
+
             // Check common SOAP header paths
             $headerPaths = [
                 '//soap:Header/CompanyId',
-                '//soap:Header//CompanyId', 
+                '//soap:Header//CompanyId',
                 '//Header/CompanyId',
-                '//CompanyId'
+                '//CompanyId',
             ];
 
             foreach ($headerPaths as $path) {
                 $nodes = $xml->xpath($path);
-                if (!empty($nodes)) {
-                    return (string)$nodes[0];
+                if (! empty($nodes)) {
+                    return (string) $nodes[0];
                 }
             }
         } catch (\Exception $e) {
@@ -136,7 +135,7 @@ class TenantResolver
     {
         // Check IP whitelist if configured
         $clientIp = $request->ip();
-        if (!$tenant->getCredential()->isIpWhitelisted($clientIp)) {
+        if (! $tenant->getCredential()->isIpWhitelisted($clientIp)) {
             return false;
         }
 
@@ -159,7 +158,7 @@ class TenantResolver
 
         // Strategy 2: From SOAP login parameter
         if (isset($soapParams['login']) && is_numeric($soapParams['login'])) {
-            $context = self::resolveFromLogin((int)$soapParams['login']);
+            $context = self::resolveFromLogin((int) $soapParams['login']);
             if ($context) {
                 return $context;
             }
@@ -186,16 +185,16 @@ class TenantResolver
         $username = $soapParams['username'] ?? $soapParams['login'] ?? null;
         $password = $soapParams['password'] ?? null;
 
-        if (!$username || !$password) {
+        if (! $username || ! $password) {
             return null;
         }
 
         // Search for credential that matches username/password
         $credentials = PckCredential::where('is_enabled', true)->get();
-        
+
         foreach ($credentials as $credential) {
             try {
-                if ($credential->pck_username === $username && 
+                if ($credential->pck_username === $username &&
                     $credential->pck_password === $password) {
                     return new TenantContext($credential->tenant_id, $credential);
                 }

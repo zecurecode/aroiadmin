@@ -10,8 +10,11 @@ class ApningstidAlternative extends Model
     use HasFactory;
 
     protected $table = '_apningstid';
+
     public $timestamps = false; // The original table doesn't have timestamps
+
     protected $primaryKey = 'AvdID';
+
     public $incrementing = false; // AvdID is not auto-incrementing
 
     protected $fillable = [
@@ -41,7 +44,7 @@ class ApningstidAlternative extends Model
         'SonStengt',
         'StengtMelding',
         'SesongStengt',
-        'url'
+        'url',
     ];
 
     protected $casts = [
@@ -68,19 +71,20 @@ class ApningstidAlternative extends Model
             'thursday' => ['TorStart', 'TorStopp', 'TorStengt'],
             'friday' => ['FreStart', 'FreStopp', 'FreStengt'],
             'saturday' => ['LorStart', 'LorStopp', 'LorStengt'],
-            'sunday' => ['SonStart', 'SonStopp', 'SonStengt']
+            'sunday' => ['SonStart', 'SonStopp', 'SonStengt'],
         ];
 
         $dayKey = strtolower($day);
-        if (!isset($dayMapping[$dayKey])) {
+        if (! isset($dayMapping[$dayKey])) {
             return null;
         }
 
         $fields = $dayMapping[$dayKey];
+
         return [
             'start' => $this->{$fields[0]},
             'stop' => $this->{$fields[1]},
-            'closed' => $this->{$fields[2]}
+            'closed' => $this->{$fields[2]},
         ];
     }
 
@@ -90,7 +94,8 @@ class ApningstidAlternative extends Model
     public function isOpenOnDay($day)
     {
         $hours = $this->getHoursForDay($day);
-        return $hours && !$hours['closed'] && !$this->SesongStengt;
+
+        return $hours && ! $hours['closed'] && ! $this->SesongStengt;
     }
 
     /**
@@ -105,7 +110,7 @@ class ApningstidAlternative extends Model
             'thursday' => $this->getHoursForDay('thursday'),
             'friday' => $this->getHoursForDay('friday'),
             'saturday' => $this->getHoursForDay('saturday'),
-            'sunday' => $this->getHoursForDay('sunday')
+            'sunday' => $this->getHoursForDay('sunday'),
         ];
     }
 

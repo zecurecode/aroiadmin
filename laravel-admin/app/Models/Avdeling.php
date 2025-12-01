@@ -10,6 +10,7 @@ class Avdeling extends Model
     use HasFactory;
 
     protected $table = 'avdeling';
+
     public $timestamps = false; // The original table doesn't have timestamps
 
     protected $fillable = [
@@ -19,7 +20,7 @@ class Avdeling extends Model
         'siteid',
         'inaktivert',
         'deaktivert_tekst',
-        'url'
+        'url',
     ];
 
     protected $casts = [
@@ -72,7 +73,7 @@ class Avdeling extends Model
      */
     public function isActive()
     {
-        return !$this->inaktivert;
+        return ! $this->inaktivert;
     }
 
     /**

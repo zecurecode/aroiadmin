@@ -88,7 +88,7 @@ class PckCredential extends Model
             ->where('is_enabled', true)
             ->first();
 
-        if (!$credential) {
+        if (! $credential) {
             return null;
         }
 
@@ -133,6 +133,7 @@ class PckCredential extends Model
         // Simple CIDR support
         if (str_contains($pattern, '/')) {
             [$subnet, $mask] = explode('/', $pattern);
+
             return (ip2long($ip) & ~((1 << (32 - $mask)) - 1)) === ip2long($subnet);
         }
 
@@ -146,7 +147,7 @@ class PckCredential extends Model
     {
         // Try to find by tenant_id directly if numeric
         if (is_numeric($tenantKey)) {
-            return self::where('tenant_id', (int)$tenantKey)
+            return self::where('tenant_id', (int) $tenantKey)
                 ->where('is_enabled', true)
                 ->first();
         }

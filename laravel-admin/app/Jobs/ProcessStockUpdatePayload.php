@@ -18,7 +18,9 @@ class ProcessStockUpdatePayload implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $payloadId;
+
     public int $tries = 3;
+
     public int $maxExceptions = 2;
 
     public function __construct(int $payloadId)
@@ -30,11 +32,12 @@ class ProcessStockUpdatePayload implements ShouldQueue
     public function handle(): void
     {
         $payload = PckInboundPayload::find($this->payloadId);
-        
-        if (!$payload) {
+
+        if (! $payload) {
             Log::error('ProcessStockUpdatePayload: Payload not found', [
                 'payload_id' => $this->payloadId,
             ]);
+
             return;
         }
 
@@ -68,16 +71,16 @@ class ProcessStockUpdatePayload implements ShouldQueue
 
         // Resolve tenant context
         $tenant = TenantResolver::resolveFromTenantId($tenantId);
-        if (!$tenant) {
+        if (! $tenant) {
             throw new \RuntimeException("Tenant {$tenantId} not found");
         }
 
-        if (!$tenant->hasValidWooCommerceConfig()) {
+        if (! $tenant->hasValidWooCommerceConfig()) {
             throw new \RuntimeException("Tenant {$tenantId} has invalid WooCommerce configuration");
         }
 
-        $articleId = (string)($updateStock['articleId'] ?? '');
-        $stockCount = (int)($updateStock['count'] ?? 0);
+        $articleId = (string) ($updateStock['articleId'] ?? '');
+        $stockCount = (int) ($updateStock['count'] ?? 0);
         $sizeColorId = $updateStock['sizeColorId'] ?? null;
         $timestamp = $updateStock['timestamp'] ?? null;
 
@@ -87,7 +90,7 @@ class ProcessStockUpdatePayload implements ShouldQueue
 
         // Find the product mapping
         $mapping = PckEntityMap::findByPckArticle($tenantId, $articleId);
-        if (!$mapping || !$mapping->woo_product_id) {
+        if (! $mapping || ! $mapping->woo_product_id) {
             Log::warning('ProcessStockUpdatePayload: Product mapping not found', [
                 'payload_id' => $this->payloadId,
                 'tenant_id' => $tenantId,
@@ -105,6 +108,7 @@ class ProcessStockUpdatePayload implements ShouldQueue
                 'incoming_timestamp' => $timestamp,
                 'existing_timestamp' => $mapping->last_timestamp?->getTimestamp(),
             ]);
+
             return;
         }
 
@@ -155,7 +159,7 @@ class ProcessStockUpdatePayload implements ShouldQueue
     private function updateProductStock(WooCommerceService $wooService, PckEntityMap $mapping, int $stockCount): void
     {
         $stockStatus = $stockCount > 0 ? 'instock' : 'outofstock';
-        
+
         $updateData = [
             'manage_stock' => true,
             'stock_quantity' => $stockCount,
@@ -182,23 +186,24 @@ class ProcessStockUpdatePayload implements ShouldQueue
         // Find variation mapping by size/color ID
         $variationMapping = PckEntityMap::where('tenant_id', $tenant->getTenantId())
             ->where('pck_article_id', $mapping->pck_article_id)
-            ->where('pck_variant_id', (string)$sizeColorId)
+            ->where('pck_variant_id', (string) $sizeColorId)
             ->first();
 
-        if (!$variationMapping || !$variationMapping->woo_variation_id) {
+        if (! $variationMapping || ! $variationMapping->woo_variation_id) {
             Log::warning('ProcessStockUpdatePayload: Variation mapping not found', [
                 'tenant_id' => $tenant->getTenantId(),
                 'article_id' => $mapping->pck_article_id,
                 'size_color_id' => $sizeColorId,
             ]);
-            
+
             // Fall back to updating main product stock
             $this->updateProductStock($wooService, $mapping, $stockCount);
+
             return;
         }
 
         $stockStatus = $stockCount > 0 ? 'instock' : 'outofstock';
-        
+
         $updateData = [
             'manage_stock' => true,
             'stock_quantity' => $stockCount,

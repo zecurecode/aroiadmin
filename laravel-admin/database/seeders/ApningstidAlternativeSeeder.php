@@ -2,10 +2,8 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use App\Models\ApningstidAlternative;
 
 class ApningstidAlternativeSeeder extends Seeder
 {
@@ -22,10 +20,10 @@ class ApningstidAlternativeSeeder extends Seeder
             'gramyra' => ['AvdID' => 5, 'Navn' => 'Gramyra', 'Telefon' => '73987654'],
             'frosta' => ['AvdID' => 10, 'Navn' => 'Frosta', 'Telefon' => '74456789'],
             'hell' => ['AvdID' => 11, 'Navn' => 'Hell', 'Telefon' => '73147258'],
-            'steinkjer' => ['AvdID' => 13, 'Navn' => 'Steinkjer', 'Telefon' => '74369852']
+            'steinkjer' => ['AvdID' => 13, 'Navn' => 'Steinkjer', 'Telefon' => '74369852'],
         ];
 
-                // Day mapping from old table structure to new (Norwegian day names)
+        // Day mapping from old table structure to new (Norwegian day names)
         $dayMapping = [
             'Mandag' => 'Man',
             'Tirsdag' => 'Tir',
@@ -33,7 +31,7 @@ class ApningstidAlternativeSeeder extends Seeder
             'Torsdag' => 'Tor',
             'Fredag' => 'Fre',
             'Lørdag' => 'Lor',
-            'Søndag' => 'Son'
+            'Søndag' => 'Son',
         ];
 
         echo "Reading existing opening hours data...\n";
@@ -44,10 +42,11 @@ class ApningstidAlternativeSeeder extends Seeder
         if ($oldOpeningHours->isEmpty()) {
             echo "No data found in apningstid table. Seeding with default data...\n";
             $this->seedDefaultData($locationMapping);
+
             return;
         }
 
-        echo "Found " . $oldOpeningHours->count() . " days of opening hours data\n";
+        echo 'Found '.$oldOpeningHours->count()." days of opening hours data\n";
 
         // Clear existing data in new table
         DB::table('_apningstid')->truncate();
@@ -62,23 +61,23 @@ class ApningstidAlternativeSeeder extends Seeder
                 'Telefon' => $locationInfo['Telefon'],
                 'StengtMelding' => '',
                 'SesongStengt' => 0,
-                'url' => ''
+                'url' => '',
             ];
 
             // Process each day
             foreach ($oldOpeningHours as $dayData) {
                 $dayName = $dayData->day;
 
-                if (!isset($dayMapping[$dayName])) {
+                if (! isset($dayMapping[$dayName])) {
                     continue;
                 }
 
                 $newDayPrefix = $dayMapping[$dayName];
 
                 // Get opening hours for this location and day
-                $openField = 'open' . $locationKey;
-                $closeField = 'close' . $locationKey;
-                $statusField = 'status' . $locationKey;
+                $openField = 'open'.$locationKey;
+                $closeField = 'close'.$locationKey;
+                $statusField = 'status'.$locationKey;
 
                 $openTime = $dayData->$openField ?? null;
                 $closeTime = $dayData->$closeField ?? null;
@@ -88,12 +87,12 @@ class ApningstidAlternativeSeeder extends Seeder
                 $normalizedOpenTime = $this->normalizeTime($openTime);
                 $normalizedCloseTime = $this->normalizeTime($closeTime);
 
-                $locationData[$newDayPrefix . 'Start'] = $normalizedOpenTime;
-                $locationData[$newDayPrefix . 'Stopp'] = $normalizedCloseTime;
+                $locationData[$newDayPrefix.'Start'] = $normalizedOpenTime;
+                $locationData[$newDayPrefix.'Stopp'] = $normalizedCloseTime;
 
                 // Set closed status: 1 if status is 0 OR if times indicate closed (00:00:00)
                 $isClosed = ($status == 0) || ($normalizedOpenTime === '00:00:00') || ($normalizedCloseTime === '00:00:00');
-                $locationData[$newDayPrefix . 'Stengt'] = $isClosed ? 1 : 0;
+                $locationData[$newDayPrefix.'Stengt'] = $isClosed ? 1 : 0;
             }
 
             // Insert this location's data
@@ -101,7 +100,7 @@ class ApningstidAlternativeSeeder extends Seeder
                 DB::table('_apningstid')->insert($locationData);
                 echo "  ✓ Inserted data for {$locationInfo['Navn']}\n";
             } catch (\Exception $e) {
-                echo "  ✗ Error inserting data for {$locationInfo['Navn']}: " . $e->getMessage() . "\n";
+                echo "  ✗ Error inserting data for {$locationInfo['Navn']}: ".$e->getMessage()."\n";
             }
         }
 
@@ -131,7 +130,7 @@ class ApningstidAlternativeSeeder extends Seeder
                 'Telefon' => $locationInfo['Telefon'],
                 'StengtMelding' => '',
                 'SesongStengt' => 0,
-                'url' => ''
+                'url' => '',
             ], $defaultHours);
 
             DB::table('_apningstid')->insert($locationData);

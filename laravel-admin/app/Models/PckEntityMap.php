@@ -108,11 +108,11 @@ class PckEntityMap extends Model
      */
     public function shouldIgnoreUpdate(?string $incomingTimestamp): bool
     {
-        if (!$this->last_timestamp || !$incomingTimestamp) {
+        if (! $this->last_timestamp || ! $incomingTimestamp) {
             return false;
         }
 
-        $incoming = (int)$incomingTimestamp;
+        $incoming = (int) $incomingTimestamp;
         $existing = $this->last_timestamp->getTimestamp();
 
         return $incoming <= $existing;
@@ -125,7 +125,7 @@ class PckEntityMap extends Model
     {
         // Remove timestamp and other metadata for consistent hashing
         $filteredData = array_filter($data, function ($key) {
-            return !in_array($key, ['timestamp', 'login', 'password']);
+            return ! in_array($key, ['timestamp', 'login', 'password']);
         }, ARRAY_FILTER_USE_KEY);
 
         return hash('sha256', json_encode($filteredData, 64)); // JSON_SORT_KEYS = 64

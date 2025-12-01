@@ -3,16 +3,15 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Order;
-use App\Models\Location;
 use App\Models\ApningstidAlternative;
-use App\Models\AvdelingAlternative;
+use App\Models\Location;
+use App\Models\Order;
+use App\Models\Site;
+use App\Models\User;
 use App\Services\WooCommerceService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Carbon\Carbon;
-use App\Models\User;
-use App\Models\Site;
 use Illuminate\Support\Facades\Log;
 
 class DashboardController extends Controller
@@ -32,13 +31,14 @@ class DashboardController extends Controller
             'auth_id' => Auth::user() ? Auth::user()->id : 'null',
             'session_id' => session()->getId(),
             'session_has_auth' => session()->has(Auth::guard('web')->getName()),
-            'session_auth_value' => session()->get(Auth::guard('web')->getName())
+            'session_auth_value' => session()->get(Auth::guard('web')->getName()),
         ]);
 
         $user = Auth::user();
 
-        if (!$user) {
+        if (! $user) {
             Log::info('Dashboard redirecting to login - no authenticated user');
+
             return redirect('/login')->withErrors(['error' => 'Authentication required']);
         }
 
@@ -141,7 +141,7 @@ class DashboardController extends Controller
                     'month' => $month->format('M'),
                     'year' => $month->format('Y'),
                     'orders' => 0, // Analytics API returns totals, not intervals
-                    'revenue' => 0
+                    'revenue' => 0,
                 ];
             }
         } catch (\Exception $e) {
@@ -167,7 +167,7 @@ class DashboardController extends Controller
                 $dailyTrend[] = [
                     'date' => $day->format('d.m'),
                     'orders' => 0,
-                    'revenue' => 0
+                    'revenue' => 0,
                 ];
             }
         } catch (\Exception $e) {
@@ -182,7 +182,7 @@ class DashboardController extends Controller
         $closeTime = null;
         $status = 0;
 
-        if (!$user->isAdmin() && $userSiteId > 0) {
+        if (! $user->isAdmin() && $userSiteId > 0) {
             // Find opening hours in _apningstid table
             $apningstidAlt = ApningstidAlternative::where('AvdID', $userSiteId)->first();
 
@@ -203,7 +203,7 @@ class DashboardController extends Controller
                     $status = ($isClosed == 0) ? 1 : 0;
 
                     // Only parse times if they're not empty and location is not closed
-                    if ($openTime && $closeTime && !$isClosed) {
+                    if ($openTime && $closeTime && ! $isClosed) {
                         $now = Carbon::now();
 
                         // Handle different time formats
@@ -219,7 +219,7 @@ class DashboardController extends Controller
                             $closeDateTime = Carbon::createFromFormat('H:i', $closeTime);
                         }
 
-                        $isOpen = $now->between($openDateTime, $closeDateTime) && !$isClosed;
+                        $isOpen = $now->between($openDateTime, $closeDateTime) && ! $isClosed;
                     }
                 }
             }
@@ -276,23 +276,23 @@ class DashboardController extends Controller
         if ($user->isAdmin() || $user->siteid == 0) {
             return response()->json([
                 'success' => false,
-                'message' => 'Admin users cannot toggle location status'
+                'message' => 'Admin users cannot toggle location status',
             ], 400);
         }
 
         // Find the location's opening hours in _apningstid table
         $apningstidAlt = ApningstidAlternative::where('AvdID', $user->siteid)->first();
 
-        if (!$apningstidAlt) {
+        if (! $apningstidAlt) {
             Log::warning('Location not found in _apningstid table', [
                 'user_id' => $user->id,
                 'username' => $user->username,
-                'siteid' => $user->siteid
+                'siteid' => $user->siteid,
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'This location does not support status toggle. Please contact administrator.'
+                'message' => 'This location does not support status toggle. Please contact administrator.',
             ], 400);
         }
 
@@ -307,18 +307,18 @@ class DashboardController extends Controller
             'thursday' => 'Tor',
             'friday' => 'Fre',
             'saturday' => 'Lor',
-            'sunday' => 'Son'
+            'sunday' => 'Son',
         ];
 
-        if (!isset($dayMapping[$todayDayLower])) {
+        if (! isset($dayMapping[$todayDayLower])) {
             return response()->json([
                 'success' => false,
-                'message' => 'Invalid day'
+                'message' => 'Invalid day',
             ], 400);
         }
 
         $dayPrefix = $dayMapping[$todayDayLower];
-        $stengtField = $dayPrefix . 'Stengt'; // e.g., "ManStengt"
+        $stengtField = $dayPrefix.'Stengt'; // e.g., "ManStengt"
 
         // Get current status from _apningstid
         // In _apningstid: 0 = open, 1 = closed (stengt)
@@ -340,13 +340,13 @@ class DashboardController extends Controller
             'stengt_field' => $stengtField,
             'old_value' => $currentStengtValue,
             'new_value' => $newStengtValue,
-            'is_now_open' => $isNowOpen
+            'is_now_open' => $isNowOpen,
         ]);
 
         return response()->json([
             'success' => true,
             'status' => $isNowOpen ? 1 : 0, // Return 1 for open, 0 for closed (for UI consistency)
-            'message' => $isNowOpen ? 'Location opened' : 'Location closed'
+            'message' => $isNowOpen ? 'Location opened' : 'Location closed',
         ]);
     }
 

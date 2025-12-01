@@ -3,15 +3,15 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\PckCredential;
-use App\Models\PckInboundPayload;
-use App\Models\PckEntityMap;
 use App\Models\Order;
+use App\Models\PckCredential;
+use App\Models\PckEntityMap;
+use App\Models\PckInboundPayload;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Queue;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Queue;
 
 class PckSoapController extends Controller
 {
@@ -111,7 +111,7 @@ class PckSoapController extends Controller
         } catch (\Exception $e) {
             $health['checks']['database'] = [
                 'status' => 'fail',
-                'message' => 'Database connection failed: ' . $e->getMessage(),
+                'message' => 'Database connection failed: '.$e->getMessage(),
             ];
             $health['overall_status'] = 'unhealthy';
         }
@@ -127,7 +127,7 @@ class PckSoapController extends Controller
         } catch (\Exception $e) {
             $health['checks']['queue'] = [
                 'status' => 'fail',
-                'message' => 'Queue system error: ' . $e->getMessage(),
+                'message' => 'Queue system error: '.$e->getMessage(),
             ];
             $health['overall_status'] = 'unhealthy';
         }
@@ -194,12 +194,12 @@ class PckSoapController extends Controller
             ]);
 
             Log::info('PckSoapController::storeCredential - Validation passed', [
-                'validated_data' => array_merge($validated, ['pck_password' => '***masked***'])
+                'validated_data' => array_merge($validated, ['pck_password' => '***masked***']),
             ]);
 
             // Handle IP whitelist
             $ipWhitelist = null;
-            if (!empty($validated['ip_whitelist'])) {
+            if (! empty($validated['ip_whitelist'])) {
                 $ipWhitelist = array_map('trim', explode(',', $validated['ip_whitelist']));
             }
 
@@ -240,20 +240,19 @@ class PckSoapController extends Controller
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::error('PckSoapController::storeCredential - Validation failed', [
                 'errors' => $e->errors(),
-                'request_data' => array_merge($request->all(), ['pck_password' => '***masked***'])
+                'request_data' => array_merge($request->all(), ['pck_password' => '***masked***']),
             ]);
             throw $e;
-
         } catch (\Exception $e) {
             Log::error('PckSoapController::storeCredential - Unexpected error', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
-                'request_data' => array_merge($request->all(), ['pck_password' => '***masked***'])
+                'request_data' => array_merge($request->all(), ['pck_password' => '***masked***']),
             ]);
-            
+
             return redirect()->back()
                 ->withInput()
-                ->with('error', 'An error occurred while saving credential: ' . $e->getMessage());
+                ->with('error', 'An error occurred while saving credential: '.$e->getMessage());
         }
     }
 
@@ -273,9 +272,10 @@ class PckSoapController extends Controller
      */
     public function toggleCredential(PckCredential $credential)
     {
-        $credential->update(['is_enabled' => !$credential->is_enabled]);
+        $credential->update(['is_enabled' => ! $credential->is_enabled]);
 
         $status = $credential->is_enabled ? 'enabled' : 'disabled';
+
         return redirect()->back()
             ->with('success', "PCK credential {$status} successfully.");
     }
@@ -323,9 +323,9 @@ class PckSoapController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Failed to start queue worker', ['error' => $e->getMessage()]);
-            
+
             return redirect()->back()
-                ->with('error', 'Failed to start queue worker: ' . $e->getMessage());
+                ->with('error', 'Failed to start queue worker: '.$e->getMessage());
         }
     }
 
@@ -336,13 +336,13 @@ class PckSoapController extends Controller
     {
         try {
             Artisan::call('queue:flush');
-            
+
             return redirect()->back()
                 ->with('success', 'Failed jobs cleared successfully.');
 
         } catch (\Exception $e) {
             return redirect()->back()
-                ->with('error', 'Failed to clear failed jobs: ' . $e->getMessage());
+                ->with('error', 'Failed to clear failed jobs: '.$e->getMessage());
         }
     }
 
@@ -374,9 +374,9 @@ class PckSoapController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Failed to retry payloads', ['error' => $e->getMessage()]);
-            
+
             return redirect()->back()
-                ->with('error', 'Failed to retry payloads: ' . $e->getMessage());
+                ->with('error', 'Failed to retry payloads: '.$e->getMessage());
         }
     }
 
@@ -402,13 +402,13 @@ class PckSoapController extends Controller
     public function testTenant(Request $request)
     {
         $tenantId = $request->input('tenant_id');
-        
+
         try {
             $credential = PckCredential::where('tenant_id', $tenantId)
                 ->where('is_enabled', true)
                 ->first();
 
-            if (!$credential) {
+            if (! $credential) {
                 return response()->json([
                     'status' => 'error',
                     'message' => 'No enabled credential found for tenant',
@@ -445,7 +445,7 @@ class PckSoapController extends Controller
     private function testWooCommerceConnection(\App\Tenancy\TenantContext $tenant): array
     {
         try {
-            if (!$tenant->hasValidWooCommerceConfig()) {
+            if (! $tenant->hasValidWooCommerceConfig()) {
                 return [
                     'status' => 'error',
                     'message' => 'Invalid WooCommerce configuration',
@@ -453,10 +453,10 @@ class PckSoapController extends Controller
             }
 
             $wooService = new \App\Services\Woo\WooCommerceService($tenant);
-            
+
             // Try to get products (simple test)
             $products = $wooService->searchProducts('', ['per_page' => 1]);
-            
+
             return [
                 'status' => 'success',
                 'message' => 'WooCommerce connection successful',
@@ -466,7 +466,7 @@ class PckSoapController extends Controller
         } catch (\Exception $e) {
             return [
                 'status' => 'error',
-                'message' => 'WooCommerce connection failed: ' . $e->getMessage(),
+                'message' => 'WooCommerce connection failed: '.$e->getMessage(),
             ];
         }
     }
@@ -496,9 +496,9 @@ class PckSoapController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Failed to generate passwords', ['error' => $e->getMessage()]);
-            
+
             return redirect()->back()
-                ->with('error', 'Failed to generate passwords: ' . $e->getMessage());
+                ->with('error', 'Failed to generate passwords: '.$e->getMessage());
         }
     }
 
@@ -509,11 +509,11 @@ class PckSoapController extends Controller
     {
         $chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
         $password = '';
-        
+
         for ($i = 0; $i < 16; $i++) {
             $password .= $chars[random_int(0, strlen($chars) - 1)];
         }
-        
+
         return $password;
     }
 
@@ -530,15 +530,15 @@ class PckSoapController extends Controller
 
             // Clear old failed jobs
             Artisan::call('queue:prune-failed', ['--hours' => 168]); // 1 week old
-            
+
             return redirect()->back()
                 ->with('success', "Cleanup completed. Removed {$cleaned['old_payloads']} old payloads.");
 
         } catch (\Exception $e) {
             Log::error('Cleanup failed', ['error' => $e->getMessage()]);
-            
+
             return redirect()->back()
-                ->with('error', 'Cleanup failed: ' . $e->getMessage());
+                ->with('error', 'Cleanup failed: '.$e->getMessage());
         }
     }
 
@@ -563,8 +563,8 @@ class PckSoapController extends Controller
         ];
 
         foreach ($credentials as $credential) {
-            $tenantName = $credential->avdeling->navn ?? 
-                         $credential->avdelingAlternative->Navn ?? 
+            $tenantName = $credential->avdeling->navn ??
+                         $credential->avdelingAlternative->Navn ??
                          "Tenant {$credential->tenant_id}";
 
             $config['credentials'][] = [
@@ -577,7 +577,7 @@ class PckSoapController extends Controller
             ];
         }
 
-        $filename = 'pck-soap-config-' . now()->format('Y-m-d-H-i-s') . '.json';
+        $filename = 'pck-soap-config-'.now()->format('Y-m-d-H-i-s').'.json';
 
         return response()->json($config)
             ->header('Content-Disposition', "attachment; filename=\"{$filename}\"");
@@ -589,7 +589,7 @@ class PckSoapController extends Controller
     public function resetOrderExportStatus(Request $request)
     {
         $tenantId = $request->input('tenant_id');
-        
+
         try {
             $updated = Order::where('site', $tenantId)
                 ->where('pck_export_status', '!=', 'new')
@@ -604,7 +604,7 @@ class PckSoapController extends Controller
 
         } catch (\Exception $e) {
             return redirect()->back()
-                ->with('error', 'Failed to reset order status: ' . $e->getMessage());
+                ->with('error', 'Failed to reset order status: '.$e->getMessage());
         }
     }
 
@@ -703,7 +703,7 @@ class PckSoapController extends Controller
         try {
             // Get all locations from avdeling table
             $existingTenants = PckCredential::pluck('tenant_id')->toArray();
-            
+
             // Get locations that don't have PCK credentials
             $locationsWithoutCredentials = DB::table('avdeling')
                 ->whereNotIn('siteid', $existingTenants)
@@ -711,9 +711,9 @@ class PckSoapController extends Controller
 
             $created = 0;
             foreach ($locationsWithoutCredentials as $location) {
-                $username = strtolower($location->navn) . '_pck';
+                $username = strtolower($location->navn).'_pck';
                 $password = $this->generateSecurePassword();
-                
+
                 PckCredential::create([
                     'tenant_id' => $location->siteid,
                     'pck_username' => $username,
@@ -743,9 +743,9 @@ class PckSoapController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Failed to generate missing credentials', ['error' => $e->getMessage()]);
-            
+
             return redirect()->back()
-                ->with('error', 'Failed to generate credentials: ' . $e->getMessage());
+                ->with('error', 'Failed to generate credentials: '.$e->getMessage());
         }
     }
 }

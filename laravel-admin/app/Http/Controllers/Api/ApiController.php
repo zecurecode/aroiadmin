@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\User;
 use App\Services\WooCommerceService;
-use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 
 class ApiController extends Controller
 {
@@ -21,7 +21,7 @@ class ApiController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Orders processed'
+            'message' => 'Orders processed',
         ]);
     }
 
@@ -32,11 +32,11 @@ class ApiController extends Controller
     {
         $user = User::where('siteid', $siteid)->first();
 
-        if (!$user) {
+        if (! $user) {
             return '';
         }
 
-        switch($function) {
+        switch ($function) {
             case 1:
                 return $user->username;
             case 2:
@@ -55,14 +55,16 @@ class ApiController extends Controller
     {
         $order = Order::where('ordreid', $orderNum)->first();
 
-        if (!$order || $order->sms) {
+        if (! $order || $order->sms) {
             \Log::info("Skipping SMS for order {$orderNum} - already sent or not found");
+
             return; // SMS already sent or order not found
         }
 
         // Check if order is paid - don't send SMS if not paid
         if ($order->paid == 0) {
             \Log::info("Skipping SMS for unpaid order {$orderNum}");
+
             return;
         }
 
@@ -71,9 +73,9 @@ class ApiController extends Controller
 
         // Build "order received" message with order ID and location
         $message = "Hei {$order->fornavn}! Vi har mottatt din ordre #{$order->ordreid}. "
-                 . "Vi vil gjøre bestillingen klar så fort vi kan. "
-                 . "Du får en ny melding når maten er klar til henting. "
-                 . "Mvh {$locationName}";
+                 .'Vi vil gjøre bestillingen klar så fort vi kan. '
+                 .'Du får en ny melding når maten er klar til henting. '
+                 ."Mvh {$locationName}";
 
         // Normalize phone number to +47 format
         $phoneNormalized = $this->normalizePhoneNumber($telefon);
@@ -84,19 +86,19 @@ class ApiController extends Controller
         $apiUrl = \App\Models\Setting::get('sms_api_url', 'https://api1.teletopiasms.no/gateway/v3/plain');
         $sender = \App\Models\Setting::get('sms_sender', 'AroiAsia');
 
-        $smsUrl = $apiUrl . "?" . http_build_query([
+        $smsUrl = $apiUrl.'?'.http_build_query([
             'username' => $username,
             'password' => $password,
             'recipient' => $phoneNormalized,
             'text' => $message,
-            'from' => $sender
+            'from' => $sender,
         ]);
 
         \Log::info("Sending 'order received' SMS for order {$orderNum}", [
             'phone_original' => $telefon,
             'phone_normalized' => $phoneNormalized,
             'location' => $locationName,
-            'message' => $message
+            'message' => $message,
         ]);
 
         $ch = curl_init();
@@ -112,13 +114,13 @@ class ApiController extends Controller
             $order->update(['sms' => true]);
             \Log::info("SMS sent successfully for order {$orderNum}", [
                 'http_code' => $httpcode,
-                'response' => $output
+                'response' => $output,
             ]);
         } else {
             \Log::error("Failed to send SMS for order {$orderNum}", [
                 'http_code' => $httpcode,
                 'response' => $output,
-                'curl_error' => $curlError
+                'curl_error' => $curlError,
             ]);
         }
     }
@@ -138,17 +140,17 @@ class ApiController extends Controller
 
         // If starts with 0047, replace with +47
         if (strpos($phone, '0047') === 0) {
-            return '+47' . substr($phone, 4);
+            return '+47'.substr($phone, 4);
         }
 
         // If starts with 47 (without +), add +
         if (strpos($phone, '47') === 0 && strlen($phone) >= 10) {
-            return '+' . $phone;
+            return '+'.$phone;
         }
 
         // If 8 digits (Norwegian mobile), prepend +47
         if (strlen($phone) == 8) {
-            return '+47' . $phone;
+            return '+47'.$phone;
         }
 
         // Otherwise return as-is
@@ -162,7 +164,7 @@ class ApiController extends Controller
     {
         $license = $this->getUserInfo($siteid, 2);
 
-        if (!$license) {
+        if (! $license) {
             return 400;
         }
 
@@ -185,8 +187,8 @@ class ApiController extends Controller
     {
         // Only process paid orders
         $orders = Order::where('curl', 0)
-                      ->where('paid', 1)  // Only process paid orders
-                      ->get();
+            ->where('paid', 1)  // Only process paid orders
+            ->get();
 
         foreach ($orders as $order) {
             $response = $this->queGetOrders($order->site);
@@ -224,11 +226,11 @@ class ApiController extends Controller
      */
     private function sendAlertSms($message)
     {
-        $smsUrl = "https://api1.teletopiasms.no/gateway/v3/plain?" . http_build_query([
+        $smsUrl = 'https://api1.teletopiasms.no/gateway/v3/plain?'.http_build_query([
             'username' => 'p3166eu720i',
             'password' => 'Nvn4xh8HADL5YvInFI4GLlhM',
             'recipient' => '4790039911,4796017450',
-            'text' => $message
+            'text' => $message,
         ]);
 
         $ch = curl_init();
@@ -255,7 +257,7 @@ class ApiController extends Controller
         if ($order) {
             $order->update([
                 'curl' => $curl,
-                'curltime' => Carbon::now()
+                'curltime' => Carbon::now(),
             ]);
         }
     }
@@ -269,7 +271,7 @@ class ApiController extends Controller
             ->with('location')
             ->orderBy('datetime', 'desc')
             ->get()
-            ->map(function($order) {
+            ->map(function ($order) {
                 return [
                     'ordrestatus' => $order->ordrestatus,
                     'ordreid' => $order->ordreid,
@@ -328,7 +330,7 @@ class ApiController extends Controller
             'success' => true,
             'message' => 'Order created successfully',
             'order_id' => $order->id,
-            'total_amount' => $totalAmount
+            'total_amount' => $totalAmount,
         ]);
     }
 
@@ -343,13 +345,13 @@ class ApiController extends Controller
         ]);
 
         $order = Order::where('ordreid', $validated['ordreid'])
-                     ->where('site', $validated['site'])
-                     ->first();
+            ->where('site', $validated['site'])
+            ->first();
 
-        if (!$order) {
+        if (! $order) {
             return response()->json([
                 'success' => false,
-                'message' => 'Order not found'
+                'message' => 'Order not found',
             ], 404);
         }
 
@@ -363,7 +365,7 @@ class ApiController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Order marked as paid and SMS sent'
+            'message' => 'Order marked as paid and SMS sent',
         ]);
     }
 
@@ -384,12 +386,13 @@ class ApiController extends Controller
         foreach ($orderIds as $orderId) {
             $order = Order::find($orderId);
 
-            if (!$order) {
+            if (! $order) {
                 $results[] = [
                     'id' => $orderId,
                     'success' => false,
-                    'message' => 'Order not found'
+                    'message' => 'Order not found',
                 ];
+
                 continue;
             }
 
@@ -406,8 +409,9 @@ class ApiController extends Controller
                     'success' => false,
                     'message' => 'Could not fetch WC status',
                     'wc_status' => null,
-                    'pck_acknowledged' => false
+                    'pck_acknowledged' => false,
                 ];
+
                 continue;
             }
 
@@ -423,15 +427,15 @@ class ApiController extends Controller
                 $order->update([
                     'curl' => 200,
                     'curltime' => Carbon::now(),
-                    'pck_export_status' => 'sent'
+                    'pck_export_status' => 'sent',
                 ]);
             }
 
             // If NOT completed and order is paid, trigger PCKasse queue
             $triggered = false;
-            if (!$pckAcknowledged && $order->paid) {
+            if (! $pckAcknowledged && $order->paid) {
                 // Use PCKasseService to trigger queue
-                $pckService = new \App\Services\PCKasseService();
+                $pckService = new \App\Services\PCKasseService;
                 $pckService->markOrderForRetry($order);
                 $triggerResult = $pckService->triggerQueue($order->site);
                 $triggered = $triggerResult['success'] ?? false;
@@ -444,13 +448,13 @@ class ApiController extends Controller
                 'wc_status' => $wcStatus,
                 'pck_acknowledged' => $pckAcknowledged,
                 'status_changed' => ($previousStatus !== $wcStatus),
-                'pck_triggered' => $triggered
+                'pck_triggered' => $triggered,
             ];
         }
 
         return response()->json([
             'success' => true,
-            'results' => $results
+            'results' => $results,
         ]);
     }
 }

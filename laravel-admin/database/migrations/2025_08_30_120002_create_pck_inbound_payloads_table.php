@@ -16,7 +16,7 @@ return new class extends Migration
             $table->integer('tenant_id')->index();
             $table->enum('method', [
                 'sendArticle',
-                'sendProductLine', 
+                'sendProductLine',
                 'sendImage',
                 'sendImageColor',
                 'sendArticleGroup',
@@ -26,7 +26,7 @@ return new class extends Migration
                 'updateStockCount',
                 'removeArticle',
                 'sendDiscount',
-                'sendCustomerInfo'
+                'sendCustomerInfo',
             ]);
             $table->string('idempotency_key', 255)->unique();
             $table->json('payload');

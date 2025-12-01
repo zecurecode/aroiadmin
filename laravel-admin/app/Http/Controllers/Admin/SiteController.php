@@ -15,6 +15,7 @@ class SiteController extends Controller
     public function index()
     {
         $sites = Site::withCount('users', 'orders')->paginate(15);
+
         return view('admin.sites.index', compact('sites'));
     }
 
@@ -72,17 +73,16 @@ class SiteController extends Controller
                 'request_data' => $request->all(),
             ]);
             throw $e;
-
         } catch (\Exception $e) {
             \Log::error('SiteController::store - Unexpected error', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'request_data' => $request->all(),
             ]);
-            
+
             return redirect()->back()
                 ->withInput()
-                ->with('error', 'An error occurred while creating the site: ' . $e->getMessage());
+                ->with('error', 'An error occurred while creating the site: '.$e->getMessage());
         }
     }
 
@@ -92,6 +92,7 @@ class SiteController extends Controller
     public function show(Site $site)
     {
         $site->load('users', 'orders');
+
         return view('admin.sites.show', compact('site'));
     }
 
@@ -110,7 +111,7 @@ class SiteController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'site_id' => 'required|integer|unique:sites,site_id,' . $site->id,
+            'site_id' => 'required|integer|unique:sites,site_id,'.$site->id,
             'url' => 'required|url|max:255',
             'consumer_key' => 'required|string|max:255',
             'consumer_secret' => 'required|string|max:255',
@@ -152,6 +153,7 @@ class SiteController extends Controller
     public function users(Site $site)
     {
         $users = $site->users()->paginate(15);
+
         return view('admin.sites.users', compact('site', 'users'));
     }
 
